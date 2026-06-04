@@ -1,0 +1,106 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #0891b2;
+  --color-secondary: #22d3ee;
+  --color-accent: #059669;
+  --color-bg: #ecfeff;
+  --color-fg: #164e63;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-white text-ink font-body antialiased;
+    background-image:
+      radial-gradient( at 0% 0%, rgba(34, 211, 238, 0.08) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(5, 150, 105, 0.06) 0px, transparent 45%);
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-heading;
+  }
+
+  ::selection {
+    background-color: rgba(8, 145, 178, 0.18);
+  }
+
+  /* Visible focus rings for keyboard users (a11y) */
+  :focus-visible {
+    outline: 3px solid var(--color-primary);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-7xl px-5 sm:px-8;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3.5
+           text-base font-semibold transition-all duration-200 cursor-pointer
+           focus-visible:outline-offset-4;
+  }
+
+  .btn-primary {
+    @apply btn bg-whatsapp text-white shadow-soft hover:shadow-card
+           hover:-translate-y-0.5 hover:brightness-105 active:translate-y-0;
+  }
+
+  .btn-secondary {
+    @apply btn bg-white text-ink ring-1 ring-line hover:ring-primary
+           hover:text-primary hover:-translate-y-0.5;
+  }
+
+  .eyebrow {
+    @apply inline-flex items-center gap-2 rounded-full bg-muted px-4 py-1.5
+           text-sm font-semibold tracking-wide text-primary ring-1 ring-line;
+  }
+
+  .card {
+    @apply rounded-4xl bg-white ring-1 ring-line/70 shadow-soft;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-br from-primary via-primary-light to-accent bg-clip-text text-transparent;
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+    will-change: opacity, transform;
+  }
+
+  .reveal.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Respect users who prefer less motion */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

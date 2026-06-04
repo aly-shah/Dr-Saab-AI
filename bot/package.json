@@ -1,0 +1,21 @@
+{
+  "name": "drsaab-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "DrSaab AI — multilingual Telegram diabetes self-management & coaching bot (MVP)",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "check": "for f in src/*.js src/flows/*.js; do node --check \"$f\" || exit 1; done && echo 'syntax ok'"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "dotenv": "^16.4.5",
+    "node-telegram-bot-api": "^0.66.0",
+    "openai": "^4.67.3",
+    "pg": "^8.21.0",
+    "ws": "^8.21.0"
+  }
+}

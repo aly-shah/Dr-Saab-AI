@@ -1,0 +1,65 @@
+# Deploying DrSaab AI
+
+One repo, two services on one VPS:
+
+- **drsaab-web** — the Next.js website + `/bot` chat GUI (port 3000)
+- **drsaab-bot** — the Telegram bot + web chat API (port 8081), talks to PostgreSQL + Groq
+
+nginx exposes everything on **https://drsaab.scalamedic.com**. The website's
+`/api/bot` route proxies to the bot's web API on `localhost:8081`, so only the
+website is public.
+
+```
+Internet ──▶ nginx (443) ──▶ next (3000) ──/api/bot──▶ bot web API (8081)
+                                                          │
+                                          Telegram ◀──────┤ (long polling)
+                                                          ▼
+                                                    PostgreSQL + Groq
+```
+
+## One-command deploy
+
+On the VPS:
+
+```bash
+# 1. Point DNS: drsaab.scalamedic.com  A  ->  <your server IP>
+# 2. Clone
+git clone https://github.com/aly-shah/Dr-Saab-AI.git
+cd Dr-Saab-AI
+
+# 3. Run the installer (creates DB, env, builds, pm2, nginx)
+TELEGRAM_BOT_TOKEN=8905...  GROQ_API_KEY=gsk_...  ./deploy.sh
+
+# 4. Once DNS resolves, enable HTTPS
+SETUP_SSL=1 SSL_EMAIL=you@example.com ./deploy.sh
+```
+
+`deploy.sh` is idempotent — re-run it anytime to rebuild and restart. If
+`bot/.env` already exists it is preserved (and the DB password kept in sync).
+
+What it does:
+1. Installs Node 20, PostgreSQL, nginx, pm2.
+2. Creates the `drsaab` role + database and loads `bot/db/schema.sql`.
+3. Writes `bot/.env` (prompts for the Telegram + Groq keys if not passed as env vars).
+4. `npm install` + `npm run build` for the website, `npm install` for the bot.
+5. Starts both via `ecosystem.config.cjs` under pm2 and enables boot startup.
+6. Configures the nginx vhost for the domain (and HTTPS with `SETUP_SSL=1`).
+
+## Day-2 operations
+
+```bash
+pm2 status                 # both services
+pm2 logs drsaab-bot        # bot logs
+pm2 logs drsaab-web        # website logs
+pm2 restart all            # after a code change (or re-run ./deploy.sh)
+git pull && ./deploy.sh    # update + rebuild + restart
+```
+
+## Notes
+
+- **Secrets** live only in `bot/.env` (gitignored) — never committed.
+- The bot uses **long polling** (no inbound webhook needed). To switch to
+  webhooks later, set `USE_WEBHOOK=true` + `WEBHOOK_URL` in `bot/.env` and add an
+  nginx location for it.
+- Default new-user tier is `consistency_builder` (premium) so you can test
+  everything. Set `DEFAULT_TIER=free` in `bot/.env` for production.
