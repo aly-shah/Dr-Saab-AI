@@ -2,15 +2,16 @@
 
 One repo, two services on one VPS:
 
-- **drsaab-web** — the Next.js website + `/bot` chat GUI (port 3000)
-- **drsaab-bot** — the Telegram bot + web chat API (port 8081), talks to PostgreSQL + Groq
+- **drsaab-web** — the Next.js website + `/bot` chat GUI (port **3210**)
+- **drsaab-bot** — the Telegram bot + web chat API (port **8321**), talks to PostgreSQL + Groq
 
-nginx exposes everything on **https://drsaab.scalamedic.com**. The website's
-`/api/bot` route proxies to the bot's web API on `localhost:8081`, so only the
-website is public.
+Dedicated ports (3210 / 8321) keep it clear of other apps on the server; the
+deploy script auto-bumps to the next free port if either is taken, and updates
+nginx to match. nginx exposes everything on **https://drsaab.scalamedic.com**.
+The website's `/api/bot` route proxies to the bot's web API on localhost.
 
 ```
-Internet ──▶ nginx (443) ──▶ next (3000) ──/api/bot──▶ bot web API (8081)
+Internet ──▶ nginx (443) ──▶ next (3210) ──/api/bot──▶ bot web API (8321)
                                                           │
                                           Telegram ◀──────┤ (long polling)
                                                           ▼

@@ -1,8 +1,9 @@
 // pm2 config for BOTH services (website + bot).
 //   pm2 start ecosystem.config.cjs
 const path = require("path");
-const WEB_PORT = process.env.WEB_PORT || 3000;
-const WEB_API_PORT = process.env.WEB_API_PORT || 8081;
+// Dedicated, unlikely-to-conflict ports (override via env if needed).
+const WEB_PORT = process.env.WEB_PORT || 3210;
+const WEB_API_PORT = process.env.WEB_API_PORT || 8321;
 
 module.exports = {
   apps: [
