@@ -82,7 +82,7 @@ if [ -f bot/.env ] && grep -q '^DATABASE_URL=' bot/.env; then
 fi
 [ -z "$DB_PASS" ] && DB_PASS="$(openssl rand -hex 16)"
 
-$SUDO -u postgres psql -v ON_ERROR_STOP=1 <<SQL
+sudo -u postgres psql -v ON_ERROR_STOP=1 <<SQL
 DO \$\$ BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='${DB_USER}') THEN
     CREATE ROLE ${DB_USER} LOGIN PASSWORD '${DB_PASS}';
@@ -92,8 +92,8 @@ DO \$\$ BEGIN
 END \$\$;
 SQL
 
-if ! $SUDO -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" | grep -q 1; then
-  $SUDO -u postgres createdb -O "${DB_USER}" "${DB_NAME}"
+if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" | grep -q 1; then
+  sudo -u postgres createdb -O "${DB_USER}" "${DB_NAME}"
 fi
 
 DATABASE_URL="postgresql://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}"
