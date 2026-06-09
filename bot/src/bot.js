@@ -2,7 +2,7 @@ import { t, LANGUAGES } from "./i18n.js";
 import { send, sanitizeMd, langOf } from "./utils.js";
 import { mainMenuKeyboard, profileKeyboard, languageKeyboard, backKeyboard } from "./keyboards.js";
 import { getSession, resetFlow } from "./session.js";
-import { getOrCreateUser, updateUser } from "./supabase.js";
+import { getOrCreateUser, updateUser, recordMessage } from "./supabase.js";
 
 import { startOnboarding, onboardingText, onboardingCallback } from "./flows/onboarding.js";
 import {
@@ -96,6 +96,9 @@ export async function handleMessage(bot, msg) {
   const chatId = msg.chat.id;
   const session = getSession(chatId);
   if (!session.user) session.user = await getOrCreateUser(msg.from?.id ?? chatId);
+
+  // count activity for the patient KB (cheap upsert, no AI)
+  recordMessage(session.user.id).catch(() => {});
 
   const text = msg.text;
   const cmd = text?.split(/\s+/)[0]?.split("@")[0];

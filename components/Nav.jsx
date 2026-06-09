@@ -11,8 +11,7 @@ const LINKS = [
   { href: "#faq", label: "FAQ" },
 ];
 
-const WHATSAPP_URL =
-  "https://wa.me/10000000000?text=Hi%20Dr%20Saab%20AI%2C%20I%20want%20to%20take%20control%20of%20my%20blood%20sugar";
+const WHATSAPP_URL = "/bot";
 
 export default function Nav() {
   const [open, setOpen] = useState(false);
@@ -57,14 +56,9 @@ export default function Nav() {
         </ul>
 
         <div className="hidden items-center gap-3 lg:flex">
-          <a
-            href={WHATSAPP_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-primary px-5 py-2.5 text-sm"
-          >
+          <a href={WHATSAPP_URL} className="btn-primary px-5 py-2.5 text-sm">
             <WhatsAppIcon className="h-4 w-4" />
-            Chat on WhatsApp
+            Chat with Dr Saab AI
           </a>
         </div>
 
@@ -97,13 +91,11 @@ export default function Nav() {
             <li className="pt-2">
               <a
                 href={WHATSAPP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
                 onClick={() => setOpen(false)}
                 className="btn-primary w-full"
               >
                 <WhatsAppIcon className="h-5 w-5" />
-                Chat on WhatsApp
+                Chat with Dr Saab AI
               </a>
             </li>
           </ul>

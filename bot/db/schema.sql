@@ -87,6 +87,15 @@ create table if not exists public.coach_messages (
 );
 create index if not exists coach_messages_user_idx on public.coach_messages(user_id, created_at desc);
 
+-- ---------- Per-patient knowledge base (built from structured data, no AI) ----------
+create table if not exists public.patient_kb (
+  user_id       uuid primary key references public.users(id) on delete cascade,
+  content       text,
+  message_count int default 0,
+  last_seen     timestamptz default now(),
+  updated_at    timestamptz default now()
+);
+
 -- keep updated_at fresh on users
 create or replace function public.touch_updated_at()
 returns trigger language plpgsql as $$

@@ -20,6 +20,9 @@ module.exports = {
         PORT: String(WEB_PORT),
         // /api/bot proxies to the bot's web API on the same host
         BOT_API_URL: `http://localhost:${WEB_API_PORT}/web/message`,
+        // admin dashboard reads the same DB the bot uses
+        DATABASE_URL: process.env.DATABASE_URL || "",
+        ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || "drsaab-admin",
       },
     },
     {

@@ -2,7 +2,8 @@ import { t } from "../i18n.js";
 import { send, typing, langOf, isPremium, photoDataUrl } from "../utils.js";
 import { backKeyboard } from "../keyboards.js";
 import { coachReply } from "../openai.js";
-import { saveCoachMessage } from "../supabase.js";
+import { saveCoachMessage, weeklyStats } from "../supabase.js";
+import { compactKB } from "../kb.js";
 import { pushHistory } from "../session.js";
 
 const PROMPT_KEY = { coach: "coach_prompt", food: "food_prompt", fitness: "fitness_prompt" };
@@ -34,7 +35,14 @@ export async function coachText(bot, chatId, session, text, msg) {
 
   await typing(bot, chatId);
   try {
-    const reply = await coachReply(session.user, session.history, userText, kind, imageDataUrl);
+    // cheap personalization: one DB read, no extra AI cost
+    let extra = "";
+    try {
+      extra = compactKB(session.user, await weeklyStats(session.user.id));
+    } catch {
+      /* ignore */
+    }
+    const reply = await coachReply(session.user, session.history, userText, kind, imageDataUrl, extra);
 
     pushHistory(session, "user", userText || "[image]");
     pushHistory(session, "assistant", reply);

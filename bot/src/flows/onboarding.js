@@ -8,6 +8,7 @@ import {
   mainMenuKeyboard,
 } from "../keyboards.js";
 import { updateUser } from "../supabase.js";
+import { refreshKB } from "../kb.js";
 import { resetFlow } from "../session.js";
 
 // Ordered steps. 'choice' steps are answered via inline buttons (callbacks),
@@ -104,6 +105,7 @@ async function finish(bot, chatId, session) {
   const lang = updated.language || "en";
   resetFlow(chatId);
   session.user = updated;
+  await refreshKB(updated);
   await send(bot, chatId, t(lang, "onboarding_done", { name: sanitizeMd(updated.name || "") }), {
     markdown: true,
   });

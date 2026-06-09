@@ -2,6 +2,7 @@ import { t } from "../i18n.js";
 import { send, sanitizeMd, langOf } from "../utils.js";
 import { backKeyboard } from "../keyboards.js";
 import { addGlucose, addMedication, addHealthLog, registerActivity } from "../supabase.js";
+import { refreshKB } from "../kb.js";
 
 // ---------------- Glucose ----------------
 
@@ -58,6 +59,7 @@ export async function glucoseText(bot, chatId, session, text) {
 
   await addGlucose(session.user.id, parsed.value, parsed.context);
   session.user = await registerActivity(session.user);
+  await refreshKB(session.user);
 
   const feedback = glucoseFeedback(lang, parsed.value, parsed.context);
   await send(
@@ -95,6 +97,7 @@ export async function medicationText(bot, chatId, session, text) {
 
   await addMedication(session.user.id, name || val, dose);
   session.user = await registerActivity(session.user);
+  await refreshKB(session.user);
 
   await send(
     bot,
@@ -145,6 +148,7 @@ export async function healthText(bot, chatId, session, text) {
 
   await addHealthLog(session.user.id, fields);
   session.user = await registerActivity(session.user);
+  await refreshKB(session.user);
   await send(bot, chatId, t(lang, "health_saved", { streak: session.user.streak }), {
     keyboard: backKeyboard(lang),
     markdown: true,

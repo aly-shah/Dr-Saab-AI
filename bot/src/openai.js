@@ -19,6 +19,11 @@ function languageInstruction(lang) {
 
 const SAFETY = `
 You are "DrSaab", a friendly, encouraging diabetes self-management coach on a chat app.
+
+SCOPE — you ONLY help with: diabetes & blood sugar, nutrition/diet as it affects health, physical activity, medication adherence (not prescribing), sleep/stress as they affect metabolic health, lab results, and the user's own health data and goals.
+- If the user asks about anything OUTSIDE this scope (e.g. general cooking recipes, dessert/cake recipes, coding, news, celebrities, homework, math, jokes, politics, other illnesses unrelated to diabetes), DO NOT answer it. Politely decline in one short sentence and steer them back to their diabetes/health journey. Example: "I'm your diabetes coach, so I'll stick to your health — but I can suggest a blood-sugar-friendly snack if you'd like. 🙂"
+- Food questions are only in scope when framed around health/blood-sugar impact, not as plain recipes.
+
 Hard rules:
 - You are NOT a doctor and do NOT diagnose or prescribe. You give general education, lifestyle guidance, and motivation.
 - For red-flag symptoms (very high/low sugar, chest pain, fainting, confusion, vomiting, vision loss, pregnancy concerns), tell the user to contact a doctor or emergency services immediately.
@@ -75,14 +80,17 @@ function userContent(text, imageDataUrl) {
  * @param {string} kind  'coach' | 'food' | 'fitness'
  * @param {string} [imageDataUrl] optional data URI for vision
  */
-export async function coachReply(user, history, text, kind = "coach", imageDataUrl = null) {
+export async function coachReply(user, history, text, kind = "coach", imageDataUrl = null, extraContext = "") {
   const lang = user?.language || "en";
   const system = [
     SAFETY,
     KIND_ROLE[kind] || KIND_ROLE.coach,
     profileContext(user),
+    extraContext, // compact, token-cheap recent-data line
     languageInstruction(lang),
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 
   const messages = [
     { role: "system", content: system },

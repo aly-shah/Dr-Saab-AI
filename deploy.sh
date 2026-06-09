@@ -126,9 +126,18 @@ else
   set_env_kv bot/.env WEB_API_PORT "${WEB_API_PORT}"
 fi
 
-# Website runtime env (read by next start)
+# Admin password: keep existing, else use provided env, else generate one.
+ADMIN_PASSWORD="${ADMIN_PASSWORD:-}"
+if [ -z "$ADMIN_PASSWORD" ] && [ -f .env.production ] && grep -q '^ADMIN_PASSWORD=' .env.production; then
+  ADMIN_PASSWORD="$(grep '^ADMIN_PASSWORD=' .env.production | head -1 | cut -d= -f2-)"
+fi
+[ -z "$ADMIN_PASSWORD" ] && ADMIN_PASSWORD="$(openssl rand -hex 8)"
+
+# Website runtime env (read by next start + admin dashboard)
 cat > .env.production <<ENV
 BOT_API_URL=http://localhost:${WEB_API_PORT}/web/message
+DATABASE_URL=${DATABASE_URL}
+ADMIN_PASSWORD=${ADMIN_PASSWORD}
 ENV
 
 # ---------- 5. install + build ----------
@@ -143,7 +152,7 @@ npm run build
 
 # ---------- 6. pm2 ----------
 log "Starting services with pm2 (web:${WEB_PORT}, api:${WEB_API_PORT})"
-WEB_PORT="$WEB_PORT" WEB_API_PORT="$WEB_API_PORT" pm2 start ecosystem.config.cjs --update-env
+WEB_PORT="$WEB_PORT" WEB_API_PORT="$WEB_API_PORT" DATABASE_URL="$DATABASE_URL" ADMIN_PASSWORD="$ADMIN_PASSWORD" pm2 start ecosystem.config.cjs --update-env
 pm2 save
 $SUDO env PATH="$PATH" "$(command -v pm2)" startup systemd -u "$USER" --hp "$HOME" >/dev/null 2>&1 || \
   warn "Could not auto-enable pm2 startup; run what 'pm2 startup' prints, then 'pm2 save'."
@@ -197,6 +206,7 @@ fi
 log "Deploy complete 🎉"
 echo "   Website : https://${DOMAIN}   (-> 127.0.0.1:${WEB_PORT})"
 echo "   Chat GUI: https://${DOMAIN}/bot"
+echo "   Admin   : https://${DOMAIN}/admin   (password: ${ADMIN_PASSWORD})"
 echo "   Bot API : 127.0.0.1:${WEB_API_PORT} (internal)"
 echo "   Manage  : pm2 status · pm2 logs drsaab-web · pm2 logs drsaab-bot"
 echo

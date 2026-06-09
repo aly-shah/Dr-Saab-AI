@@ -182,6 +182,20 @@ async function makePostgresBackend() {
       );
       return rows[0]?.weight_kg ?? null;
     },
+    async recordMessage(userId) {
+      await pool.query(
+        `insert into patient_kb (user_id, message_count, last_seen) values ($1, 1, now())
+         on conflict (user_id) do update set message_count = patient_kb.message_count + 1, last_seen = now()`,
+        [userId]
+      );
+    },
+    async upsertKB(userId, content) {
+      await pool.query(
+        `insert into patient_kb (user_id, content, updated_at) values ($1, $2, now())
+         on conflict (user_id) do update set content = excluded.content, updated_at = now()`,
+        [userId, content]
+      );
+    },
   };
 }
 
@@ -195,6 +209,7 @@ function makeMemoryBackend() {
   const meds = [];
   const health = [];
   const labs = [];
+  const kb = new Map();
   let seq = 1;
 
   return {
@@ -253,6 +268,18 @@ function makeMemoryBackend() {
         .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
       return rows[0]?.weight_kg ?? null;
     },
+    async recordMessage(userId) {
+      const k = kb.get(userId) || { message_count: 0 };
+      k.message_count = (k.message_count || 0) + 1;
+      k.last_seen = nowISO();
+      kb.set(userId, k);
+    },
+    async upsertKB(userId, content) {
+      const k = kb.get(userId) || { message_count: 0 };
+      k.content = content;
+      k.updated_at = nowISO();
+      kb.set(userId, k);
+    },
   };
 }
 
@@ -297,6 +324,8 @@ export const addLabReport = (id, raw, analysis) => backend.addLabReport(id, raw,
 export const saveCoachMessage = (id, kind, role, content) => backend.saveCoachMessage(id, kind, role, content);
 export const recentGlucose = (id, limit = 5) => backend.recentGlucose(id, limit);
 export const latestWeight = (id) => backend.latestWeight(id);
+export const recordMessage = (id) => backend.recordMessage(id);
+export const upsertKB = (id, content) => backend.upsertKB(id, content);
 
 export async function weeklyStats(userId) {
   const { g, m, h } = await backend.weeklyRaw(userId);

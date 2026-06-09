@@ -1,7 +1,6 @@
 import { WhatsAppIcon, CheckCircleIcon } from "./icons";
 
-const WHATSAPP_URL =
-  "https://wa.me/10000000000?text=Hi%20Dr%20Saab%20AI%2C%20I%20want%20to%20take%20control%20of%20my%20blood%20sugar";
+const WHATSAPP_URL = "/bot";
 
 export default function FinalCTA() {
   return (

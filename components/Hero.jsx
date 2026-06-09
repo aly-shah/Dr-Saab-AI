@@ -1,8 +1,7 @@
 import PhoneMockup from "./PhoneMockup";
 import { WhatsAppIcon, ArrowRightIcon, CheckCircleIcon } from "./icons";
 
-const WHATSAPP_URL =
-  "https://wa.me/10000000000?text=Hi%20Dr%20Saab%20AI%2C%20I%20want%20to%20take%20control%20of%20my%20blood%20sugar";
+const WHATSAPP_URL = "/bot";
 
 // Small green trend pill with a clean diagonal arrow (no unicode glyphs).
 function TrendPill({ dir = "down", children }) {
@@ -102,14 +101,9 @@ export default function Hero() {
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <a
-              href={WHATSAPP_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-primary"
-            >
+            <a href={WHATSAPP_URL} className="btn-primary">
               <WhatsAppIcon className="h-5 w-5" />
-              Start free on WhatsApp
+              Chat with Dr Saab AI
             </a>
             <a href="#how" className="btn-secondary">
               See how it works
