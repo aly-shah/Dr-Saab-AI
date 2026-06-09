@@ -14,7 +14,7 @@
 set -euo pipefail
 
 # ---------- config (override via env) ----------
-DOMAIN="${DOMAIN:-drsaab.scalamedic.com}"
+DOMAIN="${DOMAIN:-drsaabcoach.com}"
 DEFAULT_WEB_PORT="${WEB_PORT:-3210}"
 DEFAULT_API_PORT="${WEB_API_PORT:-8321}"
 DB_NAME="${DB_NAME:-drsaab}"
@@ -22,6 +22,12 @@ DB_USER="${DB_USER:-drsaab}"
 DEFAULT_TIER="${DEFAULT_TIER:-consistency_builder}"
 LLM_MODEL="${LLM_MODEL:-llama-3.3-70b-versatile}"
 LLM_VISION_MODEL="${LLM_VISION_MODEL:-meta-llama/llama-4-scout-17b-16e-instruct}"
+
+# HTTPS via Let's Encrypt — on by default. Needs DNS for $DOMAIN pointing here
+# and ports 80/443 open. INCLUDE_WWW=1 also covers www.$DOMAIN.
+SETUP_SSL="${SETUP_SSL:-1}"
+SSL_EMAIL="${SSL_EMAIL:-admin@${DOMAIN}}"
+INCLUDE_WWW="${INCLUDE_WWW:-0}"
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$APP_DIR"
@@ -162,18 +168,26 @@ pm2 save
 NGINX_AVAIL=/etc/nginx/sites-available/drsaab.conf
 NGINX_ENABLED=/etc/nginx/sites-enabled/drsaab.conf
 
+SERVER_NAMES="${DOMAIN}"
+[ "$INCLUDE_WWW" = "1" ] && SERVER_NAMES="${DOMAIN} www.${DOMAIN}"
+
+# Open the firewall for nginx if ufw is active (best-effort).
+if command -v ufw >/dev/null 2>&1 && $SUDO ufw status 2>/dev/null | grep -q "Status: active"; then
+  $SUDO ufw allow "Nginx Full" >/dev/null 2>&1 || true
+fi
+
 if [ -f "$NGINX_AVAIL" ] || [ -f "$NGINX_ENABLED" ]; then
   log "Updating existing nginx vhost -> 127.0.0.1:${WEB_PORT} (SSL preserved)"
   for f in "$NGINX_AVAIL" "$NGINX_ENABLED"; do
     [ -f "$f" ] && $SUDO sed -i -E "s#proxy_pass http://127\.0\.0\.1:[0-9]+#proxy_pass http://127.0.0.1:${WEB_PORT}#g" "$f"
   done
 else
-  log "Creating nginx vhost for ${DOMAIN} -> 127.0.0.1:${WEB_PORT}"
+  log "Creating nginx vhost for ${SERVER_NAMES} -> 127.0.0.1:${WEB_PORT}"
   $SUDO tee "$NGINX_AVAIL" >/dev/null <<NGINX
 server {
     listen 80;
     listen [::]:80;
-    server_name ${DOMAIN};
+    server_name ${SERVER_NAMES};
 
     client_max_body_size 12M;
 
@@ -195,20 +209,28 @@ fi
 $SUDO nginx -t
 $SUDO systemctl reload nginx
 
-# ---------- 8. SSL (optional) ----------
-if [ "${SETUP_SSL:-0}" = "1" ]; then
-  log "Issuing HTTPS certificate via certbot"
+# ---------- 8. SSL (Let's Encrypt) ----------
+SSL_OK=0
+if [ "$SETUP_SSL" = "1" ]; then
+  log "Issuing HTTPS certificate via certbot for ${SERVER_NAMES}"
   $SUDO apt-get install -y certbot python3-certbot-nginx
-  $SUDO certbot --nginx -d "${DOMAIN}" --non-interactive --agree-tos \
-    -m "${SSL_EMAIL:-admin@${DOMAIN}}" --redirect
+  CB_ARGS=(--nginx --non-interactive --agree-tos -m "$SSL_EMAIL" --redirect -d "$DOMAIN")
+  [ "$INCLUDE_WWW" = "1" ] && CB_ARGS+=(-d "www.${DOMAIN}")
+  if $SUDO certbot "${CB_ARGS[@]}"; then
+    SSL_OK=1
+  else
+    warn "certbot failed — likely DNS for ${DOMAIN} isn't pointing here yet, or 80/443 are closed."
+    warn "Fix DNS/ports, then re-run:  SETUP_SSL=1 SSL_EMAIL=${SSL_EMAIL} ./deploy.sh"
+  fi
 fi
 
-log "Deploy complete 🎉"
-echo "   Website : https://${DOMAIN}   (-> 127.0.0.1:${WEB_PORT})"
-echo "   Chat GUI: https://${DOMAIN}/bot"
-echo "   Admin   : https://${DOMAIN}/admin   (password: ${ADMIN_PASSWORD})"
+SCHEME="http"; [ "$SSL_OK" = "1" ] && SCHEME="https"
+
+log "Deploy complete"
+echo "   Website : ${SCHEME}://${DOMAIN}   (-> 127.0.0.1:${WEB_PORT})"
+echo "   Chat GUI: ${SCHEME}://${DOMAIN}/bot"
+echo "   Admin   : ${SCHEME}://${DOMAIN}/admin   (password: ${ADMIN_PASSWORD})"
 echo "   Bot API : 127.0.0.1:${WEB_API_PORT} (internal)"
 echo "   Manage  : pm2 status · pm2 logs drsaab-web · pm2 logs drsaab-bot"
 echo
-warn "Ensure DNS for ${DOMAIN} points here and ports 80/443 are open."
-[ "${SETUP_SSL:-0}" != "1" ] && warn "Run with SETUP_SSL=1 SSL_EMAIL=you@example.com to enable HTTPS."
+[ "$SSL_OK" = "1" ] || warn "Ensure DNS for ${DOMAIN} points here and ports 80/443 are open, then re-run for HTTPS."

@@ -7,7 +7,8 @@
       "WebFetch(domain:petalchan.vercel.app)",
       "Bash(git add *)",
       "Bash(git commit -q -m 'Strip emojis from all bot replies + buttons \\(clean/professional\\), no-emoji model prompt; add explicit Back-to-website control on /bot *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(bash -n deploy.sh)"
     ]
   }
 }
