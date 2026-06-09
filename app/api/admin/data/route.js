@@ -15,6 +15,7 @@ export async function GET(req) {
       messages,
       glucoseByDay,
       patients,
+      leaderboard,
     ] = await Promise.all([
       q(`select
            count(*)::int                                                as total_patients,
@@ -47,6 +48,14 @@ export async function GET(req) {
          where u.onboarded
          order by kb.last_seen desc nulls last
          limit 200`),
+      q(`select u.id, u.name, u.city, u.streak,
+                coalesce(kb.message_count,0) as messages,
+                (select count(*) from glucose_logs g
+                   where g.user_id=u.id and g.created_at >= now() - interval '7 days') as readings_week
+         from users u left join patient_kb kb on kb.user_id=u.id
+         where u.onboarded
+         order by u.streak desc, readings_week desc, messages desc
+         limit 10`),
     ]);
 
     return Response.json({
@@ -57,6 +66,7 @@ export async function GET(req) {
       messages,
       glucoseByDay,
       patients,
+      leaderboard,
     });
   } catch (e) {
     return Response.json({ error: e.message }, { status: 500 });

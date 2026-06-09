@@ -123,12 +123,22 @@ async function makePostgresBackend() {
       const { rows } = await pool.query("select * from users where telegram_id = $1", [telegramId]);
       return rows[0] || null;
     },
-    async createUser(telegramId) {
+    async createUser(telegramId, source = "telegram") {
       const { rows } = await pool.query(
-        "insert into users (telegram_id, tier) values ($1, $2) returning *",
-        [telegramId, config.defaultTier]
+        "insert into users (telegram_id, tier, source) values ($1, $2, $3) returning *",
+        [telegramId, config.defaultTier, source]
       );
       return rows[0];
+    },
+    async allActiveUsers() {
+      const { rows } = await pool.query(
+        `select u.id, u.telegram_id, u.language, u.streak, u.last_log_date,
+                u.last_reminder_date, u.last_streak_date, u.last_winback_date, u.last_summary_date,
+                kb.last_seen
+         from users u left join patient_kb kb on kb.user_id = u.id
+         where u.onboarded and coalesce(u.source,'telegram') = 'telegram'`
+      );
+      return rows;
     },
     async updateUser(userId, patch) {
       const keys = Object.keys(patch);
@@ -217,7 +227,7 @@ function makeMemoryBackend() {
       const id = usersByTg.get(telegramId);
       return id ? usersById.get(id) : null;
     },
-    async createUser(telegramId) {
+    async createUser(telegramId, source = "telegram") {
       const user = {
         id: "u" + seq++,
         telegram_id: telegramId,
@@ -225,11 +235,14 @@ function makeMemoryBackend() {
         height_cm: null, weight_kg: null, diabetes_status: null, goals: null, medications: null,
         doctor_code: null, challenge_code: null, team_code: null,
         tier: config.defaultTier, streak: 0, last_log_date: null, onboarded: false,
-        created_at: nowISO(),
+        source, created_at: nowISO(),
       };
       usersById.set(user.id, user);
       usersByTg.set(telegramId, user.id);
       return user;
+    },
+    async allActiveUsers() {
+      return []; // reminders run against a persistent DB only
     },
     async updateUser(userId, patch) {
       const user = { ...usersById.get(userId), ...patch };
@@ -301,11 +314,12 @@ console.log(`   Store: ${storeName}`);
 // ----------------------------------------------------------------
 
 export const getUserByTelegramId = (tg) => backend.getUserByTelegramId(tg);
-export const createUser = (tg) => backend.createUser(tg);
+export const createUser = (tg, source) => backend.createUser(tg, source);
 export const updateUser = (id, patch) => backend.updateUser(id, patch);
+export const allActiveUsers = () => backend.allActiveUsers();
 
-export async function getOrCreateUser(telegramId) {
-  return (await backend.getUserByTelegramId(telegramId)) || (await backend.createUser(telegramId));
+export async function getOrCreateUser(telegramId, source = "telegram") {
+  return (await backend.getUserByTelegramId(telegramId)) || (await backend.createUser(telegramId, source));
 }
 
 // Consistency / streak engine

@@ -2,6 +2,7 @@ import TelegramBot from "node-telegram-bot-api";
 import { config } from "./config.js";
 import { registerHandlers } from "./bot.js";
 import { startWebServer } from "./web.js";
+import { startScheduler } from "./scheduler.js";
 
 const options = config.useWebhook
   ? { webHook: { port: config.port } }
@@ -26,6 +27,9 @@ registerHandlers(bot);
 
 // Web chat GUI API (always on) — powers the /bot page on the website.
 startWebServer();
+
+// Proactive template reminders / streak / summary / win-back (no AI cost).
+startScheduler(bot);
 
 bot
   .setMyCommands([

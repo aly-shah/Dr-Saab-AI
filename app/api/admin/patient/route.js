@@ -25,13 +25,24 @@ export async function GET(req) {
 
     if (!user[0]) return Response.json({ error: "not found" }, { status: 404 });
 
+    const u = user[0];
+    const vals = glucose.map((g) => Number(g.value_mgdl)).filter((n) => !Number.isNaN(n));
+    const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    const hba1c = avg != null ? Math.round(((avg + 46.7) / 28.7) * 10) / 10 : null;
+    let bmi = null;
+    if (u.weight_kg && u.height_cm) {
+      const m = Number(u.height_cm) / 100;
+      if (m) bmi = Math.round((Number(u.weight_kg) / (m * m)) * 10) / 10;
+    }
+
     return Response.json({
-      user: user[0],
+      user: u,
       kb: kb[0] || null,
       glucose: glucose.reverse(), // chronological for the chart
       messages,
       meds,
       health,
+      clinic: { avg: avg != null ? Math.round(avg) : null, hba1c, bmi },
     });
   } catch (e) {
     return Response.json({ error: e.message }, { status: 500 });

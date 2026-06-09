@@ -13,21 +13,9 @@ import { resetFlow } from "../session.js";
 
 // Ordered steps. 'choice' steps are answered via inline buttons (callbacks),
 // 'text' steps via a typed reply, 'optional' steps via text OR a Skip button.
-const STEPS = [
-  "language",
-  "name",
-  "age",
-  "gender",
-  "city",
-  "height",
-  "weight",
-  "diabetes",
-  "goals",
-  "medications",
-  "doctor_code",
-  "challenge_code",
-  "team_code",
-];
+// Short onboarding — only the essentials. Everything else (weight, goals,
+// meds, etc.) is captured conversationally later, not up front.
+const STEPS = ["language", "name", "age", "diabetes", "doctor_code"];
 
 function nextStep(current) {
   const i = STEPS.indexOf(current);

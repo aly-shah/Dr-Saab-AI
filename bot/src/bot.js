@@ -95,7 +95,7 @@ export async function handleMessage(bot, msg) {
   if (!msg.chat) return;
   const chatId = msg.chat.id;
   const session = getSession(chatId);
-  if (!session.user) session.user = await getOrCreateUser(msg.from?.id ?? chatId);
+  if (!session.user) session.user = await getOrCreateUser(msg.from?.id ?? chatId, msg.__source || "telegram");
 
   // count activity for the patient KB (cheap upsert, no AI)
   recordMessage(session.user.id).catch(() => {});
@@ -142,7 +142,7 @@ export async function handleCallback(bot, query) {
   const chatId = query.message?.chat?.id;
   if (!chatId) return;
   const session = getSession(chatId);
-  if (!session.user) session.user = await getOrCreateUser(query.from.id);
+  if (!session.user) session.user = await getOrCreateUser(query.from.id, query.__source || "telegram");
   const data = query.data || "";
   bot.answerCallbackQuery(query.id).catch(() => {});
 

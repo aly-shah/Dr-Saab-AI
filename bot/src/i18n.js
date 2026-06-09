@@ -94,6 +94,13 @@ const STR = {
     error_generic: "😕 Something went wrong. Please try again in a moment.",
     disclaimer:
       "_DrSaab gives general guidance and is not a substitute for professional medical advice._",
+    reminder_daily: "Good morning! Time to log your fasting blood sugar. Just send your reading, e.g. 130.",
+    reminder_streak: "You're on a {streak}-day streak! Log a reading today to keep it going.",
+    reminder_winback: "We've missed you at Dr Saab AI. A quick sugar check or a short walk today keeps you on track.",
+    summary_push:
+      "*Your weekly health summary*\n\nReadings logged: {count}\nAverage sugar: {avg} mg/dL (range {min}-{max})\nEstimated HbA1c: {hba1c}%\nCurrent streak: {streak} day(s)\n\nKeep it up — small steps every day add up.",
+    clinic_hba1c: "Est. HbA1c",
+    clinic_bmi: "BMI",
   },
 
   ur: {
@@ -179,6 +186,13 @@ const STR = {
     cancelled: "منسوخ۔ مینو پر واپس۔ 📋",
     error_generic: "😕 کچھ مسئلہ ہو گیا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔",
     disclaimer: "_DrSaab عمومی رہنمائی دیتا ہے اور طبی مشورے کا متبادل نہیں۔_",
+    reminder_daily: "صبح بخیر! اپنی فاسٹنگ شوگر لاگ کرنے کا وقت ہے۔ بس اپنی ریڈنگ بھیجیں، مثلاً 130۔",
+    reminder_streak: "آپ کا {streak} دن کا سلسلہ جاری ہے! آج ایک ریڈنگ لاگ کریں تاکہ یہ برقرار رہے۔",
+    reminder_winback: "ہمیں Dr Saab AI پر آپ کی کمی محسوس ہوئی۔ آج ایک مختصر شوگر چیک یا چھوٹی واک آپ کو ٹریک پر رکھے گی۔",
+    summary_push:
+      "*آپ کا ہفتہ وار صحت خلاصہ*\n\nلاگ کی گئی ریڈنگز: {count}\nاوسط شوگر: {avg} mg/dL (حد {min}-{max})\nتخمینی HbA1c: {hba1c}%\nموجودہ سلسلہ: {streak} دن\n\nجاری رکھیں — روزانہ چھوٹے قدم بڑا فرق لاتے ہیں۔",
+    clinic_hba1c: "تخمینی HbA1c",
+    clinic_bmi: "بی ایم آئی",
   },
 
   roman_ur: {
@@ -264,6 +278,13 @@ const STR = {
     cancelled: "Cancel. Menu par wapas. 📋",
     error_generic: "😕 Kuch masla ho gaya. Thori dair baad dobara koshish karein.",
     disclaimer: "_DrSaab aam rahnumai deta hai aur tibbi mashware ka mutabadil nahi._",
+    reminder_daily: "Good morning! Apni fasting sugar log karne ka waqt hai. Bas apni reading bhejein, masalan 130.",
+    reminder_streak: "Aap ka {streak}-din ka streak chal raha hai! Aaj ek reading log karein taake yeh barqarar rahe.",
+    reminder_winback: "Humein Dr Saab AI par aap ki kami mehsoos hui. Aaj ek choti sugar check ya walk aap ko track par rakhegi.",
+    summary_push:
+      "*Aap ka haftawaar sehat khulasa*\n\nLog ki gayi readings: {count}\nAusat sugar: {avg} mg/dL (range {min}-{max})\nEstimated HbA1c: {hba1c}%\nMojooda streak: {streak} din\n\nJari rakhein — rozana chote qadam bara farq latay hain.",
+    clinic_hba1c: "Est. HbA1c",
+    clinic_bmi: "BMI",
   },
 };
 

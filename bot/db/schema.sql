@@ -96,6 +96,21 @@ create table if not exists public.patient_kb (
   updated_at    timestamptz default now()
 );
 
+-- ---------- Doctors / referral codes (created in the admin dashboard) ----------
+create table if not exists public.doctors (
+  id          uuid primary key default gen_random_uuid(),
+  name        text not null,
+  code        text unique not null,
+  created_at  timestamptz default now()
+);
+
+-- ---------- Columns added over time (safe to re-run) ----------
+alter table public.users add column if not exists source            text default 'telegram';
+alter table public.users add column if not exists last_reminder_date date;
+alter table public.users add column if not exists last_streak_date   date;
+alter table public.users add column if not exists last_winback_date  date;
+alter table public.users add column if not exists last_summary_date  date;
+
 -- keep updated_at fresh on users
 create or replace function public.touch_updated_at()
 returns trigger language plpgsql as $$

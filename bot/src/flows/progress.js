@@ -3,15 +3,25 @@ import { send, typing, langOf } from "../utils.js";
 import { backKeyboard } from "../keyboards.js";
 import { recentGlucose, latestWeight, weeklyStats } from "../supabase.js";
 import { weeklySummary } from "../openai.js";
+import { estHbA1c, bmi, bmiCategory } from "../clinic.js";
 
 export async function showProgress(bot, chatId, session) {
   const lang = langOf(session);
   session.state = "idle";
 
-  const [readings, weight] = await Promise.all([
+  const [readings, weight, stats] = await Promise.all([
     recentGlucose(session.user.id, 5),
     latestWeight(session.user.id),
+    weeklyStats(session.user.id),
   ]);
+
+  // Clinical estimates (formulas only, no AI)
+  const hba1c = estHbA1c(stats.glucoseAvg);
+  const bmiVal = bmi(weight ?? session.user.weight_kg, session.user.height_cm);
+  const clinicLines = [];
+  if (hba1c != null) clinicLines.push(`${t(lang, "clinic_hba1c")}: *${hba1c}%*`);
+  if (bmiVal != null) clinicLines.push(`${t(lang, "clinic_bmi")}: *${bmiVal}* (${bmiCategory(bmiVal)})`);
+  const clinicBlock = clinicLines.length ? "\n\n" + clinicLines.join("\n") : "";
 
   const readingsText = readings.length
     ? readings
@@ -29,7 +39,7 @@ export async function showProgress(bot, chatId, session) {
     readings: readingsText,
   });
 
-  await send(bot, chatId, `${t(lang, "progress_title")}\n\n${body}`, {
+  await send(bot, chatId, `${t(lang, "progress_title")}\n\n${body}${clinicBlock}`, {
     keyboard: backKeyboard(lang),
     markdown: true,
   });

@@ -35,12 +35,14 @@ async function processWeb(sessionId, type, payload) {
         data: payload,
         message: { chat: { id: sessionId } },
         from: { id: sessionId },
+        __source: "web",
       });
     } else {
       await handleMessage(vbot, {
         chat: { id: sessionId },
         from: { id: sessionId },
         text: payload,
+        __source: "web",
       });
     }
   } catch (e) {
