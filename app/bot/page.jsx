@@ -17,6 +17,44 @@ function makeSessionId() {
   return Math.floor(Math.random() * 9e11) + 1e11;
 }
 
+// ---- quick-reply icons mapped from the bot's callback_data ----
+function chipKey(data = "") {
+  if (data.startsWith("feat:")) return data.slice(5);
+  if (data.startsWith("lang:")) return "language";
+  if (data.startsWith("gender:")) return "gender";
+  if (data.startsWith("ds:")) return "diabetes";
+  return data;
+}
+
+const I = (paths) => (
+  <svg viewBox="0 0 24 24" className="h-4 w-4 flex-none" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    {paths}
+  </svg>
+);
+
+function ChipIcon({ data }) {
+  switch (chipKey(data)) {
+    case "glucose": return I(<path d="M12 3.5l5 5a7 7 0 1 1-10 0l5-5z" />);
+    case "medication": return I(<><rect x="3" y="9" width="18" height="6" rx="3" transform="rotate(45 12 12)" /><path d="M8.5 8.5l7 7" /></>);
+    case "health": return I(<><rect x="5" y="3.5" width="14" height="17" rx="2.5" /><path d="M9 8h6M9 12l1.5 1.5L14 10" /></>);
+    case "progress": return I(<path d="M3 17l5-5 3 3 7-7M21 8V5h-3" />);
+    case "coach": return I(<path d="M21 11.5a8.4 8.4 0 0 1-12.3 7.5L3 21l2-5.7A8.4 8.4 0 1 1 21 11.5z" />);
+    case "food": return I(<><path d="M4 11h16a8 8 0 0 1-16 0z" /><path d="M7 21h10M12 11V3" /></>);
+    case "fitness": return I(<><path d="M6.5 6.5l11 11M4 9l2-2M20 15l-2 2M2.5 11.5l3 3M21.5 12.5l-3-3" /></>);
+    case "lab": return I(<><path d="M9 3h6M10 3v6l-5 8a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-8V3" /></>);
+    case "summary": return I(<><rect x="3.5" y="4.5" width="17" height="16" rx="2.5" /><path d="M3.5 9h17M8 3v3M16 3v3" /></>);
+    case "learn": return I(<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5z" />);
+    case "profile": return I(<><circle cx="12" cy="8" r="3.5" /><path d="M5 20a7 7 0 0 1 14 0" /></>);
+    case "subscription": return I(<path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z" />);
+    case "language": return I(<><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18" /></>);
+    case "gender": return I(<><circle cx="12" cy="8" r="3.5" /><path d="M6 20a6 6 0 0 1 12 0" /></>);
+    case "diabetes": return I(<path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 12 5 5.5 5.5 0 0 0 2 8.5C2 12 5 14 12 21c2-2 4-3.8 5.5-5.3" />);
+    case "skip": return I(<path d="M5 5l7 7-7 7M13 5l7 7-7 7" />);
+    case "menu": return I(<path d="M4 6h16M4 12h16M4 18h16" />);
+    default: return I(<circle cx="12" cy="12" r="3" />);
+  }
+}
+
 function Avatar() {
   return (
     <span className="grid h-8 w-8 flex-none place-items-center rounded-full bg-gradient-to-br from-primary to-accent text-white shadow-soft">
@@ -29,6 +67,7 @@ export default function BotChatPage() {
   const [messages, setMessages] = useState([]); // {from, text, rows?}
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [reveal, setReveal] = useState({ idx: -1, n: 0 }); // typewriter state
   const sessionRef = useRef(null);
   const scrollRef = useRef(null);
   const taRef = useRef(null);
@@ -53,10 +92,7 @@ export default function BotChatPage() {
         const bots = (data.messages || []).map((m) => ({ from: "bot", text: m.text, rows: m.rows || [] }));
         setMessages((prev) => [...prev, ...bots]);
       } catch {
-        setMessages((prev) => [
-          ...prev,
-          { from: "bot", text: "⚠️ Couldn't reach the server. Is the bot running?", rows: [] },
-        ]);
+        setMessages((prev) => [...prev, { from: "bot", text: "Couldn't reach the server. Is the bot running?", rows: [] }]);
       } finally {
         setLoading(false);
         scrollToBottom();
@@ -82,7 +118,27 @@ export default function BotChatPage() {
     callBot({ type: "text", text: "/start" });
   }, [callBot]);
 
-  useEffect(scrollToBottom, [messages, loading, scrollToBottom]);
+  // start streaming the newest bot message
+  useEffect(() => {
+    const last = messages.length - 1;
+    if (last < 0 || messages[last].from !== "bot") return;
+    setReveal((r) => (r.idx === last ? r : { idx: last, n: 0 }));
+  }, [messages]);
+
+  // typewriter tick
+  useEffect(() => {
+    if (reveal.idx < 0) return;
+    const m = messages[reveal.idx];
+    if (!m || m.from !== "bot") return;
+    const full = m.text.length;
+    if (reveal.n >= full) return;
+    const step = Math.max(2, Math.round(full / 55)); // ~55 ticks regardless of length
+    const t = setTimeout(() => {
+      setReveal((r) => ({ idx: r.idx, n: Math.min(full, r.n + step) }));
+      scrollToBottom();
+    }, 18);
+    return () => clearTimeout(t);
+  }, [reveal, messages, scrollToBottom]);
 
   const autoGrow = () => {
     const ta = taRef.current;
@@ -113,6 +169,7 @@ export default function BotChatPage() {
     } catch {}
     sessionRef.current = Number(id);
     setMessages([]);
+    setReveal({ idx: -1, n: 0 });
     callBot({ type: "text", text: "/start" });
   };
 
@@ -125,7 +182,6 @@ export default function BotChatPage() {
 
   return (
     <div className="flex h-dvh flex-col bg-white">
-      {/* ambient backdrop */}
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute -left-32 top-0 h-80 w-80 rounded-full bg-primary-light/15 blur-3xl" />
         <div className="absolute right-0 top-24 h-80 w-80 rounded-full bg-accent/10 blur-3xl" />
@@ -134,11 +190,7 @@ export default function BotChatPage() {
       {/* top bar */}
       <header className="flex items-center justify-between border-b border-line/50 px-3 py-3 sm:px-6">
         <div className="flex items-center gap-1.5 sm:gap-3">
-          <a
-            href="/"
-            title="Back to website"
-            className="flex items-center gap-1 rounded-full py-1.5 pl-1.5 pr-2.5 text-sm font-medium text-ink/60 transition hover:bg-muted hover:text-ink"
-          >
+          <a href="/" title="Back to website" className="flex items-center gap-1 rounded-full py-1.5 pl-1.5 pr-2.5 text-sm font-medium text-ink/60 transition hover:bg-muted hover:text-ink">
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
               <path d="M15 18l-6-6 6-6" />
             </svg>
@@ -152,15 +204,10 @@ export default function BotChatPage() {
             <span className="text-[15px] font-bold tracking-tight text-ink">
               Dr Saab <span className="text-primary">AI</span>
             </span>
-            <span className="hidden rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-accent sm:inline">
-              online
-            </span>
+            <span className="hidden rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-accent sm:inline">online</span>
           </div>
         </div>
-        <button
-          onClick={resetChat}
-          className="flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold text-ink/60 transition hover:bg-muted hover:text-ink"
-        >
+        <button onClick={resetChat} className="flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold text-ink/60 transition hover:bg-muted hover:text-ink">
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <path d="M5 12a7 7 0 1 1 2 5M5 12V7m0 5h5" />
           </svg>
@@ -177,12 +224,8 @@ export default function BotChatPage() {
                 <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-primary to-accent text-white shadow-card">
                   <SparkleIcon className="h-8 w-8" />
                 </span>
-                <h1 className="mt-5 text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-                  Hi, I&apos;m Dr Saab AI
-                </h1>
-                <p className="mx-auto mt-2 max-w-md text-ink/55">
-                  Your personal diabetes coach. Let&apos;s get you set up…
-                </p>
+                <h1 className="mt-5 text-2xl font-bold tracking-tight text-ink sm:text-3xl">Hi, I&apos;m Dr Saab AI</h1>
+                <p className="mx-auto mt-2 max-w-md text-ink/55">Your personal diabetes coach. Let&apos;s get you set up…</p>
                 <div className="mt-6 flex items-center justify-center gap-1.5">
                   {[0, 1, 2].map((i) => (
                     <span key={i} className="h-2 w-2 rounded-full bg-primary/50 animate-typing" style={{ animationDelay: `${i * 0.2}s` }} />
@@ -193,22 +236,29 @@ export default function BotChatPage() {
           )}
 
           <div className="space-y-6">
-            {messages.map((m, i) =>
-              m.from === "user" ? (
-                <div key={i} className="flex justify-end">
-                  <div className="max-w-[85%] whitespace-pre-wrap rounded-3xl rounded-br-lg bg-primary px-4 py-2.5 text-[15px] leading-relaxed text-white shadow-soft">
-                    {m.text}
+            {messages.map((m, i) => {
+              const streaming = i === reveal.idx && reveal.n < m.text.length;
+              const shown = i === reveal.idx ? m.text.slice(0, reveal.n) : m.text;
+
+              if (m.from === "user") {
+                return (
+                  <div key={i} className="message-in flex justify-end">
+                    <div className="max-w-[85%] whitespace-pre-wrap rounded-3xl rounded-br-lg bg-primary px-4 py-2.5 text-[15px] leading-relaxed text-white shadow-soft">
+                      {m.text}
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div key={i} className="flex gap-3">
+                );
+              }
+
+              return (
+                <div key={i} className="message-in flex gap-3">
                   <Avatar />
                   <div className="min-w-0 flex-1 pt-0.5">
                     <div
-                      className="prose-chat whitespace-pre-wrap text-[15px] leading-relaxed text-ink"
-                      dangerouslySetInnerHTML={{ __html: mdToHtml(m.text) }}
+                      className={`prose-chat whitespace-pre-wrap text-[15px] leading-relaxed text-ink ${streaming ? "stream-caret" : ""}`}
+                      dangerouslySetInnerHTML={{ __html: mdToHtml(shown) }}
                     />
-                    {i === lastBotIdx && m.rows?.length > 0 && (
+                    {!streaming && i === lastBotIdx && m.rows?.length > 0 && (
                       <div className="mt-3 flex flex-col gap-1.5">
                         {m.rows.map((row, r) => (
                           <div key={r} className="flex flex-wrap gap-1.5">
@@ -217,8 +267,9 @@ export default function BotChatPage() {
                                 key={c}
                                 onClick={() => sendCallback(btn)}
                                 disabled={loading}
-                                className="rounded-full border border-line bg-white px-3.5 py-1.5 text-[13.5px] font-medium text-ink/80 transition hover:border-primary hover:bg-primary/5 hover:text-primary disabled:opacity-50"
+                                className="flex items-center gap-2 rounded-full border border-line bg-white px-3.5 py-1.5 text-[13.5px] font-medium text-ink/80 transition hover:border-primary hover:bg-primary/5 hover:text-primary disabled:opacity-50"
                               >
+                                <span className="text-primary/80"><ChipIcon data={btn.data} /></span>
                                 {btn.label}
                               </button>
                             ))}
@@ -228,11 +279,11 @@ export default function BotChatPage() {
                     )}
                   </div>
                 </div>
-              )
-            )}
+              );
+            })}
 
             {loading && !empty && (
-              <div className="flex gap-3">
+              <div className="message-in flex gap-3">
                 <Avatar />
                 <div className="flex items-center gap-1 pt-2">
                   {[0, 1, 2].map((i) => (
@@ -249,26 +300,15 @@ export default function BotChatPage() {
       <div className="border-t border-line/40 bg-white/80 backdrop-blur">
         <div className="mx-auto w-full max-w-3xl px-4 py-3 sm:px-6">
           <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              sendText(input);
-            }}
+            onSubmit={(e) => { e.preventDefault(); sendText(input); }}
             className="flex items-end gap-2 rounded-3xl border border-line bg-white p-1.5 pl-4 shadow-soft focus-within:border-primary focus-within:shadow-card"
           >
             <textarea
               ref={taRef}
               rows={1}
               value={input}
-              onChange={(e) => {
-                setInput(e.target.value);
-                autoGrow();
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  sendText(input);
-                }
-              }}
+              onChange={(e) => { setInput(e.target.value); autoGrow(); }}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendText(input); } }}
               placeholder="Message Dr Saab AI…"
               className="max-h-44 flex-1 resize-none bg-transparent py-2.5 text-[15px] text-ink outline-none placeholder:text-ink/35"
             />
