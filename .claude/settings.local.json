@@ -4,7 +4,10 @@
       "Bash(rm -rf /home/asad/.claude/skills/ui-ux-pro-max /home/asad/.claude/skills/banner-design /home/asad/.claude/skills/brand /home/asad/.claude/skills/design /home/asad/.claude/skills/design-system /home/asad/.claude/skills/slides /home/asad/.claude/skills/ui-styling)",
       "Bash(cp -a /tmp/ui-ux-pro-max-skill/.claude/skills/. /home/asad/.claude/skills/)",
       "Read(//tmp/ui-ux-pro-max-skill/.claude/skills/**)",
-      "WebFetch(domain:petalchan.vercel.app)"
+      "WebFetch(domain:petalchan.vercel.app)",
+      "Bash(git add *)",
+      "Bash(git commit -q -m 'Strip emojis from all bot replies + buttons \\(clean/professional\\), no-emoji model prompt; add explicit Back-to-website control on /bot *)",
+      "Bash(git push *)"
     ]
   }
 }

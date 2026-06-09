@@ -132,18 +132,31 @@ export default function BotChatPage() {
       </div>
 
       {/* top bar */}
-      <header className="flex items-center justify-between border-b border-line/50 px-4 py-3 sm:px-6">
-        <a href="/" className="flex items-center gap-2.5">
-          <span className="grid h-8 w-8 place-items-center rounded-xl bg-gradient-to-br from-primary to-accent text-white shadow-soft">
-            <HeartPulseIcon className="h-5 w-5" />
-          </span>
-          <span className="text-[15px] font-bold tracking-tight text-ink">
-            Dr Saab <span className="text-primary">AI</span>
-          </span>
-          <span className="ml-1 hidden rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-accent sm:inline">
-            ● online
-          </span>
-        </a>
+      <header className="flex items-center justify-between border-b border-line/50 px-3 py-3 sm:px-6">
+        <div className="flex items-center gap-1.5 sm:gap-3">
+          <a
+            href="/"
+            title="Back to website"
+            className="flex items-center gap-1 rounded-full py-1.5 pl-1.5 pr-2.5 text-sm font-medium text-ink/60 transition hover:bg-muted hover:text-ink"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+            <span className="hidden sm:inline">Website</span>
+          </a>
+          <span className="h-5 w-px bg-line/70" />
+          <div className="flex items-center gap-2">
+            <span className="grid h-8 w-8 place-items-center rounded-xl bg-gradient-to-br from-primary to-accent text-white shadow-soft">
+              <HeartPulseIcon className="h-5 w-5" />
+            </span>
+            <span className="text-[15px] font-bold tracking-tight text-ink">
+              Dr Saab <span className="text-primary">AI</span>
+            </span>
+            <span className="hidden rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-accent sm:inline">
+              online
+            </span>
+          </div>
+        </div>
         <button
           onClick={resetChat}
           className="flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold text-ink/60 transition hover:bg-muted hover:text-ink"
