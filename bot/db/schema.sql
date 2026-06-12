@@ -111,6 +111,33 @@ alter table public.users add column if not exists last_streak_date   date;
 alter table public.users add column if not exists last_winback_date  date;
 alter table public.users add column if not exists last_summary_date  date;
 
+-- v2 onboarding journey (DrSaab MVP – ENG/URDU/WhatsApp-Urdu)
+alter table public.users add column if not exists user_type           text;   -- diabetes | prediabetes | notsure | parent | exploring
+alter table public.users add column if not exists date_of_birth       text;   -- free-form (free-text answer)
+alter table public.users add column if not exists diagnosis_duration  text;   -- lt1 | 1_5 | 6_10 | gt10 | notsure
+alter table public.users add column if not exists latest_hba1c        numeric;
+alter table public.users add column if not exists hba1c_date_bucket   text;   -- 1m | 1_3 | 3_6 | gt6
+alter table public.users add column if not exists latest_fasting_sugar numeric;
+alter table public.users add column if not exists fasting_reading_date text;  -- today | week | month | notremember
+alter table public.users add column if not exists latest_random_sugar numeric;
+alter table public.users add column if not exists random_reading_date text;
+alter table public.users add column if not exists diabetes_meds       jsonb;  -- array of {name+dose+frequency} strings
+alter table public.users add column if not exists other_conditions    text;
+alter table public.users add column if not exists non_diabetes_meds   jsonb;
+alter table public.users add column if not exists monitoring_habit    text;   -- regularly | sometimes | rarely | never
+alter table public.users add column if not exists monitoring_device   text;   -- glucometer | cgm | both
+alter table public.users add column if not exists primary_goal        text;
+alter table public.users add column if not exists primary_challenge   text;
+alter table public.users add column if not exists motivation_driver   text;
+alter table public.users add column if not exists disclaimer_accepted boolean default false;
+
+-- Per-patient coaching scores (defaults per spec)
+alter table public.users add column if not exists consistency_score   int default 50;
+alter table public.users add column if not exists motivation_score    int default 50;
+alter table public.users add column if not exists risk_score          int default 50;
+alter table public.users add column if not exists engagement_score    int default 50;
+alter table public.users add column if not exists total_checkins      int default 0;
+
 -- keep updated_at fresh on users
 create or replace function public.touch_updated_at()
 returns trigger language plpgsql as $$

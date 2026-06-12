@@ -5,6 +5,7 @@ import { getSession, resetFlow } from "./session.js";
 import { getOrCreateUser, updateUser, recordMessage } from "./supabase.js";
 
 import { startOnboarding, onboardingText, onboardingCallback } from "./flows/onboarding.js";
+import { detectGreetingScenario } from "./welcome.js";
 import {
   startGlucose,
   glucoseText,
@@ -24,8 +25,8 @@ async function showMenu(bot, chatId, session) {
   await send(bot, chatId, t(lang, "menu_title"), { keyboard: mainMenuKeyboard(lang), markdown: true });
 }
 
-async function startCommand(bot, chatId, session) {
-  if (!session.user.onboarded) return startOnboarding(bot, chatId, session);
+async function startCommand(bot, chatId, session, scenario = "eng") {
+  if (!session.user.onboarded) return startOnboarding(bot, chatId, session, scenario);
   const lang = langOf(session);
   await send(bot, chatId, t(lang, "welcome_back", { name: sanitizeMd(session.user.name || "") }), {
     markdown: true,
@@ -103,19 +104,33 @@ export async function handleMessage(bot, msg) {
   const text = msg.text;
   const cmd = text?.split(/\s+/)[0]?.split("@")[0];
 
-  if (cmd === "/start") return startCommand(bot, chatId, session);
+  // Greeting words ("hi", "salaam", "السلام علیکم", …) from a not-onboarded
+  // user trigger the matching welcome scenario. Already-onboarded users get
+  // the normal welcome-back menu and don't see the welcome banner again.
+  const greeting = session.user.onboarded ? null : detectGreetingScenario(text);
+
+  if (cmd === "/start") return startCommand(bot, chatId, session, "eng");
   if (cmd === "/menu") {
-    return session.user.onboarded ? showMenu(bot, chatId, session) : startOnboarding(bot, chatId, session);
+    return session.user.onboarded ? showMenu(bot, chatId, session) : startOnboarding(bot, chatId, session, "eng");
   }
   if (cmd === "/cancel") {
-    if (!session.user.onboarded) return startOnboarding(bot, chatId, session);
+    if (!session.user.onboarded) return startOnboarding(bot, chatId, session, "eng");
     await send(bot, chatId, t(langOf(session), "cancelled"));
     return showMenu(bot, chatId, session);
   }
 
   // Not onboarded yet → (re)start onboarding for any input.
+  // A greeting word picks the matching welcome scenario; any other text
+  // falls back to the English welcome banner.
   if (!session.user.onboarded && session.state !== "onboarding") {
-    return startOnboarding(bot, chatId, session);
+    return startOnboarding(bot, chatId, session, greeting || "eng");
+  }
+
+  // Already in onboarding but the user typed a greeting — restart the banner
+  // in the matching scenario (covers cases where they tap "back" or want to
+  // change language before completing).
+  if (greeting && session.state === "onboarding" && session.step === "welcome") {
+    return startOnboarding(bot, chatId, session, greeting);
   }
 
   switch (session.state) {

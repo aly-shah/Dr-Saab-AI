@@ -101,6 +101,123 @@ const STR = {
       "*Your weekly health summary*\n\nReadings logged: {count}\nAverage sugar: {avg} mg/dL (range {min}-{max})\nEstimated HbA1c: {hba1c}%\nCurrent streak: {streak} day(s)\n\nKeep it up — small steps every day add up.",
     clinic_hba1c: "Est. HbA1c",
     clinic_bmi: "BMI",
+
+    // ===== v2 onboarding journey (DrSaab MVP) =====
+    welcome_eng:
+      "Assalamualaikum and welcome to *DrSaab* — your AI Coach for Diabetes.\n\nI can help you understand your diabetes, build healthier habits, stay consistent, and improve your long-term health.\n\nFor اردو messaging, please select Urdu below.\nAur WhatsApp wali Urdu mein baat karnay ke liye, WhatsApp Urdu ka option use karain.",
+    welcome_salaam:
+      "Walaikumussalam and welcome to *DrSaab* — your AI Coach for Diabetes.\n\nI can help you understand your diabetes, build healthier habits, stay consistent, and improve your long-term health.\n\nFor اردو messaging, please select Urdu below.\nAur WhatsApp wali Urdu mein baat karnay ke liye, WhatsApp Urdu ka option use karain.",
+    welcome_urdu_intent:
+      "وعلیکم السلام اور ڈاکٹر صاحب میں خوش آمدید۔\nمیں آپ کو ذیابیطس کو بہتر سمجھنے، صحت مند عادات بنانے، مستقل مزاج رہنے اور اپنی صحت بہتر بنانے میں مدد دوں گا۔\n\nEnglish mein baat karne ke liye English select karein.\nWhatsapp wali Urdu mein baat karne ke liye WhatsApp Urdu select karein.",
+    btn_lang_english: "English",
+    btn_lang_urdu: "اردو",
+    btn_lang_whatsapp_urdu: "WhatsApp Urdu",
+
+    ask_name_v2: "Before we begin, what should I call you?",
+    name_ack:
+      "Nice to meet you, *{name}* 👋\nLet's build your profile so I can personalize my coaching for you.",
+    ask_user_type: "Which best describes you?",
+    ut_diabetes: "I have diabetes",
+    ut_prediabetes: "I have prediabetes",
+    ut_notsure: "I'm not sure",
+    ut_parent: "I'm a parent/family member",
+    ut_exploring: "Just exploring",
+
+    ask_age_v2: "How old are you?\nOr simply tell me your date of birth.",
+    g_prefer_not: "Prefer not to say",
+    ask_city_v2: "Which city do you live in?",
+
+    ask_diabetes_type: "Do you know which type you have?",
+    dt_type1: "Type 1 Diabetes",
+    dt_type2: "Type 2 Diabetes",
+    dt_prediabetes: "Prediabetes",
+    dt_gestational: "Gestational Diabetes",
+    dt_notsure: "Not Sure",
+
+    ask_diagnosis_duration: "When were you first diagnosed?",
+    dh_lt1: "Less than 1 year ago",
+    dh_1_5: "1–5 years ago",
+    dh_6_10: "6–10 years ago",
+    dh_gt10: "More than 10 years ago",
+    dh_notsure: "Not sure",
+
+    ask_hba1c_known: "Do you know your latest HbA1c result?",
+    ask_hba1c_value: "What was the HbA1c value?\nExample: 7.2%",
+    ask_hba1c_date: "Approximately when was this test done?",
+    hd_1m: "Within 1 month",
+    hd_1_3: "1–3 months ago",
+    hd_3_6: "3–6 months ago",
+    hd_gt6: "More than 6 months ago",
+
+    ask_sugar_known: "Do you know any recent blood sugar readings?",
+    ask_fasting_value:
+      "What's your latest *fasting* blood sugar reading?\nExample: 105\nOr type Skip.",
+    ask_fasting_date: "When was this reading taken?",
+    ask_random_value:
+      "What's your latest *random* blood sugar reading?\nExample: 180\nOr type Skip.",
+    ask_random_date: "When was this reading taken?",
+    rd_today: "Today",
+    rd_week: "This Week",
+    rd_month: "This Month",
+    rd_notremember: "Don't Remember",
+
+    ask_diab_meds_known: "Are you taking any medicines for diabetes?",
+    ask_diab_med_entry:
+      "Please type the medicine *name, dose and how often* you take it.\nExamples:\n• Metformin 500mg twice daily\n• Tagipmet XR 50/500 twice daily",
+    ask_diab_meds_more: "Any other diabetes medicines?",
+    btn_add_another: "Add Another",
+    btn_no_more: "No More",
+
+    ask_other_conditions_known: "Do you have any other medical conditions?",
+    ask_other_conditions_details:
+      "Please tell me the condition(s).\nExamples:\n• High Blood Pressure\n• High Cholesterol\n• Heart Disease\n• Thyroid Disease\n• Depression\n• Anxiety",
+    ask_other_meds_known: "Do you take any medicines for these conditions?",
+    ask_other_med_entry: "Please type the medicine *name, dose and frequency*.",
+    ask_other_meds_more_prompt: "Any other medicines for these conditions?",
+
+    ask_monitoring_habit: "Do you check your blood sugar at home?",
+    mh_regularly: "Regularly",
+    mh_sometimes: "Sometimes",
+    mh_rarely: "Rarely",
+    mh_never: "Never",
+    ask_monitoring_device: "What do you use?",
+    md_glucometer: "Glucometer",
+    md_cgm: "CGM Sensor",
+    md_both: "Both",
+
+    ask_primary_goal: "What would you most like help with right now?",
+    pg_lower_a1c: "Lower my HbA1c",
+    pg_lose_weight: "Lose weight",
+    pg_eat_healthy: "Eat healthier",
+    pg_exercise: "Exercise regularly",
+    pg_consistent: "Stay consistent",
+    pg_understand: "Understand diabetes better",
+
+    ask_primary_challenge: "What's the biggest thing holding you back?",
+    ch_diet: "Diet",
+    ch_exercise: "Exercise",
+    ch_motivation: "Motivation",
+    ch_meds: "Medication Routine",
+    ch_stress: "Stress",
+    ch_time: "Time",
+    ch_understand: "Understanding Diabetes",
+
+    ask_motivation_driver: "What motivates you the most?",
+    mt_family: "My Family",
+    mt_health: "Better Health",
+    mt_longer: "Living Longer",
+    mt_complications: "Avoiding Complications",
+    mt_looking: "Looking & Feeling Better",
+    mt_faith: "My Faith",
+
+    profile_complete_v2:
+      "Perfect, *{name}* ✅\nYour profile is ready.\nI'll use this information to personalize your coaching, reminders, education and progress tracking.\n\nLet's start building healthier habits together.",
+    disclaimer_v2:
+      "*Before we continue:*\n\nDrSaab provides educational information and coaching support. It does not replace medical advice, diagnosis or treatment from a qualified healthcare professional.\n\nIf you experience severe symptoms such as chest pain, fainting, confusion, severe weakness, very high blood sugar, very low blood sugar, or any medical emergency, please seek immediate medical attention.",
+    btn_understand: "I Understand",
+
+    btn_yes: "Yes",
+    btn_no: "No",
   },
 
   ur: {
@@ -193,6 +310,123 @@ const STR = {
       "*آپ کا ہفتہ وار صحت خلاصہ*\n\nلاگ کی گئی ریڈنگز: {count}\nاوسط شوگر: {avg} mg/dL (حد {min}-{max})\nتخمینی HbA1c: {hba1c}%\nموجودہ سلسلہ: {streak} دن\n\nجاری رکھیں — روزانہ چھوٹے قدم بڑا فرق لاتے ہیں۔",
     clinic_hba1c: "تخمینی HbA1c",
     clinic_bmi: "بی ایم آئی",
+
+    // ===== v2 onboarding journey =====
+    welcome_eng:
+      "السلام علیکم اور *ڈاکٹر صاحب* میں خوش آمدید۔\n\nمیں آپ کو ذیابیطس کو بہتر سمجھنے، صحت مند عادات بنانے، مستقل مزاج رہنے، اور اپنی طویل مدتی صحت بہتر بنانے میں مدد دوں گا۔\n\nاردو میں پیغامات حاصل کرنے کے لیے نیچے اردو کا انتخاب کریں۔\nاور واٹس ایپ والی اردو میں بات کرنے کے لیے WhatsApp Urdu کا انتخاب کریں۔",
+    welcome_salaam:
+      "وعلیکم السلام اور *ڈاکٹر صاحب* میں خوش آمدید۔\n\nمیں آپ کو ذیابیطس کو بہتر سمجھنے، صحت مند عادات بنانے، مستقل مزاج رہنے، اور اپنی طویل مدتی صحت بہتر بنانے میں مدد دوں گا۔\n\nاردو میں پیغامات حاصل کرنے کے لیے نیچے اردو کا انتخاب کریں۔\nاور واٹس ایپ والی اردو میں بات کرنے کے لیے WhatsApp Urdu کا انتخاب کریں۔",
+    welcome_urdu_intent:
+      "وعلیکم السلام اور *ڈاکٹر صاحب* میں خوش آمدید۔\n\nمیں آپ کو ذیابیطس کو بہتر سمجھنے، صحت مند عادات بنانے، مستقل مزاج رہنے، اور اپنی طویل مدتی صحت بہتر بنانے میں مدد دوں گا۔\n\nانگریزی میں بات کرنے کے لیے English منتخب کریں۔\nواٹس ایپ والی اردو میں بات کرنے کے لیے WhatsApp Urdu منتخب کریں۔",
+    btn_lang_english: "English",
+    btn_lang_urdu: "اردو",
+    btn_lang_whatsapp_urdu: "WhatsApp Urdu",
+
+    ask_name_v2: "شروع کرنے سے پہلے، میں آپ کو کس نام سے پکاروں؟",
+    name_ack:
+      "آپ سے مل کر خوشی ہوئی، *{name}* 👋\nآئیے آپ کا پروفائل مکمل کرتے ہیں تاکہ میں آپ کے لیے بہتر رہنمائی فراہم کر سکوں۔",
+    ask_user_type: "ان میں سے کون سی بات آپ پر سب سے بہتر لاگو ہوتی ہے؟",
+    ut_diabetes: "مجھے ذیابیطس ہے",
+    ut_prediabetes: "مجھے پری ذیابیطس ہے",
+    ut_notsure: "مجھے یقین نہیں",
+    ut_parent: "میں والدین/اہلِ خانہ ہوں",
+    ut_exploring: "بس دیکھ رہا ہوں",
+
+    ask_age_v2: "آپ کی عمر کیا ہے؟\nیا اپنی تاریخِ پیدائش بتا دیں۔",
+    g_prefer_not: "بتانا نہیں چاہتا",
+    ask_city_v2: "آپ کس شہر میں رہتے ہیں؟",
+
+    ask_diabetes_type: "کیا آپ جانتے ہیں کہ آپ کو ذیابیطس کی کون سی قسم ہے؟",
+    dt_type1: "ٹائپ 1 ذیابیطس",
+    dt_type2: "ٹائپ 2 ذیابیطس",
+    dt_prediabetes: "پری ذیابیطس",
+    dt_gestational: "حملاتی ذیابیطس",
+    dt_notsure: "یقین نہیں",
+
+    ask_diagnosis_duration: "آپ کو ذیابیطس کی تشخیص کب ہوئی تھی؟",
+    dh_lt1: "1 سال سے کم",
+    dh_1_5: "1–5 سال پہلے",
+    dh_6_10: "6–10 سال پہلے",
+    dh_gt10: "10 سال سے زیادہ",
+    dh_notsure: "یقین نہیں",
+
+    ask_hba1c_known: "کیا آپ کو اپنا تازہ ترین HbA1c معلوم ہے؟",
+    ask_hba1c_value: "آپ کا HbA1c کتنا تھا؟\nمثال: 7.2%",
+    ask_hba1c_date: "یہ ٹیسٹ تقریباً کب کروایا گیا تھا؟",
+    hd_1m: "1 ماہ کے اندر",
+    hd_1_3: "1–3 ماہ پہلے",
+    hd_3_6: "3–6 ماہ پہلے",
+    hd_gt6: "6 ماہ سے زیادہ پہلے",
+
+    ask_sugar_known: "کیا آپ کو اپنی حالیہ شوگر ریڈنگز معلوم ہیں؟",
+    ask_fasting_value:
+      "آپ کی تازہ ترین *فاسٹنگ* شوگر کتنی تھی؟\nمثال: 105\nیا Skip لکھ دیں۔",
+    ask_fasting_date: "یہ ریڈنگ کب لی گئی تھی؟",
+    ask_random_value:
+      "آپ کی تازہ ترین *رینڈم* شوگر کتنی تھی؟\nمثال: 180\nیا Skip لکھ دیں۔",
+    ask_random_date: "یہ ریڈنگ کب لی گئی تھی؟",
+    rd_today: "آج",
+    rd_week: "اس ہفتے",
+    rd_month: "اس مہینے",
+    rd_notremember: "یاد نہیں",
+
+    ask_diab_meds_known: "کیا آپ ذیابیطس کی کوئی دوا استعمال کر رہے ہیں؟",
+    ask_diab_med_entry:
+      "براہِ کرم دوا کا *نام، خوراک اور استعمال کی تعداد* لکھیں۔\nمثال:\n• Metformin 500mg دن میں دو بار\n• Tagipmet XR 50/500 دن میں دو بار",
+    ask_diab_meds_more: "کیا کوئی اور ذیابیطس کی دوا بھی استعمال کرتے ہیں؟",
+    btn_add_another: "ایک اور شامل کریں",
+    btn_no_more: "بس ہو گیا",
+
+    ask_other_conditions_known: "کیا آپ کو کوئی اور بیماری یا طبی مسئلہ بھی ہے؟",
+    ask_other_conditions_details:
+      "براہِ کرم بیماری یا مسئلے کا نام لکھیں۔\nمثال:\n• ہائی بلڈ پریشر\n• ہائی کولیسٹرول\n• دل کی بیماری\n• تھائیرائیڈ\n• ڈپریشن\n• اینگزائٹی",
+    ask_other_meds_known: "کیا آپ ان بیماریوں کے لیے کوئی دوا بھی لیتے ہیں؟",
+    ask_other_med_entry: "براہِ کرم دوا کا *نام، خوراک اور استعمال کی تعداد* لکھیں۔",
+    ask_other_meds_more_prompt: "ان بیماریوں کے لیے کوئی اور دوا؟",
+
+    ask_monitoring_habit: "کیا آپ گھر پر اپنی شوگر چیک کرتے ہیں؟",
+    mh_regularly: "باقاعدگی سے",
+    mh_sometimes: "کبھی کبھار",
+    mh_rarely: "بہت کم",
+    mh_never: "کبھی نہیں",
+    ask_monitoring_device: "آپ شوگر چیک کرنے کے لیے کیا استعمال کرتے ہیں؟",
+    md_glucometer: "گلوکومیٹر",
+    md_cgm: "CGM سینسر",
+    md_both: "دونوں",
+
+    ask_primary_goal: "اس وقت آپ سب سے زیادہ کس چیز میں مدد چاہتے ہیں؟",
+    pg_lower_a1c: "میرا HbA1c کم کرنا",
+    pg_lose_weight: "وزن کم کرنا",
+    pg_eat_healthy: "صحت بخش کھانا",
+    pg_exercise: "باقاعدہ ورزش",
+    pg_consistent: "مستقل مزاجی",
+    pg_understand: "ذیابیطس کو بہتر سمجھنا",
+
+    ask_primary_challenge: "آپ کے خیال میں آپ کی سب سے بڑی مشکل کیا ہے؟",
+    ch_diet: "خوراک",
+    ch_exercise: "ورزش",
+    ch_motivation: "حوصلہ",
+    ch_meds: "ادویات کا معمول",
+    ch_stress: "ذہنی دباؤ",
+    ch_time: "وقت",
+    ch_understand: "ذیابیطس کی سمجھ",
+
+    ask_motivation_driver: "آپ کو سب سے زیادہ کون سی چیز متحرک کرتی ہے؟",
+    mt_family: "میرا خاندان",
+    mt_health: "بہتر صحت",
+    mt_longer: "لمبی زندگی",
+    mt_complications: "پیچیدگیوں سے بچاؤ",
+    mt_looking: "اچھا دکھنا اور محسوس کرنا",
+    mt_faith: "میرا ایمان",
+
+    profile_complete_v2:
+      "بہترین، *{name}* ✅\nآپ کا پروفائل مکمل ہو گیا ہے۔\nاب میں اس معلومات کی بنیاد پر آپ کو ذاتی نوعیت کی رہنمائی، یاد دہانیاں، تعلیمی مواد اور پیش رفت کی نگرانی فراہم کر سکوں گا۔\n\nآئیے مل کر صحت مند عادات بناتے ہیں۔",
+    disclaimer_v2:
+      "*آگے بڑھنے سے پہلے:*\n\nڈاکٹر صاحب تعلیمی معلومات اور کوچنگ سپورٹ فراہم کرتا ہے۔ یہ کسی مستند ڈاکٹر کے طبی مشورے، تشخیص یا علاج کا متبادل نہیں ہے۔\n\nاگر آپ کو سینے میں درد، بے ہوشی، شدید کمزوری، الجھن، بہت زیادہ یا بہت کم شوگر، یا کسی بھی قسم کی طبی ایمرجنسی کا سامنا ہو تو فوراً اپنے ڈاکٹر یا قریبی ایمرجنسی سروس سے رابطہ کریں۔",
+    btn_understand: "میں سمجھ گیا",
+
+    btn_yes: "ہاں",
+    btn_no: "نہیں",
   },
 
   roman_ur: {
@@ -285,13 +519,130 @@ const STR = {
       "*Aap ka haftawaar sehat khulasa*\n\nLog ki gayi readings: {count}\nAusat sugar: {avg} mg/dL (range {min}-{max})\nEstimated HbA1c: {hba1c}%\nMojooda streak: {streak} din\n\nJari rakhein — rozana chote qadam bara farq latay hain.",
     clinic_hba1c: "Est. HbA1c",
     clinic_bmi: "BMI",
+
+    // ===== v2 onboarding journey =====
+    welcome_eng:
+      "Assalamualaikum aur *DrSaab* mein khush aamdeed — aap ka AI Coach for Diabetes.\n\nMain aap ko diabetes ko behtar samajhnay, sehatmand aadatein bananay, mustaqil rehnay aur apni sehat behtar karnay mein madad karunga.\n\nUrdu mein messages hasil karnay ke liye Urdu ka option select karein.\nAur WhatsApp wali Urdu mein baat karnay ke liye WhatsApp Urdu ka option select karein.",
+    welcome_salaam:
+      "Walaikumussalam aur *DrSaab* mein khush aamdeed — aap ka AI Coach for Diabetes.\n\nMain aap ko diabetes ko behtar samajhnay, sehatmand aadatein bananay, mustaqil rehnay aur apni sehat behtar karnay mein madad karunga.\n\nUrdu mein messages hasil karnay ke liye Urdu ka option select karein.\nAur WhatsApp wali Urdu mein baat karnay ke liye WhatsApp Urdu ka option select karein.",
+    welcome_urdu_intent:
+      "Walaikumussalam aur *DrSaab* mein khush aamdeed — aap ka AI Coach for Diabetes.\n\nMain aap ko diabetes ko behtar samajhnay, sehatmand aadatein bananay, mustaqil rehnay aur apni sehat behtar karnay mein madad karunga.\n\nEnglish mein baat karnay ke liye English select karein.\nUrdu mein baat karnay ke liye Urdu select karein.",
+    btn_lang_english: "English",
+    btn_lang_urdu: "اردو",
+    btn_lang_whatsapp_urdu: "WhatsApp Urdu",
+
+    ask_name_v2: "Shuru karnay se pehlay, main aap ko kis naam se pukaroon?",
+    name_ack:
+      "Aap se mil kar khushi hui, *{name}* 👋\nAaiye aap ka profile mukammal karte hain taake main aap ke liye behtar rehnumai faraham kar sakoon.",
+    ask_user_type: "In mein se kaunsi baat aap par sab se zyada lagu hoti hai?",
+    ut_diabetes: "Mujhe diabetes hai",
+    ut_prediabetes: "Mujhe prediabetes hai",
+    ut_notsure: "Mujhe yaqeen nahi",
+    ut_parent: "Main parent/ahl-e-khana hoon",
+    ut_exploring: "Bas dekh raha hoon",
+
+    ask_age_v2: "Aap ki umar kya hai?\nYa apni date of birth bata dein.",
+    g_prefer_not: "Batana nahi chahta",
+    ask_city_v2: "Aap kis shehar mein rehte hain?",
+
+    ask_diabetes_type: "Kya aap jaantay hain ke aap ko diabetes ki kaunsi type hai?",
+    dt_type1: "Type 1 Diabetes",
+    dt_type2: "Type 2 Diabetes",
+    dt_prediabetes: "Prediabetes",
+    dt_gestational: "Gestational Diabetes",
+    dt_notsure: "Yaqeen nahi",
+
+    ask_diagnosis_duration: "Aap ko diabetes ki tashkhees kab hui thi?",
+    dh_lt1: "1 saal se kam",
+    dh_1_5: "1–5 saal pehlay",
+    dh_6_10: "6–10 saal pehlay",
+    dh_gt10: "10 saal se zyada",
+    dh_notsure: "Yaqeen nahi",
+
+    ask_hba1c_known: "Kya aap ko apna latest HbA1c maloom hai?",
+    ask_hba1c_value: "Aap ka HbA1c kitna tha?\nMisaal: 7.2%",
+    ask_hba1c_date: "Yeh test taqreeban kab hua tha?",
+    hd_1m: "1 maah ke andar",
+    hd_1_3: "1–3 maah pehlay",
+    hd_3_6: "3–6 maah pehlay",
+    hd_gt6: "6 maah se zyada pehlay",
+
+    ask_sugar_known: "Kya aap ko apni haal hi ki sugar readings maloom hain?",
+    ask_fasting_value:
+      "Aap ki latest *fasting* sugar kitni thi?\nMisaal: 105\nYa Skip likh dein.",
+    ask_fasting_date: "Yeh reading kab li gayi thi?",
+    ask_random_value:
+      "Aap ki latest *random* sugar kitni thi?\nMisaal: 180\nYa Skip likh dein.",
+    ask_random_date: "Yeh reading kab li gayi thi?",
+    rd_today: "Aaj",
+    rd_week: "Is hafte",
+    rd_month: "Is mahinay",
+    rd_notremember: "Yaad nahi",
+
+    ask_diab_meds_known: "Kya aap diabetes ki koi dawa istemal kar rahe hain?",
+    ask_diab_med_entry:
+      "Barah-e-karam dawa ka *naam, dose aur kitni martaba* lete hain likhein.\nMisaal:\n• Metformin 500mg din mein do martaba\n• Tagipmet XR 50/500 din mein do martaba",
+    ask_diab_meds_more: "Kya aap koi aur diabetes ki dawa bhi istemal karte hain?",
+    btn_add_another: "Aur shamil karein",
+    btn_no_more: "Bas ho gaya",
+
+    ask_other_conditions_known: "Kya aap ko koi aur bemari ya medical masla bhi hai?",
+    ask_other_conditions_details:
+      "Barah-e-karam bemari ya maslay ka naam likhein.\nMisaal:\n• High blood pressure\n• High cholesterol\n• Dil ki bemari\n• Thyroid\n• Depression\n• Anxiety",
+    ask_other_meds_known: "Kya aap in bemariyon ke liye koi dawa bhi lete hain?",
+    ask_other_med_entry: "Barah-e-karam dawa ka *naam, dose aur frequency* likhein.",
+    ask_other_meds_more_prompt: "In bemariyon ke liye koi aur dawa?",
+
+    ask_monitoring_habit: "Kya aap ghar par apni sugar check karte hain?",
+    mh_regularly: "Baqaida",
+    mh_sometimes: "Kabhi kabhar",
+    mh_rarely: "Bohat kam",
+    mh_never: "Kabhi nahi",
+    ask_monitoring_device: "Aap sugar check karnay ke liye kya istemal karte hain?",
+    md_glucometer: "Glucometer",
+    md_cgm: "CGM Sensor",
+    md_both: "Dono",
+
+    ask_primary_goal: "Is waqt aap sab se zyada kis cheez mein madad chahtay hain?",
+    pg_lower_a1c: "Mera HbA1c kam karna",
+    pg_lose_weight: "Wazan kam karna",
+    pg_eat_healthy: "Sehatmand khana",
+    pg_exercise: "Baqaida exercise",
+    pg_consistent: "Mustaqil rehna",
+    pg_understand: "Diabetes ko behtar samajhna",
+
+    ask_primary_challenge: "Aap ke khayal mein aap ki sab se badi mushkil kya hai?",
+    ch_diet: "Khurak",
+    ch_exercise: "Exercise",
+    ch_motivation: "Himmat",
+    ch_meds: "Dawaiyon ka mamool",
+    ch_stress: "Stress",
+    ch_time: "Waqt",
+    ch_understand: "Diabetes ki samajh",
+
+    ask_motivation_driver: "Aap ko sab se zyada kis cheez se himmat aur motivation milti hai?",
+    mt_family: "Mera khandaan",
+    mt_health: "Behtar sehat",
+    mt_longer: "Lambi zindagi",
+    mt_complications: "Complications se bachao",
+    mt_looking: "Acha dikhna aur mehsoos karna",
+    mt_faith: "Mera imaan",
+
+    profile_complete_v2:
+      "Behtareen, *{name}* ✅\nAap ka profile mukammal ho gaya hai.\nAb main is maloomat ki bunyaad par aap ko zaati rehnumai, reminders, taleemi maloomat aur progress tracking faraham kar sakta hoon.\n\nAaiye mil kar sehatmand aadatein banatay hain.",
+    disclaimer_v2:
+      "*Aagay barhnay se pehlay:*\n\nDrSaab taleemi maloomat aur coaching support faraham karta hai. Yeh kisi qualified doctor ke medical mashwaray, tashkhees ya ilaaj ka mutabadil nahin hai.\n\nAgar aap ko seenay mein dard, behoshi, shadeed kamzori, uljhan, bohat zyada ya bohat kam sugar, ya kisi bhi qisam ki medical emergency ka samna ho to foran apne doctor ya qareebi emergency service se rabta karein.",
+    btn_understand: "Main samajh gaya",
+
+    btn_yes: "Haan",
+    btn_no: "Nahi",
   },
 };
 
 export const LANGUAGES = [
   { code: "en", label: "English" },
   { code: "ur", label: "اردو" },
-  { code: "roman_ur", label: "Roman Urdu" },
+  { code: "roman_ur", label: "WhatsApp Urdu" },
 ];
 
 export function t(lang, key, vars = {}) {

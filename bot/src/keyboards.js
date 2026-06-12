@@ -70,3 +70,181 @@ export function profileKeyboard(lang) {
     ],
   };
 }
+
+// ===================================================================
+// v2 onboarding journey keyboards
+// ===================================================================
+
+// One button per row helper.
+function stack(rows) {
+  return { inline_keyboard: rows.map((r) => (Array.isArray(r) ? r : [r])) };
+}
+
+export function userTypeKeyboard(lang) {
+  return stack([
+    { text: t(lang, "ut_diabetes"), callback_data: "ut:diabetes" },
+    { text: t(lang, "ut_prediabetes"), callback_data: "ut:prediabetes" },
+    { text: t(lang, "ut_notsure"), callback_data: "ut:notsure" },
+    { text: t(lang, "ut_parent"), callback_data: "ut:parent" },
+    { text: t(lang, "ut_exploring"), callback_data: "ut:exploring" },
+  ]);
+}
+
+export function genderKeyboardV2(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "g_male"), callback_data: "gender:male" },
+        { text: t(lang, "g_female"), callback_data: "gender:female" },
+      ],
+      [{ text: t(lang, "g_prefer_not"), callback_data: "gender:prefer_not" }],
+    ],
+  };
+}
+
+export function diabetesTypeKeyboard(lang) {
+  return stack([
+    [
+      { text: t(lang, "dt_type1"), callback_data: "dt:type1" },
+      { text: t(lang, "dt_type2"), callback_data: "dt:type2" },
+    ],
+    [
+      { text: t(lang, "dt_prediabetes"), callback_data: "dt:prediabetes" },
+      { text: t(lang, "dt_gestational"), callback_data: "dt:gestational" },
+    ],
+    { text: t(lang, "dt_notsure"), callback_data: "dt:notsure" },
+  ]);
+}
+
+export function diagnosisDurationKeyboard(lang) {
+  return stack([
+    { text: t(lang, "dh_lt1"), callback_data: "dh:lt1" },
+    { text: t(lang, "dh_1_5"), callback_data: "dh:1_5" },
+    { text: t(lang, "dh_6_10"), callback_data: "dh:6_10" },
+    { text: t(lang, "dh_gt10"), callback_data: "dh:gt10" },
+    { text: t(lang, "dh_notsure"), callback_data: "dh:notsure" },
+  ]);
+}
+
+export function yesNoKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "btn_yes"), callback_data: "yn:yes" },
+        { text: t(lang, "btn_no"), callback_data: "yn:no" },
+      ],
+    ],
+  };
+}
+
+export function hba1cDateKeyboard(lang) {
+  return stack([
+    { text: t(lang, "hd_1m"), callback_data: "hd:1m" },
+    { text: t(lang, "hd_1_3"), callback_data: "hd:1_3" },
+    { text: t(lang, "hd_3_6"), callback_data: "hd:3_6" },
+    { text: t(lang, "hd_gt6"), callback_data: "hd:gt6" },
+  ]);
+}
+
+export function readingDateKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "rd_today"), callback_data: "rd:today" },
+        { text: t(lang, "rd_week"), callback_data: "rd:week" },
+      ],
+      [
+        { text: t(lang, "rd_month"), callback_data: "rd:month" },
+        { text: t(lang, "rd_notremember"), callback_data: "rd:notremember" },
+      ],
+    ],
+  };
+}
+
+export function addMoreKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "btn_add_another"), callback_data: "more:add" },
+        { text: t(lang, "btn_no_more"), callback_data: "more:no" },
+      ],
+    ],
+  };
+}
+
+export function monitoringHabitKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "mh_regularly"), callback_data: "mh:regularly" },
+        { text: t(lang, "mh_sometimes"), callback_data: "mh:sometimes" },
+      ],
+      [
+        { text: t(lang, "mh_rarely"), callback_data: "mh:rarely" },
+        { text: t(lang, "mh_never"), callback_data: "mh:never" },
+      ],
+    ],
+  };
+}
+
+export function monitoringDeviceKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "md_glucometer"), callback_data: "md:glucometer" },
+        { text: t(lang, "md_cgm"), callback_data: "md:cgm" },
+      ],
+      [{ text: t(lang, "md_both"), callback_data: "md:both" }],
+    ],
+  };
+}
+
+export function primaryGoalKeyboard(lang) {
+  return stack([
+    { text: t(lang, "pg_lower_a1c"), callback_data: "pg:lower_a1c" },
+    { text: t(lang, "pg_lose_weight"), callback_data: "pg:lose_weight" },
+    { text: t(lang, "pg_eat_healthy"), callback_data: "pg:eat_healthy" },
+    { text: t(lang, "pg_exercise"), callback_data: "pg:exercise" },
+    { text: t(lang, "pg_consistent"), callback_data: "pg:consistent" },
+    { text: t(lang, "pg_understand"), callback_data: "pg:understand" },
+  ]);
+}
+
+export function challengeKeyboard(lang) {
+  return stack([
+    [
+      { text: t(lang, "ch_diet"), callback_data: "ch:diet" },
+      { text: t(lang, "ch_exercise"), callback_data: "ch:exercise" },
+    ],
+    [
+      { text: t(lang, "ch_motivation"), callback_data: "ch:motivation" },
+      { text: t(lang, "ch_meds"), callback_data: "ch:meds" },
+    ],
+    [
+      { text: t(lang, "ch_stress"), callback_data: "ch:stress" },
+      { text: t(lang, "ch_time"), callback_data: "ch:time" },
+    ],
+    { text: t(lang, "ch_understand"), callback_data: "ch:understand" },
+  ]);
+}
+
+export function motivationKeyboard(lang) {
+  return stack([
+    [
+      { text: t(lang, "mt_family"), callback_data: "mt:family" },
+      { text: t(lang, "mt_health"), callback_data: "mt:health" },
+    ],
+    [
+      { text: t(lang, "mt_longer"), callback_data: "mt:longer" },
+      { text: t(lang, "mt_complications"), callback_data: "mt:complications" },
+    ],
+    { text: t(lang, "mt_looking"), callback_data: "mt:looking" },
+    { text: t(lang, "mt_faith"), callback_data: "mt:faith" },
+  ]);
+}
+
+export function understandKeyboard(lang) {
+  return {
+    inline_keyboard: [[{ text: t(lang, "btn_understand"), callback_data: "ok:understand" }]],
+  };
+}

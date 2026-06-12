@@ -236,6 +236,17 @@ function makeMemoryBackend() {
         doctor_code: null, challenge_code: null, team_code: null,
         tier: config.defaultTier, streak: 0, last_log_date: null, onboarded: false,
         source, created_at: nowISO(),
+        // v2 journey fields
+        user_type: null, date_of_birth: null, diagnosis_duration: null,
+        latest_hba1c: null, hba1c_date_bucket: null,
+        latest_fasting_sugar: null, fasting_reading_date: null,
+        latest_random_sugar: null, random_reading_date: null,
+        diabetes_meds: null, other_conditions: null, non_diabetes_meds: null,
+        monitoring_habit: null, monitoring_device: null,
+        primary_goal: null, primary_challenge: null, motivation_driver: null,
+        disclaimer_accepted: false,
+        consistency_score: 50, motivation_score: 50, risk_score: 50, engagement_score: 50,
+        total_checkins: 0,
       };
       usersById.set(user.id, user);
       usersByTg.set(telegramId, user.id);
