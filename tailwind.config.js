@@ -24,8 +24,8 @@ module.exports = {
         whatsapp: "#25D366",
       },
       fontFamily: {
-        heading: ["var(--font-bricolage)", "system-ui", "sans-serif"],
-        body: ["var(--font-bricolage)", "system-ui", "sans-serif"],
+        heading: ["var(--font-montserrat)", "system-ui", "sans-serif"],
+        body: ["var(--font-manrope)", "system-ui", "sans-serif"],
       },
       boxShadow: {
         soft: "0 10px 40px -12px rgba(8, 145, 178, 0.18)",

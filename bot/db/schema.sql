@@ -22,7 +22,7 @@ create table if not exists public.users (
   doctor_code     text,
   challenge_code  text,
   team_code       text,
-  tier            text default 'free',           -- 'free' | 'consistency_builder'
+  tier            text default 'free',           -- 'free' | 'consistency' | 'executive' (legacy: 'consistency_builder')
   streak          int  default 0,
   last_log_date   date,
   onboarded       boolean default false,
@@ -149,3 +149,33 @@ end; $$;
 drop trigger if exists users_touch on public.users;
 create trigger users_touch before update on public.users
   for each row execute function public.touch_updated_at();
+
+-- ============================================================
+-- Feature build (proposal §3.6 / §3.7 / §3.8) — added 2026-06
+-- ============================================================
+
+-- ---------- Challenges joined by users (§3.7) ----------
+create table if not exists public.user_challenges (
+  id             uuid primary key default gen_random_uuid(),
+  user_id        uuid references public.users(id) on delete cascade,
+  challenge_type text not null,            -- a1c|weight|walking|consistency|ramadan|doctor|corporate
+  code           text,                     -- doctor / corporate code, if any
+  status         text default 'active',    -- active | completed | left
+  started_at     timestamptz default now(),
+  ended_at       timestamptz
+);
+create index if not exists user_challenges_user_idx on public.user_challenges(user_id, status);
+
+-- ---------- Executive service requests (§3.8) ----------
+create table if not exists public.service_requests (
+  id           bigint generated always as identity primary key,
+  user_id      uuid references public.users(id) on delete cascade,
+  service_type text not null,              -- doctor_review|live_session|progress_review|priority_help|premium_content
+  status       text default 'requested',  -- requested | scheduled | done | cancelled
+  note         text,
+  created_at   timestamptz default now()
+);
+create index if not exists service_requests_user_idx on public.service_requests(user_id, created_at desc);
+
+-- ---------- Background profile answers (§3.6, ~60 fields, drip-filled) ----------
+alter table public.users add column if not exists profile_answers jsonb default '{}'::jsonb;

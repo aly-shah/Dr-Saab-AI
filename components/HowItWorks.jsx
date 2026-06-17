@@ -5,7 +5,7 @@ const STEPS = [
     icon: WhatsAppIcon,
     step: "01",
     title: "Say hi on WhatsApp",
-    body: "Tap one button and message Dr Saab AI. No sign-up forms, no downloads — your chat is ready in seconds.",
+    body: "Tap one button and message DrSaab. No sign-up forms, no downloads — your chat is ready in seconds.",
   },
   {
     icon: MessageIcon,
@@ -28,13 +28,13 @@ export default function HowItWorks() {
         <div className="mx-auto max-w-2xl text-center">
           <span className="eyebrow">
             <SparkleIcon className="h-4 w-4" />
-            How it works
+            How DrSaab Works
           </span>
           <h2 className="mt-5 text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-            From confused to in control in three messages
+            From confused to in control
           </h2>
           <p className="mt-4 text-lg text-ink/65">
-            Managing blood sugar shouldn&apos;t feel like a full-time job. Dr Saab AI
+            Managing blood sugar shouldn&apos;t feel like a full-time job. DrSaab
             makes it as simple as texting a friend who happens to know a lot about diabetes.
           </p>
         </div>

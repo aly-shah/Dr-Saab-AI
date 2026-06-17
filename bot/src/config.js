@@ -52,4 +52,17 @@ export const config = {
   useWebhook: String(process.env.USE_WEBHOOK).toLowerCase() === "true",
   webhookUrl: process.env.WEBHOOK_URL?.trim() || "",
   port: parseInt(process.env.PORT || "8080", 10),
+
+  // WhatsApp Cloud API adapter (the contracted delivery channel). Only starts
+  // when a token + phone number id are present; needs the client's Meta access.
+  whatsapp: {
+    token: process.env.WHATSAPP_TOKEN?.trim() || "",
+    phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID?.trim() || "",
+    verifyToken: process.env.WHATSAPP_VERIFY_TOKEN?.trim() || "drsaab-verify",
+    apiVersion: process.env.WHATSAPP_API_VERSION?.trim() || "v21.0",
+    port: parseInt(process.env.WHATSAPP_PORT || "8082", 10),
+    get enabled() {
+      return !!(this.token && this.phoneNumberId);
+    },
+  },
 };

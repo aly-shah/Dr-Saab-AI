@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { HeartPulseIcon, SparkleIcon } from "@/components/icons";
+import { SparkleIcon } from "@/components/icons";
 
 // Light Markdown → HTML (bot replies use *bold* _italic_ `code`).
 function mdToHtml(s = "") {
@@ -198,11 +198,9 @@ export default function BotChatPage() {
           </a>
           <span className="h-5 w-px bg-line/70" />
           <div className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-gradient-to-br from-primary to-accent text-white shadow-soft">
-              <HeartPulseIcon className="h-5 w-5" />
-            </span>
+            <img src="/logo-mark.png" alt="" className="h-8 w-8 object-contain" />
             <span className="text-[15px] font-bold tracking-tight text-ink">
-              Dr Saab <span className="text-primary">AI</span>
+              DrSaab <span className="text-primary">AI</span>
             </span>
             <span className="hidden rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-accent sm:inline">online</span>
           </div>
@@ -224,7 +222,7 @@ export default function BotChatPage() {
                 <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-primary to-accent text-white shadow-card">
                   <SparkleIcon className="h-8 w-8" />
                 </span>
-                <h1 className="mt-5 text-2xl font-bold tracking-tight text-ink sm:text-3xl">Hi, I&apos;m Dr Saab AI</h1>
+                <h1 className="mt-5 text-2xl font-bold tracking-tight text-ink sm:text-3xl">Hi, I&apos;m DrSaab</h1>
                 <p className="mx-auto mt-2 max-w-md text-ink/55">Your personal diabetes coach. Let&apos;s get you set up…</p>
                 <div className="mt-6 flex items-center justify-center gap-1.5">
                   {[0, 1, 2].map((i) => (
@@ -309,7 +307,7 @@ export default function BotChatPage() {
               value={input}
               onChange={(e) => { setInput(e.target.value); autoGrow(); }}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendText(input); } }}
-              placeholder="Message Dr Saab AI…"
+              placeholder="Message DrSaab…"
               className="max-h-44 flex-1 resize-none bg-transparent py-2.5 text-[15px] text-ink outline-none placeholder:text-ink/35"
             />
             <button
@@ -324,7 +322,7 @@ export default function BotChatPage() {
             </button>
           </form>
           <p className="mt-2 text-center text-[11px] text-ink/40">
-            Dr Saab AI gives general guidance, not medical advice. In an emergency, contact a doctor.
+            DrSaab gives general guidance, not medical advice. In an emergency, contact a doctor.
           </p>
         </div>
       </div>

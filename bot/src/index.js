@@ -3,6 +3,7 @@ import { config } from "./config.js";
 import { registerHandlers } from "./bot.js";
 import { startWebServer } from "./web.js";
 import { startScheduler } from "./scheduler.js";
+import { startWhatsApp } from "./whatsapp.js";
 
 const options = config.useWebhook
   ? { webHook: { port: config.port } }
@@ -31,10 +32,17 @@ startWebServer();
 // Proactive template reminders / streak / summary / win-back (no AI cost).
 startScheduler(bot);
 
+// WhatsApp Cloud API adapter (only starts if WHATSAPP_* env vars are set).
+// Same flow logic as Telegram — see whatsapp.js.
+startWhatsApp();
+
 bot
   .setMyCommands([
     { command: "start", description: "Start / restart DrSaab" },
     { command: "menu", description: "Show the main menu" },
+    { command: "home", description: "Go to the main menu" },
+    { command: "help", description: "How to use DrSaab" },
+    { command: "upgrade", description: "See plans & upgrade" },
     { command: "cancel", description: "Cancel the current action" },
   ])
   .catch(() => {});

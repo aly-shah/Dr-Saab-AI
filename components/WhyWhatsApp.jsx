@@ -39,7 +39,7 @@ export default function WhyWhatsApp() {
               </h2>
               <p className="mt-4 max-w-md text-[16px] leading-relaxed text-cyan-50/80">
                 The best health tool is the one you&apos;ll actually use. By living
-                inside WhatsApp, Dr Saab AI removes every excuse between you and a
+                inside WhatsApp, DrSaab removes every excuse between you and a
                 healthier day.
               </p>
             </div>

@@ -3,6 +3,7 @@ import { send, typing, langOf, isPremium, photoDataUrl } from "../utils.js";
 import { backKeyboard } from "../keyboards.js";
 import { coachReply } from "../openai.js";
 import { saveCoachMessage, weeklyStats } from "../supabase.js";
+import { applyScores } from "../scores.js";
 import { compactKB } from "../kb.js";
 import { pushHistory } from "../session.js";
 
@@ -50,6 +51,7 @@ export async function coachText(bot, chatId, session, text, msg) {
     saveCoachMessage(session.user.id, kind, "assistant", reply);
 
     await send(bot, chatId, reply, { keyboard: backKeyboard(lang) });
+    session.user = await applyScores(session.user, "coach");
   } catch (e) {
     console.error("coach error:", e?.message);
     await send(bot, chatId, t(lang, "error_generic"), { keyboard: backKeyboard(lang) });

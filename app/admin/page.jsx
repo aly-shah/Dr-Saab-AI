@@ -74,7 +74,7 @@ function Login({ onDone }) {
   return (
     <div className="grid min-h-dvh place-items-center bg-cloud/40 px-4">
       <form onSubmit={submit} className="w-full max-w-sm rounded-3xl bg-white p-8 shadow-card ring-1 ring-line/70">
-        <h1 className="text-xl font-bold text-ink">Dr Saab AI — Admin</h1>
+        <h1 className="text-xl font-bold text-ink">DrSaab — Admin</h1>
         <p className="mt-1 text-sm text-ink/55">Enter the admin password to continue.</p>
         <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Password" autoFocus
           className="mt-5 w-full rounded-xl bg-muted px-4 py-3 text-ink outline-none ring-1 ring-transparent focus:ring-primary" />

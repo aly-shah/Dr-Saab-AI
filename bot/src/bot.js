@@ -3,6 +3,7 @@ import { send, sanitizeMd, langOf } from "./utils.js";
 import { mainMenuKeyboard, profileKeyboard, languageKeyboard, backKeyboard } from "./keyboards.js";
 import { getSession, resetFlow } from "./session.js";
 import { getOrCreateUser, updateUser, recordMessage } from "./supabase.js";
+import { TIERS, normalizeTier } from "./tiers.js";
 
 import { startOnboarding, onboardingText, onboardingCallback } from "./flows/onboarding.js";
 import { detectGreetingScenario } from "./welcome.js";
@@ -18,6 +19,22 @@ import { startCoach, coachText } from "./flows/coach.js";
 import { startLab, labText } from "./flows/labreport.js";
 import { showProgress, showSummary } from "./flows/progress.js";
 import { showEducation } from "./flows/education.js";
+import { showGoals, startGoalSet, goalsText } from "./flows/goals.js";
+import {
+  showChallenges,
+  showMyChallenges,
+  startChallengeJoin,
+  challengeCodeText,
+} from "./flows/challenges.js";
+import { showReports, showWeeklyReport, showMonthlyReport, showDoctorReport } from "./flows/reports.js";
+import { showExecutive, requestService } from "./flows/executive.js";
+import { profileqText, skipProfileQuestion } from "./flows/profileBuilder.js";
+
+// Display name for a tier slug (handles legacy slugs).
+function planName(lang, tier) {
+  const key = TIERS[normalizeTier(tier)]?.nameKey || "plan_free";
+  return t(lang, key);
+}
 
 async function showMenu(bot, chatId, session) {
   resetFlow(chatId);
@@ -45,7 +62,7 @@ function showProfile(bot, chatId, session) {
     city: sanitizeMd(u.city || "—"),
     diabetes: u.diabetes_status || "—",
     goals: sanitizeMd(u.goals || "—"),
-    tier: u.tier,
+    tier: planName(lang, u.tier),
     language: langLabel,
   });
   return send(bot, chatId, text, { keyboard: profileKeyboard(lang), markdown: true });
@@ -53,7 +70,7 @@ function showProfile(bot, chatId, session) {
 
 function showSubscription(bot, chatId, session) {
   const lang = langOf(session);
-  return send(bot, chatId, t(lang, "subscription_info", { tier: session.user.tier }), {
+  return send(bot, chatId, t(lang, "upgrade_intro", { plan: planName(lang, session.user.tier) }), {
     keyboard: backKeyboard(lang),
     markdown: true,
   });
@@ -81,6 +98,14 @@ async function dispatchFeature(bot, chatId, session, action) {
       return showSummary(bot, chatId, session);
     case "learn":
       return showEducation(bot, chatId, session);
+    case "goals":
+      return showGoals(bot, chatId, session);
+    case "challenges":
+      return showChallenges(bot, chatId, session);
+    case "reports":
+      return showReports(bot, chatId, session);
+    case "executive":
+      return showExecutive(bot, chatId, session);
     case "profile":
       return showProfile(bot, chatId, session);
     case "subscription":
@@ -119,6 +144,28 @@ export async function handleMessage(bot, msg) {
     return showMenu(bot, chatId, session);
   }
 
+  // Common commands (proposal §3.1) — slash always; plain words only when the
+  // user is NOT mid-flow, so "help"/"menu" inside a coach chat stay as content.
+  const word = (text || "").trim().toLowerCase();
+  const inFlow = [
+    "onboarding", "glucose", "medication", "health",
+    "coach", "food", "fitness", "lab", "goals", "challenge_code", "profileq",
+  ].includes(session.state);
+  if (session.user.onboarded) {
+    if (cmd === "/home" || (!inFlow && (word === "home" || word === "menu"))) {
+      return showMenu(bot, chatId, session);
+    }
+    if (cmd === "/help" || (!inFlow && word === "help")) {
+      return send(bot, chatId, t(langOf(session), "help_text"), {
+        keyboard: mainMenuKeyboard(langOf(session)),
+        markdown: true,
+      });
+    }
+    if (cmd === "/upgrade" || (!inFlow && word === "upgrade")) {
+      return showSubscription(bot, chatId, session);
+    }
+  }
+
   // Not onboarded yet → (re)start onboarding for any input.
   // A greeting word picks the matching welcome scenario; any other text
   // falls back to the English welcome banner.
@@ -148,6 +195,12 @@ export async function handleMessage(bot, msg) {
       return coachText(bot, chatId, session, text, msg);
     case "lab":
       return labText(bot, chatId, session, text, msg);
+    case "goals":
+      return goalsText(bot, chatId, session, text);
+    case "challenge_code":
+      return challengeCodeText(bot, chatId, session, text);
+    case "profileq":
+      return profileqText(bot, chatId, session, text);
     default:
       return showMenu(bot, chatId, session);
   }
@@ -174,6 +227,31 @@ export async function handleCallback(bot, query) {
   }
 
   if (data === "menu") return showMenu(bot, chatId, session);
+
+  // Goals
+  if (data === "goal:set") return startGoalSet(bot, chatId, session);
+
+  // Challenges (feature prefix `chl:` — distinct from onboarding `ch:`)
+  if (data.startsWith("chl:")) {
+    const x = data.split(":")[1];
+    if (x === "mine") return showMyChallenges(bot, chatId, session);
+    return startChallengeJoin(bot, chatId, session, x);
+  }
+
+  // Reports
+  if (data.startsWith("rep:")) {
+    const x = data.split(":")[1];
+    if (x === "weekly") return showWeeklyReport(bot, chatId, session);
+    if (x === "monthly") return showMonthlyReport(bot, chatId, session);
+    if (x === "doctor") return showDoctorReport(bot, chatId, session);
+  }
+
+  // Executive services
+  if (data.startsWith("ex:")) return requestService(bot, chatId, session, data.split(":")[1]);
+
+  // Background profile drip — Skip
+  if (data === "pq:skip") return skipProfileQuestion(bot, chatId, session);
+
   if (data.startsWith("feat:")) return dispatchFeature(bot, chatId, session, data.split(":")[1]);
 }
 

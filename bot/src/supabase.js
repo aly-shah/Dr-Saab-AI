@@ -95,6 +95,49 @@ async function makeSupabaseBackend() {
         .maybeSingle();
       return data?.weight_kg ?? null;
     },
+    async windowRaw(userId, days) {
+      const since = daysAgoISO(days);
+      const [{ data: g }, { data: m }, { data: h }] = await Promise.all([
+        db.from("glucose_logs").select("value_mgdl, context, created_at").eq("user_id", userId).gte("created_at", since),
+        db.from("medication_logs").select("id").eq("user_id", userId).gte("created_at", since),
+        db.from("health_logs").select("id").eq("user_id", userId).gte("created_at", since),
+      ]);
+      return { g: g || [], m: m || [], h: h || [] };
+    },
+    async joinChallenge(userId, type, code) {
+      const { data } = await db
+        .from("user_challenges")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("challenge_type", type)
+        .eq("status", "active")
+        .maybeSingle();
+      if (data) return { already: true };
+      await db.from("user_challenges").insert({ user_id: userId, challenge_type: type, code: code || null, status: "active" });
+      return { already: false };
+    },
+    async listChallenges(userId) {
+      const { data } = await db
+        .from("user_challenges")
+        .select("challenge_type, code, status, started_at")
+        .eq("user_id", userId)
+        .eq("status", "active")
+        .order("started_at", { ascending: false });
+      return data || [];
+    },
+    async addServiceRequest(userId, serviceType) {
+      const { data } = await db
+        .from("service_requests")
+        .insert({ user_id: userId, service_type: serviceType, status: "requested" })
+        .select("id")
+        .single();
+      return data?.id;
+    },
+    async saveProfileAnswer(userId, key, value) {
+      const { data } = await db.from("users").select("profile_answers").eq("id", userId).maybeSingle();
+      const merged = { ...(data?.profile_answers || {}), [key]: value == null ? "" : String(value) };
+      await db.from("users").update({ profile_answers: merged }).eq("id", userId);
+    },
   };
 }
 
@@ -206,6 +249,48 @@ async function makePostgresBackend() {
         [userId, content]
       );
     },
+    async windowRaw(userId, days) {
+      const since = daysAgoISO(days);
+      const [g, m, h] = await Promise.all([
+        pool.query("select value_mgdl, context, created_at from glucose_logs where user_id=$1 and created_at>=$2", [userId, since]),
+        pool.query("select id from medication_logs where user_id=$1 and created_at>=$2", [userId, since]),
+        pool.query("select id from health_logs where user_id=$1 and created_at>=$2", [userId, since]),
+      ]);
+      return { g: g.rows, m: m.rows, h: h.rows };
+    },
+    async joinChallenge(userId, type, code) {
+      const ex = await pool.query(
+        "select id from user_challenges where user_id=$1 and challenge_type=$2 and status='active'",
+        [userId, type]
+      );
+      if (ex.rows[0]) return { already: true };
+      await pool.query(
+        "insert into user_challenges (user_id, challenge_type, code, status) values ($1,$2,$3,'active')",
+        [userId, type, code || null]
+      );
+      return { already: false };
+    },
+    async listChallenges(userId) {
+      const { rows } = await pool.query(
+        "select challenge_type, code, status, started_at from user_challenges where user_id=$1 and status='active' order by started_at desc",
+        [userId]
+      );
+      return rows;
+    },
+    async addServiceRequest(userId, serviceType) {
+      const { rows } = await pool.query(
+        "insert into service_requests (user_id, service_type, status) values ($1,$2,'requested') returning id",
+        [userId, serviceType]
+      );
+      return rows[0].id;
+    },
+    async saveProfileAnswer(userId, key, value) {
+      await pool.query(
+        `update users set profile_answers = coalesce(profile_answers,'{}'::jsonb) || jsonb_build_object($2::text, $3::text),
+                          updated_at = now() where id=$1`,
+        [userId, key, value == null ? "" : String(value)]
+      );
+    },
   };
 }
 
@@ -220,7 +305,10 @@ function makeMemoryBackend() {
   const health = [];
   const labs = [];
   const kb = new Map();
+  const challenges = [];
+  const serviceReqs = [];
   let seq = 1;
+  let reqSeq = 1;
 
   return {
     async getUserByTelegramId(telegramId) {
@@ -304,6 +392,31 @@ function makeMemoryBackend() {
       k.updated_at = nowISO();
       kb.set(userId, k);
     },
+    async windowRaw(userId, days) {
+      const since = daysAgoISO(days);
+      const within = (arr) => arr.filter((r) => r.user_id === userId && r.created_at >= since);
+      return { g: within(glucose), m: within(meds), h: within(health) };
+    },
+    async joinChallenge(userId, type, code) {
+      if (challenges.some((c) => c.user_id === userId && c.challenge_type === type && c.status === "active")) {
+        return { already: true };
+      }
+      challenges.push({ user_id: userId, challenge_type: type, code: code || null, status: "active", started_at: nowISO() });
+      return { already: false };
+    },
+    async listChallenges(userId) {
+      return challenges.filter((c) => c.user_id === userId && c.status === "active");
+    },
+    async addServiceRequest(userId, serviceType) {
+      const id = reqSeq++;
+      serviceReqs.push({ id, user_id: userId, service_type: serviceType, status: "requested", created_at: nowISO() });
+      return id;
+    },
+    async saveProfileAnswer(userId, key, value) {
+      const user = usersById.get(userId);
+      if (!user) return;
+      user.profile_answers = { ...(user.profile_answers || {}), [key]: value == null ? "" : String(value) };
+    },
   };
 }
 
@@ -365,3 +478,31 @@ export async function weeklyStats(userId) {
     healthCount: h.length,
   };
 }
+
+// Stats over an arbitrary window (days). Adds an in-range % using simple
+// thresholds (fasting in-range ≤130; otherwise ≤180; low <70 counts out).
+export async function periodStats(userId, days = 30) {
+  const { g, m, h } = await backend.windowRaw(userId, days);
+  const values = g.map((r) => Number(r.value_mgdl)).filter((n) => !Number.isNaN(n));
+  const inRange = g.filter((r) => {
+    const v = Number(r.value_mgdl);
+    if (Number.isNaN(v) || v < 70) return false;
+    const hi = r.context === "fasting" ? 130 : 180;
+    return v <= hi;
+  }).length;
+  return {
+    days,
+    glucoseCount: g.length,
+    glucoseAvg: values.length ? Math.round(values.reduce((a, b) => a + b, 0) / values.length) : null,
+    glucoseMin: values.length ? Math.min(...values) : null,
+    glucoseMax: values.length ? Math.max(...values) : null,
+    inRangePct: values.length ? Math.round((inRange / values.length) * 100) : null,
+    medicationCount: m.length,
+    healthCount: h.length,
+  };
+}
+
+export const joinChallenge = (id, type, code) => backend.joinChallenge(id, type, code);
+export const listChallenges = (id) => backend.listChallenges(id);
+export const addServiceRequest = (id, type) => backend.addServiceRequest(id, type);
+export const saveProfileAnswer = (id, key, value) => backend.saveProfileAnswer(id, key, value);

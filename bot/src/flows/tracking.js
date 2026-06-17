@@ -2,6 +2,7 @@ import { t } from "../i18n.js";
 import { send, sanitizeMd, langOf } from "../utils.js";
 import { backKeyboard } from "../keyboards.js";
 import { addGlucose, addMedication, addHealthLog, registerActivity } from "../supabase.js";
+import { applyScores, glucoseInRange } from "../scores.js";
 import { refreshKB } from "../kb.js";
 
 // ---------------- Glucose ----------------
@@ -59,6 +60,11 @@ export async function glucoseText(bot, chatId, session, text) {
 
   await addGlucose(session.user.id, parsed.value, parsed.context);
   session.user = await registerActivity(session.user);
+  session.user = await applyScores(
+    session.user,
+    "log_glucose",
+    glucoseInRange(parsed.value, parsed.context) ? "in_range" : "out_range"
+  );
   await refreshKB(session.user);
 
   const feedback = glucoseFeedback(lang, parsed.value, parsed.context);
@@ -97,6 +103,7 @@ export async function medicationText(bot, chatId, session, text) {
 
   await addMedication(session.user.id, name || val, dose);
   session.user = await registerActivity(session.user);
+  session.user = await applyScores(session.user, "log_med");
   await refreshKB(session.user);
 
   await send(
@@ -148,6 +155,7 @@ export async function healthText(bot, chatId, session, text) {
 
   await addHealthLog(session.user.id, fields);
   session.user = await registerActivity(session.user);
+  session.user = await applyScores(session.user, "checkin");
   await refreshKB(session.user);
   await send(bot, chatId, t(lang, "health_saved", { streak: session.user.streak }), {
     keyboard: backKeyboard(lang),

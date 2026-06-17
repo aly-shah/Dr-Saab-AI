@@ -105,7 +105,7 @@ function Typing() {
   );
 }
 
-export default function PhoneMockup({ className = "" }) {
+export default function PhoneMockup({ className = "", contactName = "DrSaab AI", messages = null, rtl = false }) {
   return (
     <div className={`relative mx-auto w-[290px] sm:w-[320px] ${className}`}>
       {/* side buttons */}
@@ -143,7 +143,7 @@ export default function PhoneMockup({ className = "" }) {
               </div>
               <div className="flex-1 leading-tight">
                 <p className="flex items-center gap-1 text-[13px] font-semibold">
-                  Dr Saab AI
+                  {contactName}
                   <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-sky-300" fill="currentColor" aria-hidden="true">
                     <path d="m9 12 2 2 4-4m-3-8 2.3 1.7 2.8-.3 1 2.7 2.4 1.6-1 2.6 1 2.6-2.4 1.6-1 2.7-2.8-.3L12 22l-2.3-1.7-2.8.3-1-2.7L3.5 16.3l1-2.6-1-2.6 2.4-1.6 1-2.7 2.8.3L12 2Z" opacity="0.25" />
                     <path d="m9.5 12.2 1.7 1.7 3.4-3.4" stroke="white" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
@@ -174,6 +174,31 @@ export default function PhoneMockup({ className = "" }) {
                 backgroundPosition: "0 0, 11px 11px",
               }}
             >
+              {messages ? (
+                <>
+                  <div className="mx-auto rounded-md bg-white/85 px-2.5 py-0.5 text-[9.5px] font-medium text-slate-500 shadow-sm">
+                    TODAY
+                  </div>
+                  {messages.map((m, i) => (
+                    <div key={i} className={`flex ${m.from === "out" ? "justify-end" : "justify-start"}`}>
+                      <div
+                        dir={rtl ? "rtl" : "ltr"}
+                        className={`relative max-w-[82%] rounded-2xl px-3 py-2 text-[12.5px] leading-snug shadow-[0_1px_1px_rgba(0,0,0,0.08)] ${
+                          m.from === "out"
+                            ? "rounded-tr-md bg-[#d9fdd3] text-slate-800"
+                            : "rounded-tl-md bg-white text-slate-700"
+                        }`}
+                      >
+                        <span>{m.text}</span>
+                        <span className={`${rtl ? "mr-2" : "ml-2"} inline-block align-bottom text-[9.5px] text-slate-400`}>
+                          {m.time}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <>
               <div className="mx-auto rounded-md bg-white/85 px-2.5 py-0.5 text-[9.5px] font-medium text-slate-500 shadow-sm">
                 TODAY
               </div>
@@ -211,6 +236,8 @@ export default function PhoneMockup({ className = "" }) {
                 Down from 158 last week 📉 Really solid progress. I&apos;ll nudge you to recheck at 11am 👍
               </Incoming>
               <Typing />
+                </>
+              )}
             </div>
 
             {/* input bar */}

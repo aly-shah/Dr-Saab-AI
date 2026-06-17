@@ -1,17 +1,34 @@
-import { HeartPulseIcon, WhatsAppIcon } from "./icons";
+import { WhatsAppIcon } from "./icons";
 
 const COLS = [
   {
     title: "Product",
-    links: ["How it works", "Features", "Pricing", "Results"],
+    links: [
+      { label: "How DrSaab Works", href: "#how" },
+      { label: "Features", href: "#features" },
+      { label: "Pricing", href: "#pricing" },
+      { label: "FAQ", href: "#faq" },
+    ],
   },
   {
     title: "Company",
-    links: ["About", "Our medical approach", "Careers", "Contact"],
+    links: [
+      { label: "About DrSaab", href: "#results" },
+      // "Our approach" PDF opens in a new tab — drop the file at /public/our-approach.pdf
+      { label: "Our approach", href: "/our-approach.pdf", target: "_blank" },
+      { label: "Careers", href: "#" },
+      { label: "Contact", href: "#" },
+    ],
   },
   {
-    title: "Legal",
-    links: ["Privacy policy", "Terms of service", "Medical disclaimer", "Data deletion"],
+    // Trust Center — legal docs go here once the client adds the files to /public.
+    title: "Trust Center",
+    links: [
+      { label: "Privacy policy", href: "#" },
+      { label: "Terms of service", href: "#" },
+      { label: "Medical disclaimer", href: "#" },
+      { label: "Data deletion", href: "#" },
+    ],
   },
 ];
 
@@ -23,13 +40,8 @@ export default function Footer() {
       <div className="container-page py-16">
         <div className="grid gap-12 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div className="max-w-sm">
-            <a href="#top" className="flex items-center gap-2.5">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-primary to-accent text-white shadow-soft">
-                <HeartPulseIcon className="h-5 w-5" />
-              </span>
-              <span className="text-lg font-bold tracking-tight text-ink">
-                Dr Saab <span className="text-primary">AI</span>
-              </span>
+            <a href="#top" className="flex items-center">
+              <img src="/logo.png" alt="DrSaab" className="h-11 w-auto" />
             </a>
             <p className="mt-4 text-sm leading-relaxed text-ink/60">
               A friendly, doctor-informed diabetes coach that lives inside WhatsApp —
@@ -54,12 +66,13 @@ export default function Footer() {
               </h4>
               <ul className="mt-4 space-y-3">
                 {col.links.map((l) => (
-                  <li key={l}>
+                  <li key={l.label}>
                     <a
-                      href="#"
+                      href={l.href}
+                      {...(l.target ? { target: l.target, rel: "noopener noreferrer" } : {})}
                       className="text-sm text-ink/60 transition-colors hover:text-primary"
                     >
-                      {l}
+                      {l.label}
                     </a>
                   </li>
                 ))}
@@ -69,7 +82,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-12 rounded-2xl bg-amber-50 p-5 text-[13px] leading-relaxed text-amber-900/80 ring-1 ring-amber-200/70">
-          <strong className="font-semibold">Medical disclaimer:</strong> Dr Saab AI
+          <strong className="font-semibold">Medical disclaimer:</strong> DrSaab
           provides general educational information and lifestyle coaching. It is not a
           medical device and does not diagnose, treat or replace professional medical
           advice. Always consult a qualified healthcare provider before changing your
@@ -78,7 +91,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-8 flex flex-col items-center justify-between gap-4 border-t border-line/60 pt-8 text-sm text-ink/50 sm:flex-row">
-          <p>© 2026 Dr Saab AI. Made with care for healthier lives.</p>
+          <p>© 2026 DrSaab. Made with care for healthier lives.</p>
           <p className="text-ink/40">Not affiliated with or endorsed by WhatsApp / Meta.</p>
         </div>
       </div>

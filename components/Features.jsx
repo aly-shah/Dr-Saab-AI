@@ -199,7 +199,7 @@ export default function Features() {
         <div className="mx-auto max-w-2xl text-center">
           <span className="eyebrow">
             <SparkleIcon className="h-4 w-4" />
-            What Dr Saab AI does for you
+            What DrSaab does for you
           </span>
           <h2 className="mt-5 text-3xl font-bold tracking-tight text-ink sm:text-4xl">
             A complete diabetes companion, built into your chats
@@ -217,7 +217,7 @@ export default function Features() {
               icon={SaladIcon}
               kicker="Smart meals"
               title="Snap your plate, get a low-GI verdict"
-              body="Send a photo of any meal and Dr Saab AI estimates carbs and glycemic impact, then suggests simple swaps that fit your culture and budget."
+              body="Send a photo of any meal and DrSaab estimates carbs and glycemic impact, then suggests simple swaps that fit your culture and budget."
               bullets={[
                 "Instant carb & glycemic-load estimates from a photo",
                 "Culturally familiar meal swaps and portion tips",
@@ -246,7 +246,7 @@ export default function Features() {
                 icon={ChartIcon}
                 kicker="Clear insights"
                 title="Watch your numbers fall into range"
-                body="Just text your readings — Dr Saab AI logs them, spots patterns, and shows your progress in plain language so you always know what's working."
+                body="Just text your readings — DrSaab logs them, spots patterns, and shows your progress in plain language so you always know what's working."
                 bullets={[
                   "Effortless logging by text or voice note",
                   "Trend spotting that flags spikes before they become habits",
@@ -294,7 +294,7 @@ export default function Features() {
                 icon={StethoscopeIcon}
                 kicker="Doctor-informed"
                 title="Answers you can actually trust, any hour"
-                body="Built on established clinical diabetes guidelines, Dr Saab AI explains medications, symptoms and what your numbers mean — and never hesitates to point you to a real clinician."
+                body="Built on established clinical diabetes guidelines, DrSaab explains medications, symptoms and what your numbers mean — and never hesitates to point you to a real clinician."
                 bullets={[
                   "Plain-language answers grounded in clinical guidelines",
                   "Safe escalation: clear prompts to seek urgent care",

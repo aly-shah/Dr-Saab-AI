@@ -1,18 +1,26 @@
-import { Bricolage_Grotesque } from "next/font/google";
+import { Montserrat, Manrope } from "next/font/google";
 import "./globals.css";
 
-const bricolage = Bricolage_Grotesque({
+// Headings: Montserrat (SemiBold) · Body: Manrope (Regular)
+const montserrat = Montserrat({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
-  variable: "--font-bricolage",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-montserrat",
+  display: "swap",
+});
+
+const manrope = Manrope({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-manrope",
   display: "swap",
 });
 
 export const metadata = {
   metadataBase: new URL("https://drsaab.ai"),
-  title: "Dr Saab AI — Your diabetes coach on WhatsApp",
+  title: "DrSaab — Your diabetes coach on WhatsApp",
   description:
-    "Dr Saab AI is a friendly, doctor-informed diabetes prevention and management coach that lives inside WhatsApp. Log readings, snap your meals, and bring your blood sugar into a healthy range — one message at a time.",
+    "DrSaab is a friendly, doctor-informed diabetes prevention and management coach that lives inside WhatsApp. Log readings, snap your meals, and bring your blood sugar into a healthy range — one message at a time.",
   keywords: [
     "diabetes",
     "blood sugar",
@@ -22,7 +30,7 @@ export const metadata = {
     "HbA1c",
   ],
   openGraph: {
-    title: "Dr Saab AI — Your diabetes coach on WhatsApp",
+    title: "DrSaab — Your diabetes coach on WhatsApp",
     description:
       "Manage and prevent diabetes, one WhatsApp message at a time. No app to download.",
     type: "website",
@@ -37,7 +45,7 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={bricolage.variable}>
+    <html lang="en" className={`${montserrat.variable} ${manrope.variable}`}>
       <body>{children}</body>
     </html>
   );

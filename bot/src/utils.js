@@ -79,8 +79,11 @@ export async function photoDataUrl(bot, msg) {
   }
 }
 
+// Back-compat shim: "premium" now means any paid plan (Consistency Coach or
+// Executive Coach). See tiers.js for the full plan model.
+import { isPaid } from "./tiers.js";
 export function isPremium(user) {
-  return user?.tier === "consistency_builder";
+  return isPaid(user);
 }
 
 export function langOf(session) {

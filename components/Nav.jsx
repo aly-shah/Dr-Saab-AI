@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { WhatsAppIcon, MenuIcon, CloseIcon, HeartPulseIcon } from "./icons";
+import { WhatsAppIcon, MenuIcon, CloseIcon } from "./icons";
 
 const LINKS = [
-  { href: "#how", label: "How it works" },
+  { href: "#how", label: "How DrSaab Works" },
   { href: "#features", label: "Features" },
-  { href: "#results", label: "Results" },
+  { href: "#results", label: "About DrSaab" },
   { href: "#pricing", label: "Pricing" },
   { href: "#faq", label: "FAQ" },
 ];
@@ -33,13 +33,8 @@ export default function Nav() {
       }`}
     >
       <nav className="container-page flex h-[68px] items-center justify-between" aria-label="Main">
-        <a href="#top" className="flex items-center gap-2.5" aria-label="Dr Saab AI home">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-primary to-accent text-white shadow-soft">
-            <HeartPulseIcon className="h-5 w-5" />
-          </span>
-          <span className="text-lg font-bold tracking-tight text-ink">
-            Dr Saab <span className="text-primary">AI</span>
-          </span>
+        <a href="#top" className="flex items-center" aria-label="DrSaab home">
+          <img src="/logo.png" alt="DrSaab" className="h-10 w-auto" />
         </a>
 
         <ul className="hidden items-center gap-8 lg:flex">
@@ -58,7 +53,7 @@ export default function Nav() {
         <div className="hidden items-center gap-3 lg:flex">
           <a href={WHATSAPP_URL} className="btn-primary px-5 py-2.5 text-sm">
             <WhatsAppIcon className="h-4 w-4" />
-            Chat with Dr Saab AI
+            Chat with DrSaab
           </a>
         </div>
 
@@ -95,7 +90,7 @@ export default function Nav() {
                 className="btn-primary w-full"
               >
                 <WhatsAppIcon className="h-5 w-5" />
-                Chat with Dr Saab AI
+                Chat with DrSaab
               </a>
             </li>
           </ul>

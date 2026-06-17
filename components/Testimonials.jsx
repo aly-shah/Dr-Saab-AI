@@ -1,29 +1,10 @@
-import Image from "next/image";
-import { StarIcon, SparkleIcon } from "./icons";
+import { SparkleIcon } from "./icons";
+import VideoBlock from "./VideoBlock";
 
-const TESTIMONIALS = [
-  {
-    quote:
-      "My fasting sugar went from the 160s to the 120s in two months. It just feels like texting a kind doctor who actually remembers me.",
-    name: "Aisha R.",
-    role: "Type 2, managing for 3 years",
-    img: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&q=80&auto=format&fit=crop&crop=faces",
-  },
-  {
-    quote:
-      "I was pre-diabetic and terrified. Dr Saab AI made the changes feel small and doable. My latest HbA1c is back in the normal range.",
-    name: "Daniel K.",
-    role: "Reversed pre-diabetes",
-    img: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80&auto=format&fit=crop&crop=faces",
-  },
-  {
-    quote:
-      "The meal photo feature is genius. I send a picture of dinner and instantly know if I should swap the rice. No more guessing.",
-    name: "Marcus T.",
-    role: "Type 2, on insulin",
-    img: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&q=80&auto=format&fit=crop&crop=faces",
-  },
-];
+// "About DrSaab" section (replaces the old results/testimonials block).
+// Video file: drop one into /public and set `src` below (e.g. "/about.mp4").
+const ABOUT_VIDEO_SRC = ""; // pending — client will share the video
+const ABOUT_VIDEO_CAPTION = ""; // pending — client will share the caption text
 
 export default function Testimonials() {
   return (
@@ -32,44 +13,18 @@ export default function Testimonials() {
         <div className="mx-auto max-w-2xl text-center">
           <span className="eyebrow">
             <SparkleIcon className="h-4 w-4" />
-            Real progress
+            About DrSaab
           </span>
           <h2 className="mt-5 text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-            People are feeling the difference
+            Kam Uljhan. Zyada Control.
           </h2>
           <p className="mt-4 text-lg text-ink/65">
-            Thousands use Dr Saab AI every day to steady their sugar and rebuild
-            their confidence. Here&apos;s what that looks like.
+            DrSaab aap ko diabetes ko samajhnay, rozana behtar faislay karnay aur
+            sehatmand aadatein barqarar rakhnay mein madad karta hai.
           </p>
         </div>
 
-        <div className="mt-14 grid gap-6 md:grid-cols-3">
-          {TESTIMONIALS.map((t) => (
-            <figure key={t.name} className="reveal card flex flex-col p-7">
-              <div className="flex items-center gap-1 text-amber-400" aria-label="5 out of 5 stars">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <StarIcon key={i} className="h-4 w-4" />
-                ))}
-              </div>
-              <blockquote className="mt-4 flex-1 text-[15px] leading-relaxed text-ink/80">
-                “{t.quote}”
-              </blockquote>
-              <figcaption className="mt-6 flex items-center gap-3 border-t border-line/60 pt-5">
-                <Image
-                  src={t.img}
-                  alt={t.name}
-                  width={48}
-                  height={48}
-                  className="h-12 w-12 rounded-full object-cover ring-2 ring-line"
-                />
-                <div className="leading-tight">
-                  <p className="font-semibold text-ink">{t.name}</p>
-                  <p className="text-xs text-ink/55">{t.role}</p>
-                </div>
-              </figcaption>
-            </figure>
-          ))}
-        </div>
+        <VideoBlock src={ABOUT_VIDEO_SRC} caption={ABOUT_VIDEO_CAPTION} className="mt-14" />
       </div>
     </section>
   );

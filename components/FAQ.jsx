@@ -5,12 +5,12 @@ import { PlusIcon, SparkleIcon } from "./icons";
 
 const FAQS = [
   {
-    q: "Is Dr Saab AI a replacement for my doctor?",
-    a: "No — and it will never pretend to be. Dr Saab AI is an educational and coaching companion that helps you manage daily habits and understand your numbers. It always encourages you to follow your doctor's plan and to seek professional care for anything urgent.",
+    q: "Is DrSaab a replacement for my doctor?",
+    a: "No — and it will never pretend to be. DrSaab is an educational and coaching companion that helps you manage daily habits and understand your numbers. It always encourages you to follow your doctor's plan and to seek professional care for anything urgent.",
   },
   {
     q: "How do I start? Do I need to download anything?",
-    a: "Nothing to download. Tap any 'Chat on WhatsApp' button and it opens a conversation with Dr Saab AI in the WhatsApp app you already have. Say hello and you're in.",
+    a: "Nothing to download. Tap any 'Chat on WhatsApp' button and it opens a conversation with DrSaab in the WhatsApp app you already have. Say hello and you're in.",
   },
   {
     q: "Is my health data private and secure?",
@@ -18,15 +18,15 @@ const FAQS = [
   },
   {
     q: "Can it help prevent diabetes, not just manage it?",
-    a: "Yes. If you're pre-diabetic or at risk, Dr Saab AI focuses on prevention — building sustainable habits around food, movement and sleep that are shown to lower your risk of developing type 2 diabetes.",
+    a: "Yes. If you're pre-diabetic or at risk, DrSaab focuses on prevention — building sustainable habits around food, movement and sleep that are shown to lower your risk of developing type 2 diabetes.",
   },
   {
     q: "Which languages does it speak?",
-    a: "Dr Saab AI understands and replies in many major languages, including English, Arabic, Urdu, Hindi and Spanish, so guidance feels natural and familiar to you.",
+    a: "DrSaab understands and replies in many major languages, including English, Arabic, Urdu, Hindi and Spanish, so guidance feels natural and familiar to you.",
   },
   {
     q: "What does it cost?",
-    a: "You can start completely free, forever. Optional Plus and Family plans unlock unlimited meal analysis, personalised plans and reminders — but the core coaching is always free.",
+    a: "Yes. DrSaab's core diabetes coaching is free forever. Premium plans are available for people who want deeper insights, advanced coaching, health report analysis, and additional accountability.",
   },
 ];
 

@@ -1,42 +1,48 @@
-import { StarIcon } from "./icons";
+import PhoneMockup from "./PhoneMockup";
+import { SparkleIcon } from "./icons";
 
-const STATS = [
-  { value: "12,000+", label: "people coached on WhatsApp" },
-  { value: "−0.9%", label: "average HbA1c drop in 90 days*" },
-  { value: "73%", label: "more days in healthy range" },
-  { value: "24/7", label: "always-on, instant replies" },
+// Capability banner: DrSaab chats in the user's own language. English sample is
+// in the hero; here we show Roman Urdu and Urdu (script, RTL) conversations.
+const ROMAN_URDU = [
+  { from: "in", text: "Assalam o Alaikum! Aaj fasting sugar kitni thi?", time: "9:12" },
+  { from: "out", text: "142 thi", time: "9:13" },
+  { from: "in", text: "MashaAllah — pichle hafte 158 thi. Behtari ho rahi hai. Aaj 10 minute walk zaroor karein.", time: "9:13" },
+  { from: "out", text: "Theek hai, shukriya!", time: "9:14" },
+  { from: "in", text: "Main shaam ko reminder bhej dunga.", time: "9:14" },
+];
+
+const URDU = [
+  { from: "in", text: "السلام علیکم! آج ناشتے میں کیا لیا؟", time: "9:20" },
+  { from: "out", text: "انڈہ اور ایک روٹی", time: "9:21" },
+  { from: "in", text: "اچھا انتخاب۔ تھوڑی سبزی شامل کریں تو شوگر مستحکم رہے گی۔", time: "9:21" },
+  { from: "out", text: "ضرور، شکریہ ڈاکٹر صاحب", time: "9:22" },
+  { from: "in", text: "میں شام کو یاد دہانی بھیج دوں گا۔", time: "9:22" },
 ];
 
 export default function TrustBar() {
   return (
     <section className="border-y border-line/60 bg-white/70">
-      <div className="container-page py-10">
-        <div className="mb-8 flex flex-col items-center gap-2 text-center">
-          <div className="flex items-center gap-1 text-amber-400" aria-hidden="true">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <StarIcon key={i} className="h-5 w-5" />
-            ))}
-          </div>
-          <p className="text-sm font-medium text-ink/70">
-            Loved by <span className="font-semibold text-ink">4.9/5</span> from people
-            taking back control of their health
-          </p>
+      <div className="container-page py-16">
+        <div className="mx-auto mb-12 max-w-2xl text-center">
+          <span className="eyebrow">
+            <SparkleIcon className="h-4 w-4" />
+            Speaks your language
+          </span>
+          <h2 className="mt-5 text-3xl font-bold tracking-tight text-ink sm:text-4xl">
+            Coaching in English, Urdu &amp; Roman Urdu
+          </h2>
         </div>
 
-        <dl className="grid grid-cols-2 gap-6 sm:gap-8 md:grid-cols-4">
-          {STATS.map((s) => (
-            <div key={s.label} className="reveal text-center">
-              <dt className="text-3xl font-bold tracking-tight text-gradient sm:text-4xl">
-                {s.value}
-              </dt>
-              <dd className="mt-2 text-sm leading-snug text-ink/60">{s.label}</dd>
-            </div>
-          ))}
-        </dl>
-        <p className="mt-6 text-center text-[11px] text-ink/40">
-          *Illustrative outcomes for demonstration. Dr Saab AI supports — and never
-          replaces — your doctor&apos;s care.
-        </p>
+        <div className="grid items-start justify-items-center gap-10 sm:grid-cols-2">
+          <div className="flex flex-col items-center">
+            <PhoneMockup messages={ROMAN_URDU} contactName="DrSaab AI" />
+            <p className="mt-5 text-sm font-semibold text-ink/70">Roman Urdu</p>
+          </div>
+          <div className="flex flex-col items-center">
+            <PhoneMockup messages={URDU} contactName="DrSaab AI" rtl />
+            <p className="mt-5 text-sm font-semibold text-ink/70">اردو</p>
+          </div>
+        </div>
       </div>
     </section>
   );

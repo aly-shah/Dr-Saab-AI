@@ -218,6 +218,89 @@ const STR = {
 
     btn_yes: "Yes",
     btn_no: "No",
+
+    // ---- Plans / tiers (3-plan model) ----
+    plan_free: "Starter (Free)",
+    plan_consistency: "Consistency Coach",
+    plan_executive: "Executive Coach",
+    btn_view_plans: "View Plans",
+    btn_maybe_later: "Maybe Later",
+    btn_upgrade: "💎 Upgrade",
+    upgrade_intro:
+      "💎 *DrSaab Plans*\n\n*Starter (Free)* — daily check-ins, sugar & medicine logging, food logging, basic Ask DrSaab, a few lab explanations, goals, free challenges and the Learn library.\n\n*Consistency Coach* — everything in Starter, plus full Ask DrSaab, more lab explanations, My Progress with the four scores, weekly & monthly reports, a doctor-friendly report, smart reminders and all challenges.\n\n*Executive Coach* — everything in Consistency Coach, plus doctor case reviews, live coach sessions, a 3-monthly executive review, priority help and premium content.\n\nYour plan: *{plan}*",
+
+    // ---- common commands ----
+    help_text:
+      "🤖 *DrSaab Help*\n\nYou can just chat with me, or use these:\n• *Menu / Home* — open the main menu\n• *Back* — go back\n• *Cancel* — stop the current step\n• *Upgrade* — see plans\n• *Help* — show this message\n\nTry logging a sugar reading (e.g. `130 fasting`), ask me a question, or tap a menu option.",
+
+    // ---- menu buttons (new features) ----
+    btn_goals: "🎯 My Goals",
+    btn_challenges: "🏆 Challenges",
+    btn_reports: "📑 Reports",
+    btn_executive: "⭐ Executive Services",
+
+    // ---- Goals ----
+    goals_title: "🎯 *My Goals*",
+    goals_current: "Your current goal: *{goal}*",
+    goals_none: "You haven't set a goal yet.",
+    goals_prompt: "Send your main health goal in a sentence (e.g. *lower my HbA1c below 7*), or tap Back.",
+    goals_saved: "✅ Goal saved: *{goal}*\nI'll keep this in mind while coaching you.",
+    btn_set_goal: "✏️ Set / change goal",
+
+    // ---- Scores (4-score system) ----
+    scores_title: "📊 *Your Scores* (out of 100)",
+    scores_body:
+      "🔥 Consistency: *{consistency}*\n💪 Motivation: *{motivation}*\n🩺 Risk: *{risk}*\n💬 Engagement: *{engagement}*",
+    score_consistency: "Consistency",
+    score_motivation: "Motivation",
+    score_risk: "Risk",
+    score_engagement: "Engagement",
+
+    // ---- Reports ----
+    reports_title: "📑 *Reports*",
+    reports_intro: "Choose a report. You can share these with your doctor.",
+    btn_report_weekly: "🗓 Weekly summary",
+    btn_report_monthly: "📅 Monthly report",
+    btn_report_doctor: "🩺 Doctor report",
+    report_monthly_generating: "📅 Building your monthly report…",
+    no_data_month: "Not enough data this month yet. Keep logging and check back!",
+    doctor_report_title: "🩺 *Doctor Report* — {name}",
+    doctor_report_body:
+      "Period: last 30 days\nDiabetes: {diabetes}\nLatest HbA1c (self-reported): {hba1c}\nEst. HbA1c (from logs): {est_hba1c}\nBMI: {bmi}\n\nGlucose readings: {gcount}\nAverage: {gavg} mg/dL  (min {gmin} / max {gmax})\nIn-range readings: {ginrange}%\nMedication logs: {mcount}\nCheck-ins: {hcount}\nCurrent streak: {streak} day(s)\n\n_Self-reported data from DrSaab. Educational use; not a diagnosis._",
+
+    // ---- Challenges ----
+    challenges_title: "🏆 *Challenges*",
+    challenges_intro: "Join a challenge to stay motivated. Tap one to join.",
+    chl_a1c: "90-Day HbA1c Challenge",
+    chl_weight: "Weight Loss Challenge",
+    chl_walking: "Walking Challenge",
+    chl_consistency: "Consistency Challenge",
+    chl_ramadan: "Ramadan Health Challenge",
+    chl_doctor: "Doctor Challenge (needs code)",
+    chl_corporate: "Corporate Challenge (needs code)",
+    challenge_joined: "✅ You've joined the *{name}*. Keep logging daily — I'll track your progress.",
+    challenge_code_prompt: "Enter the code for *{name}* (from your doctor or company), or tap Back.",
+    challenge_already: "You're already in the *{name}*.",
+    my_challenges_title: "Your active challenges:",
+    my_challenges_none: "You haven't joined any challenge yet.",
+    btn_my_challenges: "📋 My challenges",
+
+    // ---- Executive Services ----
+    exec_title: "⭐ *Executive Services*",
+    exec_intro: "High-touch support for Executive Coach members. Choose a service and our team will follow up.",
+    btn_exec_doctor: "🩺 Request a doctor review",
+    btn_exec_session: "📞 Book a live coach session",
+    btn_exec_review: "📈 Executive progress review",
+    btn_exec_priority: "⚡ Priority help",
+    btn_exec_content: "📚 Premium content",
+    exec_requested: "✅ Request received: *{service}*. Our team will reach out to you. (Ref #{ref})",
+    executive_required:
+      "⭐ *Executive Coach* feature.\nUpgrade to Executive Coach for doctor reviews, live coach sessions, priority help and premium content.",
+
+    // ---- Background profile builder ----
+    profileq_intro: "Quick question to personalize your coaching (tap Skip to pass):",
+    profileq_saved: "Thanks — noted. 👍",
+    profileq_done: "Your background profile is complete. Thank you!",
   },
 
   ur: {
@@ -427,6 +510,29 @@ const STR = {
 
     btn_yes: "ہاں",
     btn_no: "نہیں",
+
+    plan_free: "اسٹارٹر (مفت)",
+    plan_consistency: "Consistency Coach",
+    plan_executive: "Executive Coach",
+    btn_view_plans: "پلانز دیکھیں",
+    btn_maybe_later: "ابھی نہیں",
+    btn_upgrade: "💎 اپ گریڈ",
+    btn_goals: "🎯 میرے اہداف",
+    btn_challenges: "🏆 چیلنجز",
+    btn_reports: "📑 رپورٹس",
+    btn_executive: "⭐ ایگزیکٹو سروسز",
+    help_text:
+      "🤖 *DrSaab مدد*\n\nآپ مجھ سے بات کر سکتے ہیں یا یہ استعمال کریں:\n• *Menu / Home* — مرکزی مینو\n• *Back* — واپس\n• *Cancel* — موجودہ مرحلہ روکیں\n• *Upgrade* — پلانز دیکھیں\n• *Help* — یہ پیغام\n\nشوگر لاگ کریں (مثلاً `130 fasting`)، سوال پوچھیں، یا مینو منتخب کریں۔",
+    goals_title: "🎯 *میرے اہداف*",
+    goals_none: "آپ نے ابھی کوئی ہدف مقرر نہیں کیا۔",
+    goals_current: "آپ کا موجودہ ہدف: *{goal}*",
+    goals_prompt: "اپنا بنیادی صحت کا ہدف ایک جملے میں بھیجیں (مثلاً *HbA1c کو 7 سے کم کرنا*)، یا واپس دبائیں۔",
+    goals_saved: "✅ ہدف محفوظ ہو گیا: *{goal}*",
+    btn_set_goal: "✏️ ہدف مقرر/تبدیل کریں",
+    scores_title: "📊 *آپ کے اسکور* (100 میں سے)",
+    reports_title: "📑 *رپورٹس*",
+    challenges_title: "🏆 *چیلنجز*",
+    exec_title: "⭐ *ایگزیکٹو سروسز*",
   },
 
   roman_ur: {
@@ -636,6 +742,29 @@ const STR = {
 
     btn_yes: "Haan",
     btn_no: "Nahi",
+
+    plan_free: "Starter (Free)",
+    plan_consistency: "Consistency Coach",
+    plan_executive: "Executive Coach",
+    btn_view_plans: "Plans dekhein",
+    btn_maybe_later: "Abhi nahi",
+    btn_upgrade: "💎 Upgrade",
+    btn_goals: "🎯 Mere Goals",
+    btn_challenges: "🏆 Challenges",
+    btn_reports: "📑 Reports",
+    btn_executive: "⭐ Executive Services",
+    help_text:
+      "🤖 *DrSaab Help*\n\nAap mujh se baat kar saktay hain ya yeh use karein:\n• *Menu / Home* — main menu\n• *Back* — wapas\n• *Cancel* — mojooda step roken\n• *Upgrade* — plans dekhein\n• *Help* — yeh message\n\nSugar log karein (e.g. `130 fasting`), sawal poochein, ya menu select karein.",
+    goals_title: "🎯 *Mere Goals*",
+    goals_none: "Aap ne abhi koi goal set nahi kiya.",
+    goals_current: "Aap ka mojooda goal: *{goal}*",
+    goals_prompt: "Apna main health goal ek jumlay mein bhejein (e.g. *HbA1c 7 se kam karna*), ya Back dabayein.",
+    goals_saved: "✅ Goal save ho gaya: *{goal}*",
+    btn_set_goal: "✏️ Goal set/change karein",
+    scores_title: "📊 *Aap ke Scores* (100 mein se)",
+    reports_title: "📑 *Reports*",
+    challenges_title: "🏆 *Challenges*",
+    exec_title: "⭐ *Executive Services*",
   },
 };
 

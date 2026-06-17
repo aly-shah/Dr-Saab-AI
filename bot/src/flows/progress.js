@@ -39,7 +39,18 @@ export async function showProgress(bot, chatId, session) {
     readings: readingsText,
   });
 
-  await send(bot, chatId, `${t(lang, "progress_title")}\n\n${body}${clinicBlock}`, {
+  // Four-score panel (proposal §3.3)
+  const u = session.user;
+  const scoresBlock =
+    `\n\n${t(lang, "scores_title")}\n` +
+    t(lang, "scores_body", {
+      consistency: u.consistency_score ?? 50,
+      motivation: u.motivation_score ?? 50,
+      risk: u.risk_score ?? 50,
+      engagement: u.engagement_score ?? 50,
+    });
+
+  await send(bot, chatId, `${t(lang, "progress_title")}\n\n${body}${clinicBlock}${scoresBlock}`, {
     keyboard: backKeyboard(lang),
     markdown: true,
   });

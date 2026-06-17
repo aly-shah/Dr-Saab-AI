@@ -46,16 +46,92 @@ export function skipKeyboard(lang) {
 
 export function mainMenuKeyboard(lang) {
   const b = (key, action) => ({ text: t(lang, key), callback_data: `feat:${action}` });
+  // Single layout for everyone; paid/executive-only features gate on tap with
+  // an Upgrade prompt (per proposal 3.9). Weekly summary now lives under Reports.
   return {
     inline_keyboard: [
       [b("btn_glucose", "glucose"), b("btn_medication", "medication")],
-      [b("btn_health", "health"), b("btn_progress", "progress")],
-      [b("btn_coach", "coach"), b("btn_food", "food")],
-      [b("btn_fitness", "fitness"), b("btn_lab", "lab")],
-      [b("btn_summary", "summary"), b("btn_learn", "learn")],
-      [b("btn_profile", "profile"), b("btn_subscription", "subscription")],
+      [b("btn_health", "health"), b("btn_food", "food")],
+      [b("btn_coach", "coach"), b("btn_fitness", "fitness")],
+      [b("btn_lab", "lab"), b("btn_goals", "goals")],
+      [b("btn_challenges", "challenges"), b("btn_progress", "progress")],
+      [b("btn_reports", "reports"), b("btn_learn", "learn")],
+      [b("btn_executive", "executive"), b("btn_profile", "profile")],
+      [b("btn_subscription", "subscription")],
     ],
   };
+}
+
+// Shown when a free user taps a paid feature: View Plans / Maybe Later.
+export function upgradeKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "btn_view_plans"), callback_data: "feat:subscription" },
+        { text: t(lang, "btn_maybe_later"), callback_data: "menu" },
+      ],
+    ],
+  };
+}
+
+export function goalsKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [{ text: t(lang, "btn_set_goal"), callback_data: "goal:set" }],
+      [{ text: t(lang, "btn_back"), callback_data: "menu" }],
+    ],
+  };
+}
+
+export function reportsKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [{ text: t(lang, "btn_report_weekly"), callback_data: "rep:weekly" }],
+      [{ text: t(lang, "btn_report_monthly"), callback_data: "rep:monthly" }],
+      [{ text: t(lang, "btn_report_doctor"), callback_data: "rep:doctor" }],
+      [{ text: t(lang, "btn_back"), callback_data: "menu" }],
+    ],
+  };
+}
+
+// Feature challenges keyboard (prefix `chl:` — distinct from onboarding `ch:`).
+export function challengesKeyboard(lang) {
+  return stack([
+    { text: t(lang, "chl_a1c"), callback_data: "chl:a1c" },
+    { text: t(lang, "chl_weight"), callback_data: "chl:weight" },
+    { text: t(lang, "chl_walking"), callback_data: "chl:walking" },
+    { text: t(lang, "chl_consistency"), callback_data: "chl:consistency" },
+    { text: t(lang, "chl_ramadan"), callback_data: "chl:ramadan" },
+    { text: t(lang, "chl_doctor"), callback_data: "chl:doctor" },
+    { text: t(lang, "chl_corporate"), callback_data: "chl:corporate" },
+    [
+      { text: t(lang, "btn_my_challenges"), callback_data: "chl:mine" },
+      { text: t(lang, "btn_back"), callback_data: "menu" },
+    ],
+  ]);
+}
+
+// Background-profile drip question: answer by typing, or Skip.
+export function profileqKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "btn_skip"), callback_data: "pq:skip" },
+        { text: t(lang, "btn_back"), callback_data: "menu" },
+      ],
+    ],
+  };
+}
+
+export function executiveKeyboard(lang) {
+  return stack([
+    { text: t(lang, "btn_exec_doctor"), callback_data: "ex:doctor_review" },
+    { text: t(lang, "btn_exec_session"), callback_data: "ex:live_session" },
+    { text: t(lang, "btn_exec_review"), callback_data: "ex:progress_review" },
+    { text: t(lang, "btn_exec_priority"), callback_data: "ex:priority_help" },
+    { text: t(lang, "btn_exec_content"), callback_data: "ex:premium_content" },
+    { text: t(lang, "btn_back"), callback_data: "menu" },
+  ]);
 }
 
 export function backKeyboard(lang) {

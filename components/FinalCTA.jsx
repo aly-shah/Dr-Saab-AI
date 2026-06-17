@@ -24,8 +24,8 @@ export default function FinalCTA() {
             <span className="text-gradient">one message.</span>
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-lg text-ink/65">
-            Join thousands who turned anxious guessing into calm, confident control —
-            right inside the app they already love.
+            Start building healthier habits, better routines, and more confidence in
+            managing your diabetes — one conversation at a time.
           </p>
 
           <div className="mt-8 flex justify-center">
@@ -36,7 +36,7 @@ export default function FinalCTA() {
               className="btn-primary px-8 py-4 text-lg"
             >
               <WhatsAppIcon className="h-6 w-6" />
-              Chat with Dr Saab AI now
+              Chat with DrSaab now
             </a>
           </div>
 

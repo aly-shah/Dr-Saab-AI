@@ -89,21 +89,19 @@ export default function Hero() {
         {/* Left: copy */}
         <div className="max-w-xl">
           <h1 className="text-4xl font-bold leading-[1.08] tracking-tight text-ink sm:text-5xl lg:text-[3.4rem]">
-            Manage and prevent diabetes,{" "}
-            <span className="text-gradient">one message at a time.</span>
+            A Smarter Way to{" "}
+            <span className="text-gradient">Manage Diabetes</span>
           </h1>
 
           <p className="mt-5 text-lg leading-relaxed text-ink/70">
-            Dr Saab AI lives right inside WhatsApp — no new app to download. Log
-            your sugar readings, snap a photo of your meal, and get gentle,
-            doctor-informed guidance to bring your numbers down and keep them
-            there.
+            Your diabetes coach on WhatsApp—helping you build healthier habits,
+            stay consistent, and achieve better long-term health.
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
             <a href={WHATSAPP_URL} className="btn-primary">
               <WhatsAppIcon className="h-5 w-5" />
-              Chat with Dr Saab AI
+              Chat with DrSaab
             </a>
             <a href="#how" className="btn-secondary">
               See how it works
