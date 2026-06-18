@@ -1,8 +1,8 @@
 import { t, LANGUAGES } from "./i18n.js";
 import { send, sanitizeMd, langOf } from "./utils.js";
 import { mainMenuKeyboard, profileKeyboard, languageKeyboard, backKeyboard } from "./keyboards.js";
-import { getSession, resetFlow } from "./session.js";
-import { getOrCreateUser, updateUser, recordMessage } from "./supabase.js";
+import { getSession, resetFlow, clearSession } from "./session.js";
+import { getOrCreateUser, updateUser, recordMessage, deleteUser } from "./supabase.js";
 import { TIERS, normalizeTier } from "./tiers.js";
 
 import { startOnboarding, onboardingText, onboardingCallback } from "./flows/onboarding.js";
@@ -122,6 +122,20 @@ export async function handleMessage(bot, msg) {
   const chatId = msg.chat.id;
   const session = getSession(chatId);
   if (!session.user) session.user = await getOrCreateUser(msg.from?.id ?? chatId, msg.__source || "telegram");
+
+  // Hard reset: typing DELETE (exact, all caps) wipes this user's profile and
+  // ALL their data + chat history, then drops the session. Lets a demo be
+  // replayed from scratch as a brand-new user. Checked before recordMessage so
+  // we don't re-create a patient_kb row against the row we're about to delete.
+  if (msg.text?.trim() === "DELETE") {
+    await deleteUser(session.user.id).catch((e) => console.error("deleteUser error:", e));
+    clearSession(chatId);
+    return send(
+      bot,
+      chatId,
+      "Your profile and chat history have been deleted. Send any message (or /start) to begin again as a new user."
+    );
+  }
 
   // count activity for the patient KB (cheap upsert, no AI)
   recordMessage(session.user.id).catch(() => {});

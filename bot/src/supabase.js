@@ -42,6 +42,12 @@ async function makeSupabaseBackend() {
       if (error) throw error;
       return data;
     },
+    async deleteUser(userId) {
+      // Child tables (glucose/medication/health/labs/coach/kb/challenges/…)
+      // all `on delete cascade`, so removing the user row wipes everything.
+      const { error } = await db.from("users").delete().eq("id", userId);
+      if (error) throw error;
+    },
     async addGlucose(userId, value, context, note) {
       const { error } = await db.from("glucose_logs").insert({ user_id: userId, value_mgdl: value, context, note });
       if (error) throw error;
@@ -192,6 +198,10 @@ async function makePostgresBackend() {
         [...vals, userId]
       );
       return rows[0];
+    },
+    async deleteUser(userId) {
+      // FKs cascade on delete, so this removes all of the user's data too.
+      await pool.query("delete from users where id = $1", [userId]);
     },
     async addGlucose(userId, value, context, note) {
       await insertDynamic("glucose_logs", { user_id: userId, value_mgdl: value, context, note });
@@ -348,6 +358,16 @@ function makeMemoryBackend() {
       usersById.set(userId, user);
       return user;
     },
+    async deleteUser(userId) {
+      const user = usersById.get(userId);
+      if (user) usersByTg.delete(user.telegram_id);
+      usersById.delete(userId);
+      kb.delete(userId);
+      const purge = (arr) => {
+        for (let i = arr.length - 1; i >= 0; i--) if (arr[i].user_id === userId) arr.splice(i, 1);
+      };
+      [glucose, meds, health, labs, challenges, serviceReqs].forEach(purge);
+    },
     async addGlucose(userId, value, context, note) {
       glucose.push({ user_id: userId, value_mgdl: value, context, note, created_at: nowISO() });
     },
@@ -440,6 +460,7 @@ console.log(`   Store: ${storeName}`);
 export const getUserByTelegramId = (tg) => backend.getUserByTelegramId(tg);
 export const createUser = (tg, source) => backend.createUser(tg, source);
 export const updateUser = (id, patch) => backend.updateUser(id, patch);
+export const deleteUser = (id) => backend.deleteUser(id);
 export const allActiveUsers = () => backend.allActiveUsers();
 
 export async function getOrCreateUser(telegramId, source = "telegram") {

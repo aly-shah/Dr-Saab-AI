@@ -22,6 +22,12 @@ export function resetFlow(chatId) {
   s.history = [];
 }
 
+// Drop the entire in-memory session (used by the DELETE hard-reset, so the
+// next message starts a brand-new, freshly created user).
+export function clearSession(chatId) {
+  sessions.delete(chatId);
+}
+
 export function setUser(chatId, user) {
   getSession(chatId).user = user;
 }
