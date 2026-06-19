@@ -270,8 +270,8 @@ export default function Features() {
               ]}
             />
             <PhotoCard
-              src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=900&q=80&auto=format&fit=crop"
-              alt="A woman exercising on a mat in a bright studio"
+              src="/yoga1.jpeg"
+              alt="A woman doing gentle yoga, fitting movement into everyday life"
             />
           </div>
 
@@ -279,8 +279,8 @@ export default function Features() {
           <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
             <div className="order-2 lg:order-1">
               <PhotoCard
-                src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=900&q=80&auto=format&fit=crop"
-                alt="A doctor in a white coat with a stethoscope, holding a phone"
+                src="/hands.jpeg"
+                alt="Caring hands, representing trustworthy clinical guidance any hour"
                 badge={
                   <ChatBadge>
                     Your guidance is grounded in clinical diabetes guidelines —
