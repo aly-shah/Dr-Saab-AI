@@ -1,6 +1,16 @@
 import { t, LANGUAGES } from "./i18n.js";
 import { send, sanitizeMd, langOf } from "./utils.js";
-import { mainMenuKeyboard, profileKeyboard, languageKeyboard, backKeyboard } from "./keyboards.js";
+import {
+  mainMenuKeyboard,
+  mainMenuKeyboardV2,
+  checkInKeyboard,
+  foodHelpKeyboard,
+  myProgressKeyboard,
+  moreKeyboard,
+  profileKeyboard,
+  languageKeyboard,
+  backKeyboard,
+} from "./keyboards.js";
 import { getSession, resetFlow, clearSession } from "./session.js";
 import { getOrCreateUser, updateUser, recordMessage, deleteUser } from "./supabase.js";
 import { TIERS, normalizeTier } from "./tiers.js";
@@ -12,12 +22,21 @@ import {
   glucoseText,
   startMedication,
   medicationText,
+  medicationCallback,
+  startWeight,
+  weightText,
+  weightCallback,
+  startActivity,
+  activityText,
+  activityCallback,
+  startSymptoms,
+  symptomsText,
   startHealth,
   healthText,
 } from "./flows/tracking.js";
 import { startCoach, coachText } from "./flows/coach.js";
 import { startLab, labText } from "./flows/labreport.js";
-import { showProgress, showSummary } from "./flows/progress.js";
+import { showProgress, showSummary, showRecentActivity } from "./flows/progress.js";
 import { showEducation } from "./flows/education.js";
 import { showGoals, startGoalSet, goalsText } from "./flows/goals.js";
 import {
@@ -29,6 +48,7 @@ import {
 import { showReports, showWeeklyReport, showMonthlyReport, showDoctorReport } from "./flows/reports.js";
 import { showExecutive, requestService } from "./flows/executive.js";
 import { profileqText, skipProfileQuestion } from "./flows/profileBuilder.js";
+import { showReminders, cancelReminder } from "./flows/reminders.js";
 
 // Display name for a tier slug (handles legacy slugs).
 function planName(lang, tier) {
@@ -39,7 +59,7 @@ function planName(lang, tier) {
 async function showMenu(bot, chatId, session) {
   resetFlow(chatId);
   const lang = langOf(session);
-  await send(bot, chatId, t(lang, "menu_title"), { keyboard: mainMenuKeyboard(lang), markdown: true });
+  await send(bot, chatId, t(lang, "menu_v2_title"), { keyboard: mainMenuKeyboardV2(lang), markdown: true });
 }
 
 async function startCommand(bot, chatId, session, scenario = "eng") {
@@ -48,7 +68,39 @@ async function startCommand(bot, chatId, session, scenario = "eng") {
   await send(bot, chatId, t(lang, "welcome_back", { name: sanitizeMd(session.user.name || "") }), {
     markdown: true,
   });
-  await send(bot, chatId, t(lang, "menu_title"), { keyboard: mainMenuKeyboard(lang), markdown: true });
+  await send(bot, chatId, t(lang, "menu_v2_title"), { keyboard: mainMenuKeyboardV2(lang), markdown: true });
+}
+
+// Submenu show functions — each lands on its own keyboard, two-level cap.
+function showCheckIn(bot, chatId, session) {
+  const lang = langOf(session);
+  return send(bot, chatId, t(lang, "checkin_title"), { keyboard: checkInKeyboard(lang), markdown: true });
+}
+function showFoodHelp(bot, chatId, session) {
+  const lang = langOf(session);
+  return send(bot, chatId, t(lang, "foodhelp_title"), { keyboard: foodHelpKeyboard(lang), markdown: true });
+}
+function showMyProgress(bot, chatId, session) {
+  const lang = langOf(session);
+  return send(bot, chatId, t(lang, "progress_menu_title"), { keyboard: myProgressKeyboard(lang), markdown: true });
+}
+function showMore(bot, chatId, session) {
+  const lang = langOf(session);
+  return send(bot, chatId, t(lang, "more_title"), { keyboard: moreKeyboard(lang), markdown: true });
+}
+function showPlan(bot, chatId, session) {
+  const lang = langOf(session);
+  return send(bot, chatId, t(lang, "plan_title") + "\n\n" + t(lang, "plan_body", { plan: planName(lang, session.user.tier) }), {
+    keyboard: backKeyboard(lang),
+    markdown: true,
+  });
+}
+function showSupport(bot, chatId, session) {
+  const lang = langOf(session);
+  return send(bot, chatId, t(lang, "support_title") + "\n\n" + t(lang, "support_body"), {
+    keyboard: backKeyboard(lang),
+    markdown: true,
+  });
 }
 
 function showProfile(bot, chatId, session) {
@@ -78,6 +130,19 @@ function showSubscription(bot, chatId, session) {
 
 async function dispatchFeature(bot, chatId, session, action) {
   switch (action) {
+    // ---- Build 1 top-level actions ----
+    case "checkin":
+      return showCheckIn(bot, chatId, session);
+    case "foodhelp":
+      return showFoodHelp(bot, chatId, session);
+    case "myprogress":
+      return showMyProgress(bot, chatId, session);
+    case "more":
+      return showMore(bot, chatId, session);
+    case "askdrsaab":
+      // Ask DrSaab is the open AI conversation — reuses the existing coach.
+      return startCoach(bot, chatId, session, "coach");
+    // ---- legacy actions kept so deep links / old buttons keep working ----
     case "glucose":
       return startGlucose(bot, chatId, session);
     case "medication":
@@ -164,6 +229,7 @@ export async function handleMessage(bot, msg) {
   const inFlow = [
     "onboarding", "glucose", "medication", "health",
     "coach", "food", "fitness", "lab", "goals", "challenge_code", "profileq",
+    "weight", "activity", "symptoms",
   ].includes(session.state);
   if (session.user.onboarded) {
     if (cmd === "/home" || (!inFlow && (word === "home" || word === "menu"))) {
@@ -201,6 +267,12 @@ export async function handleMessage(bot, msg) {
       return glucoseText(bot, chatId, session, text);
     case "medication":
       return medicationText(bot, chatId, session, text);
+    case "weight":
+      return weightText(bot, chatId, session, text);
+    case "activity":
+      return activityText(bot, chatId, session, text);
+    case "symptoms":
+      return symptomsText(bot, chatId, session, text);
     case "health":
       return healthText(bot, chatId, session, text);
     case "coach":
@@ -265,6 +337,81 @@ export async function handleCallback(bot, query) {
 
   // Background profile drip — Skip
   if (data === "pq:skip") return skipProfileQuestion(bot, chatId, session);
+
+  // ===== Build 1 submenu routing =====
+  // Check In submenu
+  if (data.startsWith("ci:")) {
+    const x = data.split(":")[1];
+    if (x === "bsugar") return startGlucose(bot, chatId, session);
+    if (x === "med") return startMedication(bot, chatId, session);
+    if (x === "weight") return startWeight(bot, chatId, session);
+    if (x === "activity") return startActivity(bot, chatId, session);
+    if (x === "symptoms") return startSymptoms(bot, chatId, session);
+  }
+
+  // Food Help submenu — all four route into the Food coach with a seed prompt.
+  // The seed only fires if startCoach actually entered the food state (i.e.
+  // the user wasn't bounced to the upgrade gate).
+  if (data.startsWith("fh:")) {
+    const x = data.split(":")[1];
+    const seedKey = {
+      analyze: "foodhelp_analyze_prompt",
+      caneat: "foodhelp_caneat_prompt",
+      restaurant: "foodhelp_restaurant_prompt",
+      snacks: "foodhelp_snacks_prompt",
+    }[x];
+    await startCoach(bot, chatId, session, "food");
+    if (seedKey && session.state === "food") {
+      await send(bot, chatId, t(langOf(session), seedKey), { markdown: true });
+    }
+    return;
+  }
+
+  // My Progress submenu
+  if (data.startsWith("mp:")) {
+    const x = data.split(":")[1];
+    if (x === "weekly") return showSummary(bot, chatId, session);
+    if (x === "monthly") return showMonthlyReport(bot, chatId, session);
+    if (x === "trends") return showProgress(bot, chatId, session);
+    if (x === "recent") return showRecentActivity(bot, chatId, session);
+  }
+
+  // More submenu
+  if (data.startsWith("mo:")) {
+    const x = data.split(":")[1];
+    if (x === "reminders") return showReminders(bot, chatId, session);
+    if (x === "language")
+      return send(bot, chatId, t("en", "choose_language"), { keyboard: languageKeyboard(), markdown: true });
+    if (x === "plan") return showPlan(bot, chatId, session);
+    if (x === "subscription") return showSubscription(bot, chatId, session);
+    if (x === "support") return showSupport(bot, chatId, session);
+    if (x === "goals") return showGoals(bot, chatId, session);
+    if (x === "challenges") return showChallenges(bot, chatId, session);
+    if (x === "executive") return showExecutive(bot, chatId, session);
+  }
+
+  // Medication frequency picker — only fires inside the medication flow.
+  if (data.startsWith("medfreq:")) {
+    return medicationCallback(bot, chatId, session, data);
+  }
+
+  // Reminder offer (Y/N). The embedded key tells us which flow asked.
+  if (data.startsWith("remoffer:")) {
+    const key = data.split(":")[1];
+    if (key === "med" || key === "glucose") return medicationCallback(bot, chatId, session, data);
+    if (key === "weight") return weightCallback(bot, chatId, session, data);
+    return;
+  }
+
+  // Activity goal picker — only fires inside the activity flow.
+  if (data.startsWith("actgoal:")) {
+    return activityCallback(bot, chatId, session, data);
+  }
+
+  // Cancel a reminder from the More → Reminders list
+  if (data.startsWith("remcancel:")) {
+    return cancelReminder(bot, chatId, session, data.split(":")[1]);
+  }
 
   if (data.startsWith("feat:")) return dispatchFeature(bot, chatId, session, data.split(":")[1]);
 }

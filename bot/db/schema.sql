@@ -179,3 +179,58 @@ create index if not exists service_requests_user_idx on public.service_requests(
 
 -- ---------- Background profile answers (§3.6, ~60 fields, drip-filled) ----------
 alter table public.users add column if not exists profile_answers jsonb default '{}'::jsonb;
+
+-- ============================================================
+-- Build 1 menu / profile additions (spec dated 2026-06)
+-- ============================================================
+
+-- Profile axis: child (<13), teen (13–17), adult (≥18). Derived from age at
+-- onboarding when known. Separate from diabetes type — combined they replace
+-- the bundled-label profile in the spec.
+alter table public.users add column if not exists age_bracket           text;   -- child | teen | adult
+alter table public.users add column if not exists newly_diagnosed       boolean default false;
+alter table public.users add column if not exists weekly_activity_goal_days int;
+
+-- ---------- Medications master (one row per medication a user is on) ----------
+-- medication_logs stays the per-dose journal (one row per intake). This table
+-- captures the standing prescription so we can ask "is this new?" and offer a
+-- reminder once, not every time the user logs the same drug.
+create table if not exists public.medications (
+  id               uuid primary key default gen_random_uuid(),
+  user_id          uuid references public.users(id) on delete cascade,
+  name             text not null,
+  dose             text,
+  frequency        text,                    -- once_daily | morning_evening | three_times | other
+  reminder_enabled boolean default false,
+  active           boolean default true,
+  created_at       timestamptz default now()
+);
+create index if not exists medications_user_idx on public.medications(user_id, active);
+
+-- ---------- Symptoms log ----------
+create table if not exists public.symptom_logs (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid references public.users(id) on delete cascade,
+  symptoms    text not null,
+  created_at  timestamptz default now()
+);
+create index if not exists symptom_logs_user_idx on public.symptom_logs(user_id, created_at desc);
+
+-- ---------- Reminder schedules (user-driven, opt-in) ----------
+-- One row per active reminder. The scheduler fires when now ≥ next_fire_at
+-- (cheap interval poll), then bumps next_fire_at by `frequency_days`.
+create table if not exists public.reminder_schedules (
+  id              uuid primary key default gen_random_uuid(),
+  user_id         uuid references public.users(id) on delete cascade,
+  category        text not null,            -- glucose | medication | weight | activity | lab | doctor
+  target_id       uuid,                     -- e.g. medication id, when relevant
+  label           text,                     -- short user-facing label
+  time_of_day     text,                     -- 'HH:MM' (local; PKT)
+  frequency_days  int default 1,            -- 1 = daily, 7 = weekly, 30 = monthly
+  active          boolean default true,
+  next_fire_at    timestamptz,
+  last_fired_at   timestamptz,
+  created_at      timestamptz default now()
+);
+create index if not exists reminder_schedules_active_idx on public.reminder_schedules(active, next_fire_at);
+create index if not exists reminder_schedules_user_idx   on public.reminder_schedules(user_id, active);

@@ -144,6 +144,71 @@ async function makeSupabaseBackend() {
       const merged = { ...(data?.profile_answers || {}), [key]: value == null ? "" : String(value) };
       await db.from("users").update({ profile_answers: merged }).eq("id", userId);
     },
+    // --- Build 1: medications master ---
+    async findMedicationByName(userId, name) {
+      const { data } = await db
+        .from("medications")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("active", true)
+        .ilike("name", name)
+        .maybeSingle();
+      return data || null;
+    },
+    async listMedications(userId) {
+      const { data } = await db
+        .from("medications")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("active", true)
+        .order("created_at", { ascending: false });
+      return data || [];
+    },
+    async addMedicationMaster(userId, name, dose, frequency, reminderEnabled) {
+      const { data } = await db
+        .from("medications")
+        .insert({ user_id: userId, name, dose, frequency, reminder_enabled: !!reminderEnabled, active: true })
+        .select("*")
+        .single();
+      return data;
+    },
+    // --- Build 1: symptoms ---
+    async addSymptomLog(userId, symptoms) {
+      await db.from("symptom_logs").insert({ user_id: userId, symptoms });
+    },
+    // --- Build 1: reminders ---
+    async addReminderSchedule(userId, fields) {
+      const { data } = await db
+        .from("reminder_schedules")
+        .insert({ user_id: userId, active: true, ...fields })
+        .select("*")
+        .single();
+      return data;
+    },
+    async listReminders(userId) {
+      const { data } = await db
+        .from("reminder_schedules")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("active", true)
+        .order("created_at", { ascending: false });
+      return data || [];
+    },
+    async deactivateReminder(userId, id) {
+      await db.from("reminder_schedules").update({ active: false }).eq("user_id", userId).eq("id", id);
+    },
+    async dueReminders(nowIso) {
+      const { data } = await db
+        .from("reminder_schedules")
+        .select("*")
+        .eq("active", true)
+        .lte("next_fire_at", nowIso)
+        .limit(100);
+      return data || [];
+    },
+    async markReminderFired(id, nextFireAt) {
+      await db.from("reminder_schedules").update({ last_fired_at: new Date().toISOString(), next_fire_at: nextFireAt }).eq("id", id);
+    },
   };
 }
 
@@ -301,6 +366,68 @@ async function makePostgresBackend() {
         [userId, key, value == null ? "" : String(value)]
       );
     },
+    // --- Build 1: medications master ---
+    async findMedicationByName(userId, name) {
+      const { rows } = await pool.query(
+        "select * from medications where user_id=$1 and active and lower(name)=lower($2) limit 1",
+        [userId, name]
+      );
+      return rows[0] || null;
+    },
+    async listMedications(userId) {
+      const { rows } = await pool.query(
+        "select * from medications where user_id=$1 and active order by created_at desc",
+        [userId]
+      );
+      return rows;
+    },
+    async addMedicationMaster(userId, name, dose, frequency, reminderEnabled) {
+      const { rows } = await pool.query(
+        `insert into medications (user_id, name, dose, frequency, reminder_enabled, active)
+         values ($1,$2,$3,$4,$5,true) returning *`,
+        [userId, name, dose, frequency, !!reminderEnabled]
+      );
+      return rows[0];
+    },
+    // --- Build 1: symptoms ---
+    async addSymptomLog(userId, symptoms) {
+      await insertDynamic("symptom_logs", { user_id: userId, symptoms });
+    },
+    // --- Build 1: reminders ---
+    async addReminderSchedule(userId, fields) {
+      const obj = { user_id: userId, active: true, ...fields };
+      const keys = Object.keys(obj);
+      const cols = keys.join(", ");
+      const ph = keys.map((_, i) => `$${i + 1}`).join(", ");
+      const { rows } = await pool.query(
+        `insert into reminder_schedules (${cols}) values (${ph}) returning *`,
+        Object.values(obj)
+      );
+      return rows[0];
+    },
+    async listReminders(userId) {
+      const { rows } = await pool.query(
+        "select * from reminder_schedules where user_id=$1 and active order by created_at desc",
+        [userId]
+      );
+      return rows;
+    },
+    async deactivateReminder(userId, id) {
+      await pool.query("update reminder_schedules set active=false where user_id=$1 and id=$2", [userId, id]);
+    },
+    async dueReminders(nowIso) {
+      const { rows } = await pool.query(
+        "select * from reminder_schedules where active and next_fire_at <= $1 order by next_fire_at limit 100",
+        [nowIso]
+      );
+      return rows;
+    },
+    async markReminderFired(id, nextFireAt) {
+      await pool.query(
+        "update reminder_schedules set last_fired_at=now(), next_fire_at=$2 where id=$1",
+        [id, nextFireAt]
+      );
+    },
   };
 }
 
@@ -317,8 +444,13 @@ function makeMemoryBackend() {
   const kb = new Map();
   const challenges = [];
   const serviceReqs = [];
+  const medsMaster = [];
+  const symptoms = [];
+  const reminders = [];
   let seq = 1;
   let reqSeq = 1;
+  let medSeq = 1;
+  let remSeq = 1;
 
   return {
     async getUserByTelegramId(telegramId) {
@@ -437,6 +569,56 @@ function makeMemoryBackend() {
       if (!user) return;
       user.profile_answers = { ...(user.profile_answers || {}), [key]: value == null ? "" : String(value) };
     },
+    async findMedicationByName(userId, name) {
+      const needle = String(name || "").toLowerCase();
+      return (
+        medsMaster.find(
+          (m) => m.user_id === userId && m.active && String(m.name).toLowerCase() === needle
+        ) || null
+      );
+    },
+    async listMedications(userId) {
+      return medsMaster.filter((m) => m.user_id === userId && m.active);
+    },
+    async addMedicationMaster(userId, name, dose, frequency, reminderEnabled) {
+      const row = {
+        id: "m" + medSeq++,
+        user_id: userId,
+        name,
+        dose,
+        frequency,
+        reminder_enabled: !!reminderEnabled,
+        active: true,
+        created_at: nowISO(),
+      };
+      medsMaster.push(row);
+      return row;
+    },
+    async addSymptomLog(userId, sx) {
+      symptoms.push({ user_id: userId, symptoms: sx, created_at: nowISO() });
+    },
+    async addReminderSchedule(userId, fields) {
+      const row = { id: "r" + remSeq++, user_id: userId, active: true, created_at: nowISO(), ...fields };
+      reminders.push(row);
+      return row;
+    },
+    async listReminders(userId) {
+      return reminders.filter((r) => r.user_id === userId && r.active);
+    },
+    async deactivateReminder(userId, id) {
+      const r = reminders.find((x) => x.user_id === userId && x.id === id);
+      if (r) r.active = false;
+    },
+    async dueReminders(nowIso) {
+      return reminders.filter((r) => r.active && r.next_fire_at && r.next_fire_at <= nowIso);
+    },
+    async markReminderFired(id, nextFireAt) {
+      const r = reminders.find((x) => x.id === id);
+      if (r) {
+        r.last_fired_at = nowISO();
+        r.next_fire_at = nextFireAt;
+      }
+    },
   };
 }
 
@@ -527,3 +709,17 @@ export const joinChallenge = (id, type, code) => backend.joinChallenge(id, type,
 export const listChallenges = (id) => backend.listChallenges(id);
 export const addServiceRequest = (id, type) => backend.addServiceRequest(id, type);
 export const saveProfileAnswer = (id, key, value) => backend.saveProfileAnswer(id, key, value);
+
+// --- Build 1 helpers ---
+export const findMedicationByName = (id, name) => backend.findMedicationByName(id, name);
+export const listMedications = (id) => backend.listMedications(id);
+export const addMedicationMaster = (id, name, dose, freq, rem) =>
+  backend.addMedicationMaster(id, name, dose, freq, rem);
+export const addSymptomLog = (id, sx) => backend.addSymptomLog(id, sx);
+export const addReminderSchedule = (id, fields) => backend.addReminderSchedule(id, fields);
+export const listReminders = (id) => backend.listReminders(id);
+export const deactivateReminder = (id, rid) => backend.deactivateReminder(id, rid);
+export const dueReminders = (nowIso = new Date().toISOString()) =>
+  backend.dueReminders ? backend.dueReminders(nowIso) : Promise.resolve([]);
+export const markReminderFired = (rid, nextFireAt) =>
+  backend.markReminderFired ? backend.markReminderFired(rid, nextFireAt) : Promise.resolve();

@@ -301,6 +301,143 @@ const STR = {
     profileq_intro: "Quick question to personalize your coaching (tap Skip to pass):",
     profileq_saved: "Thanks — noted. 👍",
     profileq_done: "Your background profile is complete. Thank you!",
+
+    // ===== Build 1: new menu hierarchy =====
+    menu_v2_title: "👋 What would you like help with today?",
+    btn_checkin: "🩺 Check In",
+    btn_foodhelp: "🍽️ Food Help",
+    btn_checkreport: "📋 Check My Report",
+    btn_myprogress: "📈 My Progress",
+    btn_askdrsaab: "💬 Ask DrSaab",
+    btn_more: "⚙️ More",
+    btn_main_menu: "🏠 Main Menu",
+
+    // Check In submenu
+    checkin_title: "🩺 *Check In* — what would you like to log?",
+    btn_ci_bloodsugar: "🩸 Blood Sugar",
+    btn_ci_medication: "💊 Medication",
+    btn_ci_weight: "⚖️ Weight",
+    btn_ci_activity: "🚶 Physical Activity",
+    btn_ci_symptoms: "🤒 Symptoms",
+
+    // Food Help submenu
+    foodhelp_title: "🍽️ *Food Help* — how can I help?",
+    btn_fh_analyze: "📸 Analyze My Meal",
+    btn_fh_caneat: "🥗 What Can I Eat?",
+    btn_fh_restaurant: "🍔 Restaurant Guidance",
+    btn_fh_snacks: "🥜 Healthy Snack Ideas",
+
+    // My Progress submenu
+    progress_menu_title: "📈 *My Progress* — choose a view:",
+    btn_mp_weekly: "📅 Weekly Summary",
+    btn_mp_monthly: "📆 Monthly Summary",
+    btn_mp_trends: "📊 Health Trends",
+    btn_mp_recent: "📝 Recent Activity",
+
+    // More submenu (keeps Challenges/Goals/Executive reachable)
+    more_title: "⚙️ *More*",
+    btn_more_reminders: "⏰ Reminders",
+    btn_more_language: "🌐 Language",
+    btn_more_plan: "⭐ My Plan",
+    btn_more_subscription: "💳 Subscription",
+    btn_more_support: "🛟 Contact Support",
+    btn_more_goals: "🎯 Goals",
+    btn_more_challenges: "🏆 Challenges",
+    btn_more_executive: "⭐ Executive Services",
+
+    // Profile labels (derived)
+    profile_t1: "Type 1 Diabetes",
+    profile_t2: "Type 2 Diabetes",
+    profile_child: "Child / Teen with Diabetes",
+    profile_gestational: "Gestational Diabetes",
+    profile_newly: "Newly Diagnosed",
+
+    // Ask DrSaab entry
+    askdrsaab_prompt:
+      "💬 *Ask DrSaab.* Ask me anything — your diabetes, food, fitness, lab results or just how you're feeling.\n_Tap Back when you're done._",
+
+    // Food Help seeded prompts
+    foodhelp_analyze_prompt:
+      "📸 Send a photo of your plate (or describe the meal in text) and I'll estimate carbs and suggest swaps.",
+    foodhelp_caneat_prompt:
+      "🥗 Tell me what's around — a meal, ingredients in the fridge, or a craving — and I'll guide you to diabetes-friendly choices.",
+    foodhelp_restaurant_prompt:
+      "🍔 Where are you eating? Share the restaurant name or the menu options and I'll suggest the best choices.",
+    foodhelp_snacks_prompt:
+      "🥜 What kind of snack are you in the mood for — sweet, savory, on-the-go? I'll give you a few healthy ideas.",
+
+    // Blood sugar — reminder offer after first log
+    bs_offer_reminder: "Would you like a reminder to check your blood sugar?",
+    bs_reminder_pick_time: "Great. What time of day works best? Send 24-hour time, e.g. *08:00* (or type Skip).",
+    bs_reminder_pick_freq: "How often?",
+    btn_freq_daily: "Daily",
+    btn_freq_3x_week: "3 times a week",
+    btn_freq_weekly: "Weekly",
+    bs_reminder_saved: "✅ Reminder saved. I'll check in at *{time}* ({freq}).",
+    bs_reminder_skipped: "No reminder set. You can enable one anytime under More → Reminders.",
+
+    // Medication — full conversational flow
+    med_ask_name: "💊 What's the medication? Send the *name and dose*, e.g. `Metformin 500mg` or `Tagipmet XR 50/500`.",
+    med_existing_logged: "✅ Logged *{name}*. Well done! 🔥 Streak: {streak} day(s)",
+    med_is_new_q: "It looks like this is your first time logging *{name}*. Add it to your medication list?",
+    med_ask_frequency: "How often do you take *{name}*?",
+    btn_med_freq_once: "Once Daily",
+    btn_med_freq_morn_eve: "Morning & Evening",
+    btn_med_freq_three: "Three Times Daily",
+    btn_med_freq_other: "Other",
+    med_other_freq: "How often do you take it? (e.g. *weekly*, *every 2 days*).",
+    med_offer_reminder: "Would you like DrSaab to help you stay consistent with *{name}*?",
+    med_reminder_pick_time: "What time should I remind you? Send 24-hour time, e.g. *08:00* (or type Skip).",
+    med_added_no_reminder: "✅ *{name}* added to your medications (no reminder).",
+    med_added_with_reminder: "✅ *{name}* added with a reminder at *{time}*.",
+
+    // Weight
+    weight_prompt: "⚖️ Send your weight in *kg*, e.g. `72.5 kg` or just `72.5`.",
+    weight_saved: "✅ Weight logged: *{value} kg*.\n🔥 Streak: {streak} day(s)",
+    weight_offer_monthly: "Would you like a monthly reminder to weigh yourself?",
+    weight_monthly_saved: "✅ Monthly weight reminder set.",
+
+    // Physical activity
+    activity_prompt:
+      "🚶 What did you do? Examples: `walked 30 minutes`, `gym 45 minutes`, `6500 steps`.",
+    activity_saved: "✅ Activity logged.\n🔥 Streak: {streak} day(s)",
+    activity_ask_goal: "How many days per week do you think you can realistically stay active?",
+    activity_goal_saved: "✅ Goal set: *{days} day(s)/week*. I'll keep this in mind.",
+
+    // Symptoms
+    symptoms_prompt:
+      "🤒 What symptoms are you noticing? Describe them in your own words (e.g. *headache, dizziness, dry mouth*).",
+    symptoms_saved: "✅ Noted. I've added this to your log.",
+    symptoms_coach_intro:
+      "Here are a few things to consider — but if anything feels severe or worsens, please contact a doctor.",
+
+    // Lab future test reminder
+    lab_offer_future_reminder: "Want a reminder for your next HbA1c (in about 3 months)?",
+    lab_reminder_saved: "✅ Lab follow-up reminder set for ~3 months from now.",
+
+    // Recent Activity view
+    recent_title: "📝 *Recent Activity* — last 7 days",
+    recent_none: "No activity in the last 7 days. Log something from the menu!",
+
+    // Reminders management
+    reminders_title: "⏰ *Your Reminders*",
+    reminders_none: "You don't have any reminders yet. They'll show up here when you set them while logging.",
+    reminder_row: "• {label} — {time}, {freq}",
+    btn_reminder_cancel: "Cancel {label}",
+    reminder_cancelled: "✅ Reminder cancelled.",
+
+    // Plan / support
+    plan_title: "⭐ *My Plan*",
+    plan_body: "Current plan: *{plan}*\n\nTap Subscription to view or change.",
+    support_title: "🛟 *Contact Support*",
+    support_body: "Need help? Reach us at support@drsaabcoach.com — we usually reply within 24 hours.",
+
+    // Reminder-firing templates (scheduler)
+    reminder_template_glucose: "🩸 Quick check-in: time to log your blood sugar.",
+    reminder_template_medication: "💊 Time to take your *{name}*. Tap to log it.",
+    reminder_template_weight: "⚖️ Monthly check-in — send your weight today.",
+    reminder_template_lab: "🧪 Time for your next HbA1c. Book a test when you can.",
+    reminder_template_activity: "🚶 Time to move — how about a short walk today?",
   },
 
   ur: {

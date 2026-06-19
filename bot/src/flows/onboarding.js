@@ -250,6 +250,18 @@ async function finish(bot, chatId, session) {
     ? JSON.stringify(d.other_meds)
     : null;
 
+  // Build 1 profile axes — derived from existing data, no extra onboarding step.
+  // age_bracket: child <13, teen 13–17, adult ≥18. Falls back to null if age
+  // unknown (we never ask separately, per the spec).
+  let ageBracket = null;
+  if (typeof d.age === "number") {
+    if (d.age < 13) ageBracket = "child";
+    else if (d.age < 18) ageBracket = "teen";
+    else ageBracket = "adult";
+  }
+  // newly_diagnosed: anyone who picked "less than 1 year" for diagnosis duration.
+  const newlyDiagnosed = d.diagnosis_duration === "lt1";
+
   const patch = {
     name: d.name ?? null,
     age: d.age ?? null,
@@ -260,6 +272,8 @@ async function finish(bot, chatId, session) {
     date_of_birth: d.date_of_birth ?? null,
     diabetes_status: d.diabetes_type ?? null,
     diagnosis_duration: d.diagnosis_duration ?? null,
+    age_bracket: ageBracket,
+    newly_diagnosed: newlyDiagnosed,
     latest_hba1c: d.latest_hba1c ?? null,
     hba1c_date_bucket: d.hba1c_date_bucket ?? null,
     latest_fasting_sugar: d.latest_fasting_sugar ?? null,

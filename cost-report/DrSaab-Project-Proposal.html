@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DrSaab Project Proposal</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    color: #1a1a2e;
+    line-height: 1.6;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 28px 36px;
+    background: #fff;
+  }
+  h1 { color: #0f3d5c; font-size: 28px; margin-bottom: 10px; border-bottom: 3px solid #0f3d5c; padding-bottom: 8px;}
+  h2 {
+    color: #0f3d5c;
+    margin-top: 36px;
+    margin-bottom: 16px;
+    padding-top: 4px;
+    page-break-after: avoid;
+    break-after: avoid;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  h3 {
+    color: #1e3a5f;
+    margin-top: 28px;
+    margin-bottom: 12px;
+    page-break-after: avoid;
+    break-after: avoid;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  h4 {
+    color: #444;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+  h2 + p, h3 + p, h4 + p,
+  h2 + ul, h3 + ul, h4 + ul,
+  h2 + table, h3 + table, h4 + table,
+  h2 + div, h3 + div, h4 + div {
+    page-break-before: avoid;
+    break-before: avoid;
+    margin-top: 0;
+  }
+  p, ul, ol, table { orphans: 3; widows: 3; }
+  .keep-together { page-break-inside: avoid; break-inside: avoid; }
+  .heading-group { page-break-inside: avoid; break-inside: avoid; }
+  .subtitle { color:#555; font-size: 15px; margin-top:0;}
+  .meta-grid {
+    display: grid; grid-template-columns: 180px 1fr; gap: 6px 16px;
+    padding:14px 0;
+    margin: 18px 0 8px; font-size: 14px;
+  }
+  .meta-grid b { color:#0f3d5c; }
+  table {
+    width:100%; border-collapse: collapse; margin: 14px 0; font-size: 13.5px;
+  }
+  th, td {
+    border: 1px solid #d8d8d8; padding: 8px 10px; text-align: left; vertical-align: top;
+  }
+  th { background:#0f3d5c; color:#fff; font-weight:600; }
+  tr:nth-child(even) td { background:#fafbfd; }
+  .price-box {
+    background: #0f3d5c;
+    color:#fff; padding:18px 24px; border-radius:6px;
+    font-size: 16px; margin: 16px 0;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .price-box .amt { font-size: 28px; font-weight: 700;}
+  .total-row td { background:#0f3d5c !important; color:#fff !important; font-weight:700; font-size:15px;}
+  .muted { color:#777; font-size:13px;}
+  ul.tight li { margin-bottom: 4px; }
+  .two-col { display:grid; grid-template-columns: 1fr 1fr; gap:20px; }
+  .footer {
+    margin-top: 36px; padding-top: 14px; border-top: 1px dashed #aaa;
+    color:#666; font-size:12px; text-align:center;
+  }
+  .sig {
+    margin-top:30px; display:grid; grid-template-columns:1fr 1fr; gap:30px;
+  }
+  .sig div { border-top:1px solid #333; padding-top:8px; font-size:13px; color:#555;}
+  @media print {
+    body { padding: 0; }
+    h2, h3, h4 { page-break-after: avoid; break-after: avoid; }
+    table { page-break-inside: avoid; break-inside: avoid; }
+    ul, ol { page-break-inside: avoid; break-inside: avoid; }
+    .keep-together { page-break-inside: avoid; break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<h1>DrSaab WhatsApp Coach for Diabetes</h1>
+<p class="subtitle"><b>Project Proposal, Scope of Work and Commercial Offer</b></p>
+
+<div class="meta-grid">
+  <b>Prepared For</b><span>DrSaab Team</span>
+  <b>Prepared By</b><span>Development Team</span>
+  <b>Date</b><span>June 2026</span>
+  <b>Version</b><span>1.0</span>
+  <b>Project Code</b><span>DRSAAB-MVP-WA</span>
+  <b>Remaining Duration</b><span>Under 5 Weeks</span>
+  <b>Delivery Model</b><span>Milestone based</span>
+</div>
+
+<div class="price-box">
+  <div>Total Project Cost <div class="muted" style="color:#cfe1f0;">All inclusive, paid across 5 milestones</div></div>
+  <div class="amt">PKR 380,000/-</div>
+</div>
+
+<h2>1. Summary</h2>
+<p>DrSaab is a WhatsApp bot that helps people with diabetes. It talks to users in three languages: English, Urdu (in proper Urdu script), and WhatsApp Urdu (Urdu written in English letters, like Roman Urdu). The bot helps users understand their condition, build better habits, log their sugar readings, keep track of their medicines, understand their lab reports, and stay on track through reminders, coaching and friendly challenges.</p>
+<p>Part of the work is already done. The public website <b>drsaabcoach.com</b> is live, the first version of the bot conversation flow is built, and the first version of the admin panel is ready. This proposal covers the remaining work to finish the full MVP and take it live.</p>
+
+<h2>1A. Work Already Completed</h2>
+<p>The following has already been delivered. The client team can see it working today.</p>
+<table>
+  <tr><th>Item</th><th>Status</th><th>Notes</th></tr>
+  <tr>
+    <td><b>Public Website</b><br><span class="muted">drsaabcoach.com</span></td>
+    <td>Live</td>
+    <td>Full marketing website is up and running. The domain and the hosting belong to the client.</td>
+  </tr>
+  <tr>
+    <td><b>Bot Conversation Flow (Version 1)</b></td>
+    <td>Built</td>
+    <td>The first version of the WhatsApp bot's user journey is built, including the welcome flow, the profile setup chat, and the basic menu structure.</td>
+  </tr>
+  <tr>
+    <td><b>Admin Panel (Version 1)</b></td>
+    <td>Built</td>
+    <td>The first version of the admin panel is ready. It allows the team to view users, doctors, leaderboard data and basic content.</td>
+  </tr>
+</table>
+<p class="muted">The work described in the rest of this document builds on top of what has already been delivered.</p>
+
+<h2>2. Product Vision</h2>
+<p>DrSaab is a WhatsApp coach that understands diabetes, talks in the user's own language, learns about them over time, and helps them get better, one chat at a time.</p>
+<p><b>How it should feel:</b></p>
+<ul class="tight">
+  <li>The menus stay short. The chat itself does most of the work.</li>
+  <li>Users find features by chatting, not by reading long menus.</li>
+  <li>Users can type anything in plain language. The bot will figure out what they want.</li>
+  <li>The bot respects faith, culture and the way people in Pakistan actually live.</li>
+</ul>
+
+<h2>3. What the Bot Will Do</h2>
+
+<h3>3.1 Three Language Support</h3>
+<p>The bot detects greetings and picks the right language. The user's choice is saved and used in every future chat.</p>
+<ul class="tight">
+  <li>If the user types <code>Hi</code>, <code>Hello</code> or <code>Hey</code>, the bot replies in English.</li>
+  <li>If the user types <code>As Salaam Alaikum</code>, <code>Salaam</code>, <code>ASA</code> or <code>AS</code>, the bot offers all three languages.</li>
+  <li>If the user types <code>السلام علیکم</code>, the bot replies in Urdu.</li>
+</ul>
+<p>Common commands like <code>Menu</code>, <code>Home</code>, <code>Back</code>, <code>Cancel</code>, <code>Help</code> and <code>Upgrade</code> work in all three languages.</p>
+
+<h3>3.2 Profile Setup Chat (16 Steps)</h3>
+<p>When a new user joins, the bot walks them through a short chat to learn the basics about them and their diabetes.</p>
+<table>
+  <tr><th>Step</th><th>What the Bot Asks</th><th>What It Saves</th></tr>
+  <tr><td>1</td><td>Name</td><td>Full name and first name</td></tr>
+  <tr><td>2</td><td>Who they are</td><td>Has diabetes, has prediabetes, not sure, family member, or just exploring</td></tr>
+  <tr><td>3</td><td>Age or date of birth</td><td>Age and date of birth</td></tr>
+  <tr><td>4</td><td>Gender</td><td>Male, female, or prefer not to say</td></tr>
+  <tr><td>5</td><td>City</td><td>City</td></tr>
+  <tr><td>6</td><td>Diabetes type</td><td>Type 1, Type 2, Prediabetes, Gestational, or not sure</td></tr>
+  <tr><td>7</td><td>How long since diagnosis</td><td>Time since the user was first told</td></tr>
+  <tr><td>8</td><td>Latest HbA1c</td><td>The value and roughly when the test was done</td></tr>
+  <tr><td>9</td><td>Recent sugar readings</td><td>Fasting and random readings with dates</td></tr>
+  <tr><td>10</td><td>Diabetes medicines</td><td>Name, dose and how often, for each medicine</td></tr>
+  <tr><td>11</td><td>Other health problems and medicines</td><td>Other conditions and the medicines for them</td></tr>
+  <tr><td>12</td><td>Sugar checking at home</td><td>How often, and what device (glucometer, CGM, or both)</td></tr>
+  <tr><td>13</td><td>Main goal</td><td>Lower HbA1c, lose weight, eat better, exercise, stay consistent, or learn more</td></tr>
+  <tr><td>14</td><td>Biggest hurdle</td><td>Diet, exercise, motivation, medicines, stress, time, or knowledge</td></tr>
+  <tr><td>15</td><td>What pushes them</td><td>Family, health, longer life, avoiding complications, looks, or faith</td></tr>
+  <tr><td>16</td><td>Profile done and disclaimer</td><td>User taps "I Understand" to confirm</td></tr>
+</table>
+
+<h3>3.3 Information the System Saves on Its Own</h3>
+<p>The user does not have to type these. The system records them in the background.</p>
+<ul class="tight">
+  <li>User ID, WhatsApp number, signup date and time, last active date</li>
+  <li>Referral code and who referred them</li>
+  <li>Current plan, language choice, whether profile setup is finished</li>
+  <li>Four scores that all start at 50: Consistency, Motivation, Risk and Engagement</li>
+  <li>Total check ins and current streak</li>
+</ul>
+
+<h3>3.4 Main Menu (Changes Based on the User's Plan)</h3>
+<table>
+  <tr><th>Feature</th><th>Starter (Free)</th><th>Consistency Coach</th><th>Executive Coach</th></tr>
+  <tr><td>Check In</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+  <tr><td>Log Sugar</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+  <tr><td>Food and Meals</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+  <tr><td>Medicines</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+  <tr><td>Ask DrSaab</td><td>Basic</td><td>Full</td><td>Full</td></tr>
+  <tr><td>Explain My Lab Test</td><td>Limited use</td><td>More use</td><td>More use</td></tr>
+  <tr><td>Goals</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+  <tr><td>Challenges</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+  <tr><td>Learn</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+  <tr><td>My Progress</td><td>No</td><td>Yes</td><td>Yes</td></tr>
+  <tr><td>Reports</td><td>No</td><td>Yes</td><td>Yes</td></tr>
+  <tr><td>Executive Services</td><td>No</td><td>No</td><td>Yes</td></tr>
+</table>
+
+<h3>3.5 Main Features</h3>
+<table>
+  <tr><th>Feature</th><th>What It Does</th></tr>
+  <tr><td><b>Check In</b></td><td>A short daily chat about how the user feels, their mood, sleep and any symptoms.</td></tr>
+  <tr><td><b>Log Sugar</b></td><td>Save fasting, random or after-meal readings with the time.</td></tr>
+  <tr><td><b>Food and Meals</b></td><td>Log meals and get feedback. The advice fits Pakistani eating habits.</td></tr>
+  <tr><td><b>Medicines</b></td><td>Track diabetes and other medicines, set reminders and check if doses are missed.</td></tr>
+  <tr><td><b>Ask DrSaab</b></td><td>Users can ask any diabetes question in plain words. The bot answers using AI.</td></tr>
+  <tr><td><b>Explain My Lab Test</b></td><td>Users send or type their lab report. The bot explains it in simple words.</td></tr>
+  <tr><td><b>My Goals</b></td><td>Set goals, track them, and review how they are going.</td></tr>
+  <tr><td><b>Challenges</b></td><td>Join group challenges like 90 day HbA1c, weight loss, walking, Ramadan, doctor or company challenges.</td></tr>
+  <tr><td><b>Learn</b></td><td>Short videos, articles and voice notes about diabetes.</td></tr>
+  <tr><td><b>My Progress</b></td><td>Trends, streaks and scores. Only for paid plans.</td></tr>
+  <tr><td><b>Reports</b></td><td>Simple summary reports the user can share with their doctor. Only for paid plans.</td></tr>
+  <tr><td><b>Executive Services</b></td><td>Doctor reviews, live coach sessions and priority help. Only for the top plan.</td></tr>
+  <tr><td><b>Settings</b></td><td>Change language, plan, profile details or turn off reminders.</td></tr>
+</table>
+
+<h3>3.6 Background Profile Building (12 Areas, About 60 Questions)</h3>
+<p>The bot does not ask everything at signup. Instead it asks a question here and there during normal chats, over time. This keeps the signup short and still builds a full picture of the user.</p>
+<div class="two-col">
+  <ul class="tight">
+    <li>Body and health (weight, height, waist, BP, weight goal)</li>
+    <li>Daily life (job, work type, activity, sleep)</li>
+    <li>Family (marital status, children, who they care for)</li>
+    <li>What motivates them and how they like to be coached</li>
+    <li>Faith and personal values</li>
+    <li>Diabetes habits and weak spots</li>
+  </ul>
+  <ul class="tight">
+    <li>Food and eating habits</li>
+    <li>Comfort with phones and apps</li>
+    <li>Their doctor and clinic</li>
+    <li>Where they buy medicines</li>
+    <li>Where they get health info and how they like to learn</li>
+    <li>Willingness to pay, employer, and referrals</li>
+  </ul>
+</div>
+<p>This data helps with better coaching, better content, doctor reports, and offering the right plan to the right user.</p>
+
+<h3>3.7 Challenges</h3>
+<p>Users can join the following challenges. Each one tracks the type, code, team, doctor or company link, start date, end date and current status.</p>
+<ul class="tight">
+  <li>90 Day HbA1c Challenge</li>
+  <li>Weight Loss Challenge</li>
+  <li>Walking Challenge</li>
+  <li>Consistency Challenge</li>
+  <li>Ramadan Health Challenge</li>
+  <li>Doctor Challenge (linked to a doctor code)</li>
+  <li>Corporate Challenge (linked to a company code)</li>
+</ul>
+
+<h3>3.8 Executive Services (Top Plan Only)</h3>
+<ul class="tight">
+  <li>Request a doctor to review their case</li>
+  <li>Book a live coach session</li>
+  <li>Get an executive progress review</li>
+  <li>Priority help when they have an issue</li>
+  <li>Access to premium learning content</li>
+</ul>
+
+<h3>3.9 Plans, Upgrades and Safety</h3>
+<ul class="tight">
+  <li>Three plans: Starter (free), Consistency Coach and Executive Coach. The menu always shows what is allowed on the user's plan.</li>
+  <li>When a free user tries to open a paid feature, the bot gently shows what they get on a paid plan, with "View Plans" or "Maybe Later" buttons.</li>
+  <li>A clear medical disclaimer is shown, and the user has to tap "I Understand" before continuing.</li>
+  <li>If a user mentions a serious symptom (chest pain, fainting, very high or very low sugar), the bot tells them to seek a doctor or emergency help right away.</li>
+</ul>
+
+<h2>4. Subscription Plans (Packages)</h2>
+<p>Users can pick between three plans. The plans are shown right inside WhatsApp. Anyone can start on the free plan and upgrade later whenever they want.</p>
+
+<div class="keep-together">
+<h3>4.1 Starter Plan (Free)</h3>
+<p>For users who want to try DrSaab without paying. It gives real value while keeping the deeper features for paid users.</p>
+<p><b>What is included:</b></p>
+<ul class="tight">
+  <li>Daily check ins</li>
+  <li>Sugar logging (fasting, random, after meal)</li>
+  <li>Basic medicine tracking and reminders</li>
+  <li>Food and meal logging with simple feedback</li>
+  <li>Basic Ask DrSaab AI chat with short answers</li>
+  <li>A few Lab Test explanations per month</li>
+  <li>Setting personal goals</li>
+  <li>Joining free challenges</li>
+  <li>Learn section (articles, videos, voice notes)</li>
+  <li>All chat in English, Urdu and WhatsApp Urdu</li>
+</ul>
+</div>
+
+<div class="keep-together">
+<h3>4.2 Consistency Coach (Paid)</h3>
+<p>For users who are serious about managing their diabetes. Adds proper progress tracking, deeper AI chat and reports they can share with their doctor.</p>
+<p><b>What is included:</b></p>
+<ul class="tight">
+  <li>Everything in the Starter plan</li>
+  <li>Full Ask DrSaab AI chat with longer and more detailed answers</li>
+  <li>More uses of the Lab Test explanation feature</li>
+  <li>My Progress section with charts, trends and the four user scores</li>
+  <li>Weekly and monthly summary reports for the user</li>
+  <li>Doctor friendly report the user can save and share with their doctor</li>
+  <li>Smart medicine and sugar reading reminders</li>
+  <li>Access to all challenges, including doctor and corporate challenges</li>
+</ul>
+</div>
+
+<div class="keep-together">
+<h3>4.3 Executive Coach (Premium)</h3>
+<p>For users who want a high touch service with direct human support. Adds premium content and human help on top of everything else.</p>
+<p><b>What is included:</b></p>
+<ul class="tight">
+  <li>Everything in the Consistency Coach plan</li>
+  <li>Request a doctor to review the user's case and notes</li>
+  <li>Book a live coach session</li>
+  <li>Executive progress review every three months</li>
+  <li>Priority help when the user has a question or issue</li>
+  <li>Access to premium learning content and resources</li>
+</ul>
+</div>
+
+<h2>5. What Will Be Delivered</h2>
+<div class="two-col">
+  <div>
+    <h4>Software</h4>
+    <ul class="tight">
+      <li>WhatsApp Business API connection</li>
+      <li>The chat engine that handles every conversation</li>
+      <li>All chat text in English, Urdu and WhatsApp Urdu</li>
+      <li>AI for Ask DrSaab and Explain My Lab Test</li>
+      <li>User database with about 60 fields per user</li>
+      <li>Scoring system for the four user scores</li>
+      <li>Plan and subscription handling</li>
+      <li>Referral and invite code system</li>
+      <li>Challenges system</li>
+      <li>Reminder and notification sending</li>
+      <li>Admin panel</li>
+      <li>Reports for users and doctors</li>
+    </ul>
+  </div>
+  <div>
+    <h4>Documents and Setup</h4>
+    <ul class="tight">
+      <li>System diagram</li>
+      <li>Chat flow diagrams</li>
+      <li>Database structure</li>
+      <li>API notes</li>
+      <li>Admin panel guide</li>
+      <li>Operations notes</li>
+      <li>Live hosting, domain and SSL</li>
+      <li>Help with Meta Business verification</li>
+      <li>Help getting the WhatsApp number ready</li>
+      <li>Backups and basic monitoring</li>
+    </ul>
+  </div>
+</div>
+
+<h2>6. Milestones and Payments</h2>
+<p>The total project cost is PKR 380,000. The remaining work is split across 5 milestones and will be completed in under 5 weeks. Each milestone is billed when it is delivered and accepted.</p>
+<table>
+  <tr>
+    <th>No.</th><th>Milestone</th><th>What Gets Done</th><th>Time</th><th>%</th><th>Amount (PKR)</th>
+  </tr>
+  <tr>
+    <td><b>M1</b></td>
+    <td>Chat scripts in all three languages and welcome flow polish</td>
+    <td>Final chat scripts in English, Urdu and WhatsApp Urdu added on top of the version 1 flow. Greeting detection, language switching, profile setup and the disclaimer step finalised across all three languages.</td>
+    <td>1 week</td>
+    <td>15%</td>
+    <td>57,000</td>
+  </tr>
+  <tr>
+    <td><b>M2</b></td>
+    <td>Main menu and core features</td>
+    <td>Plan based main menu, Check In, Log Sugar, Food and Meals, Medicines, Goals, Settings, common commands and reminders.</td>
+    <td>1 week</td>
+    <td>20%</td>
+    <td>76,000</td>
+  </tr>
+  <tr>
+    <td><b>M3</b></td>
+    <td>AI features and background profile building</td>
+    <td>Ask DrSaab AI chat, Explain My Lab Test AI feature, the 12 area background profile builder, and the user scoring system.</td>
+    <td>1 week</td>
+    <td>25%</td>
+    <td>95,000</td>
+  </tr>
+  <tr>
+    <td><b>M4</b></td>
+    <td>Plans, challenges, executive services and reports</td>
+    <td>Three plan system, upgrade prompts, all challenges, executive services menu, My Progress, Reports, the referral system, and matching admin panel updates.</td>
+    <td>1 week</td>
+    <td>25%</td>
+    <td>95,000</td>
+  </tr>
+  <tr>
+    <td><b>M5</b></td>
+    <td>Testing, pilot, launch and handover</td>
+    <td>Full testing on real WhatsApp numbers, pilot run with a few users, going live on the client's number, admin panel training, and 2 weeks of support after launch.</td>
+    <td>0.5 week</td>
+    <td>15%</td>
+    <td>57,000</td>
+  </tr>
+  <tr class="total-row">
+    <td colspan="3">Total Project Cost</td>
+    <td>Under 5 weeks</td>
+    <td>100%</td>
+    <td>380,000</td>
+  </tr>
+</table>
+
+<p><b>Payment Terms.</b> The first milestone (PKR 57,000) is paid at the start to begin the work. The next milestones are billed when each one is delivered and accepted.</p>
+<p class="muted">The price does not include outside costs like Meta's WhatsApp message charges, AI service fees from providers like OpenAI or Anthropic, and hosting renewals. These are billed at actual cost.</p>
+
+<h2>7. Recommended Payment Gateways</h2>
+<p>Pakistani users and international users pay in different ways. The right setup is to use one gateway for users in Pakistan and one for users outside Pakistan. The bot can check the user's country and show the correct option at upgrade time.</p>
+
+<div class="keep-together">
+<h3>7.1 For Users in Pakistan</h3>
+<p>We recommend the two biggest mobile wallets in Pakistan. Together they cover almost every smartphone user, and paying is fast since most users already have these apps on their phone.</p>
+<table>
+  <tr><th>Gateway</th><th>What It Handles</th><th>Why It Is Recommended</th></tr>
+  <tr>
+    <td><b>JazzCash</b></td>
+    <td>Mobile wallet payments</td>
+    <td>Pakistan's biggest mobile wallet. Most users already have it on their phone, so paying takes one tap.</td>
+  </tr>
+  <tr>
+    <td><b>EasyPaisa</b></td>
+    <td>Mobile wallet payments</td>
+    <td>The second biggest mobile wallet. Covers most users who do not use JazzCash.</td>
+  </tr>
+</table>
+</div>
+
+<div class="keep-together">
+<h3>7.2 For International Users</h3>
+<p>For users paying from outside Pakistan, the standard global gateways are the best choice. They support recurring subscriptions, multiple currencies, and digital wallets like Apple Pay and Google Pay.</p>
+<table>
+  <tr><th>Gateway</th><th>What It Handles</th><th>Why It Is Recommended</th></tr>
+  <tr>
+    <td><b>Stripe</b></td>
+    <td>Cards, Apple Pay, Google Pay, subscriptions, in 135+ currencies</td>
+    <td>The most trusted international payment gateway. Best for recurring subscriptions and clean integration.</td>
+  </tr>
+  <tr>
+    <td><b>PayPal</b></td>
+    <td>PayPal balance and cards</td>
+    <td>Very widely used and trusted. A good backup for users who prefer PayPal over giving their card details.</td>
+  </tr>
+</table>
+<p class="muted">Note: Stripe does not directly support businesses based in Pakistan. To use Stripe, the client would normally register a company outside Pakistan (for example through Stripe Atlas in the United States). We can guide the client through this if needed.</p>
+</div>
+
+<h2>8. What Is Not Included in the MVP</h2>
+<p>These can be quoted separately if needed later.</p>
+<ul class="tight">
+  <li>Separate iPhone or Android apps</li>
+  <li>Live video calls with doctors</li>
+  <li>Medicine delivery from pharmacies</li>
+  <li>Insurance claims</li>
+  <li>Linking with hospital record systems</li>
+  <li>A dashboard for many clinics at once</li>
+  <li>Online payment gateway (can be added in the next phase)</li>
+</ul>
+
+<h2>9. Things We Need From the Client</h2>
+<ul class="tight">
+  <li>Access to your Meta Business Manager account and the WhatsApp number you want to use.</li>
+  <li>Continued access to the existing hosting and domain (drsaabcoach.com), which the client owns.</li>
+  <li>Final approved chat content in all three languages. We will polish and format it.</li>
+  <li>AI usage charges are billed as they are used.</li>
+  <li>Any learning content you want inside the Learn section.</li>
+  <li>Feedback on each milestone within 3 working days.</li>
+</ul>
+
+<h2>10. Support After Launch and Yearly Maintenance</h2>
+<p>Two weeks of free support are included after launch, as part of M5.</p>
+<p>After that, a yearly support and maintenance package can be added. It would cover:</p>
+<ul class="tight">
+  <li>Fixing bugs and keeping things stable</li>
+  <li>Keeping the bot working when WhatsApp or Meta change their rules</li>
+  <li>Updating chat content in all three languages</li>
+  <li>Watching the server and keeping uptime healthy</li>
+  <li>A short performance report every three months</li>
+  <li>Small feature changes or improvements</li>
+</ul>
+<p><b>Yearly Maintenance Fee:</b> <i>To be discussed.</i> <span class="muted">It will be agreed closer to launch, once we know how many users, how much chat traffic and how much AI use to plan for.</span></p>
+
+<h2>11. Why This Approach Works</h2>
+<ul class="tight">
+  <li>Users prefer chatting over picking from long menus. The bot is built around chat first.</li>
+  <li>It works in English, Urdu and Roman Urdu from day one. This fits how people in Pakistan really write on WhatsApp.</li>
+  <li>The bot learns about the user slowly during normal chats. Users do not have to fill long forms.</li>
+  <li>The free plan and two paid plans are built in, so the product can earn from day one.</li>
+  <li>The two AI features (Ask DrSaab and Explain My Lab Test) give users something they can clearly feel and use.</li>
+  <li>Faith and culture are respected. Ramadan support and faith based motivation are included as options.</li>
+</ul>
+
+<h2>12. Acceptance</h2>
+<div class="sig">
+  <div>Client Name and Signature<br><br><br><br>Date: __________________</div>
+  <div>Vendor Name and Signature<br><br><br><br>Date: __________________</div>
+</div>
+
+<div class="footer">
+  This proposal is valid for 30 days from the date above. DrSaab WhatsApp Coach. Confidential.
+</div>
+
+</body>
+</html>

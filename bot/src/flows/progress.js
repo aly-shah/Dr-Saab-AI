@@ -76,3 +76,39 @@ export async function showSummary(bot, chatId, session) {
     await send(bot, chatId, t(lang, "error_generic"), { keyboard: backKeyboard(lang) });
   }
 }
+
+// Recent Activity — last 7 days at a glance. No AI; just structured counts +
+// the most recent glucose readings. Cheap to build, helps the user feel like
+// the bot remembers them.
+export async function showRecentActivity(bot, chatId, session) {
+  const lang = langOf(session);
+  session.state = "idle";
+
+  const [readings, stats] = await Promise.all([
+    recentGlucose(session.user.id, 5),
+    weeklyStats(session.user.id),
+  ]);
+
+  if (!readings.length && !stats.medicationCount && !stats.healthCount) {
+    return send(bot, chatId, t(lang, "recent_none"), { keyboard: backKeyboard(lang), markdown: true });
+  }
+
+  const lines = [];
+  if (readings.length) {
+    lines.push("*Recent glucose:*");
+    for (const r of readings) {
+      const d = new Date(r.created_at);
+      const when = `${d.getMonth() + 1}/${d.getDate()}`;
+      lines.push(`• ${r.value_mgdl} mg/dL (${r.context}) — ${when}`);
+    }
+    lines.push("");
+  }
+  lines.push(`Glucose checks (7d): *${stats.glucoseCount}*`);
+  lines.push(`Medications logged (7d): *${stats.medicationCount}*`);
+  lines.push(`Check-ins (7d): *${stats.healthCount}*`);
+
+  await send(bot, chatId, `${t(lang, "recent_title")}\n\n${lines.join("\n")}`, {
+    keyboard: backKeyboard(lang),
+    markdown: true,
+  });
+}

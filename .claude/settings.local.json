@@ -8,7 +8,11 @@
       "Bash(git add *)",
       "Bash(git commit -q -m 'Strip emojis from all bot replies + buttons \\(clean/professional\\), no-emoji model prompt; add explicit Back-to-website control on /bot *)",
       "Bash(git push *)",
-      "Bash(bash -n deploy.sh)"
+      "Bash(bash -n deploy.sh)",
+      "Bash(python3 -c \"import reportlab; print\\('reportlab:', reportlab.__version__\\)\")",
+      "Bash(python3 -c \"import matplotlib; print\\('matplotlib:', matplotlib.__version__\\)\")",
+      "Bash(google-chrome --headless --disable-gpu --no-sandbox --no-pdf-header-footer --print-to-pdf=DrSaab-AI-Monthly-Cost-Report.pdf --print-to-pdf-no-header --virtual-time-budget=10000 \"file://$\\(pwd\\)/report.html\")",
+      "Bash(python3 -c ' *)"
     ]
   }
 }

@@ -324,3 +324,119 @@ export function understandKeyboard(lang) {
     inline_keyboard: [[{ text: t(lang, "btn_understand"), callback_data: "ok:understand" }]],
   };
 }
+
+// ===================================================================
+// Build 1 menu hierarchy (simplified spec, 2-level cap)
+// ===================================================================
+
+// New 6-item top menu per the Build 1 spec. Old features (Challenges, Goals,
+// Executive) move under "More" — see moreKeyboard below — so nothing is lost.
+export function mainMenuKeyboardV2(lang) {
+  const b = (key, action) => ({ text: t(lang, key), callback_data: `feat:${action}` });
+  return stack([
+    b("btn_checkin", "checkin"),
+    b("btn_foodhelp", "foodhelp"),
+    b("btn_checkreport", "lab"),
+    b("btn_myprogress", "myprogress"),
+    b("btn_askdrsaab", "askdrsaab"),
+    b("btn_more", "more"),
+  ]);
+}
+
+export function checkInKeyboard(lang) {
+  const b = (key, action) => ({ text: t(lang, key), callback_data: `ci:${action}` });
+  return stack([
+    b("btn_ci_bloodsugar", "bsugar"),
+    b("btn_ci_medication", "med"),
+    b("btn_ci_weight", "weight"),
+    b("btn_ci_activity", "activity"),
+    b("btn_ci_symptoms", "symptoms"),
+    { text: t(lang, "btn_main_menu"), callback_data: "menu" },
+  ]);
+}
+
+export function foodHelpKeyboard(lang) {
+  const b = (key, action) => ({ text: t(lang, key), callback_data: `fh:${action}` });
+  return stack([
+    b("btn_fh_analyze", "analyze"),
+    b("btn_fh_caneat", "caneat"),
+    b("btn_fh_restaurant", "restaurant"),
+    b("btn_fh_snacks", "snacks"),
+    { text: t(lang, "btn_main_menu"), callback_data: "menu" },
+  ]);
+}
+
+export function myProgressKeyboard(lang) {
+  const b = (key, action) => ({ text: t(lang, key), callback_data: `mp:${action}` });
+  return stack([
+    b("btn_mp_weekly", "weekly"),
+    b("btn_mp_monthly", "monthly"),
+    b("btn_mp_trends", "trends"),
+    b("btn_mp_recent", "recent"),
+    { text: t(lang, "btn_main_menu"), callback_data: "menu" },
+  ]);
+}
+
+// More — also home to Challenges / Goals / Executive (kept, not deleted).
+export function moreKeyboard(lang) {
+  const b = (key, action) => ({ text: t(lang, key), callback_data: `mo:${action}` });
+  return stack([
+    b("btn_more_reminders", "reminders"),
+    b("btn_more_language", "language"),
+    b("btn_more_plan", "plan"),
+    b("btn_more_subscription", "subscription"),
+    b("btn_more_support", "support"),
+    b("btn_more_goals", "goals"),
+    b("btn_more_challenges", "challenges"),
+    b("btn_more_executive", "executive"),
+    { text: t(lang, "btn_main_menu"), callback_data: "menu" },
+  ]);
+}
+
+export function medFrequencyKeyboard(lang) {
+  return stack([
+    { text: t(lang, "btn_med_freq_once"), callback_data: "medfreq:once_daily" },
+    { text: t(lang, "btn_med_freq_morn_eve"), callback_data: "medfreq:morning_evening" },
+    { text: t(lang, "btn_med_freq_three"), callback_data: "medfreq:three_times" },
+    { text: t(lang, "btn_med_freq_other"), callback_data: "medfreq:other" },
+  ]);
+}
+
+// Generic "want a reminder?" yes/no with a typed key so the callback handler
+// can tell which flow it belongs to.
+export function reminderOfferKeyboard(lang, key) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "btn_yes"), callback_data: `remoffer:${key}:yes` },
+        { text: t(lang, "btn_no"), callback_data: `remoffer:${key}:no` },
+      ],
+    ],
+  };
+}
+
+export function reminderFrequencyKeyboard(lang) {
+  return stack([
+    { text: t(lang, "btn_freq_daily"), callback_data: "remfreq:1" },
+    { text: t(lang, "btn_freq_3x_week"), callback_data: "remfreq:2" },
+    { text: t(lang, "btn_freq_weekly"), callback_data: "remfreq:7" },
+  ]);
+}
+
+export function activityDaysKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [1, 2, 3, 4].map((n) => ({ text: String(n), callback_data: `actgoal:${n}` })),
+      [5, 6, 7].map((n) => ({ text: String(n), callback_data: `actgoal:${n}` })),
+    ],
+  };
+}
+
+// Render the user's active reminders with a Cancel button on each row.
+export function remindersListKeyboard(lang, items) {
+  const rows = items.map((r) => [
+    { text: t(lang, "btn_reminder_cancel", { label: r.label || r.category }).slice(0, 60), callback_data: `remcancel:${r.id}` },
+  ]);
+  rows.push([{ text: t(lang, "btn_back"), callback_data: "feat:more" }]);
+  return { inline_keyboard: rows };
+}
