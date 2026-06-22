@@ -53,16 +53,30 @@ export const config = {
   webhookUrl: process.env.WEBHOOK_URL?.trim() || "",
   port: parseInt(process.env.PORT || "8080", 10),
 
-  // WhatsApp Cloud API adapter (the contracted delivery channel). Only starts
-  // when a token + phone number id are present; needs the client's Meta access.
+  // WhatsApp adapter (the contracted delivery channel). Supports two providers
+  // that speak the SAME Cloud API payloads/webhooks:
+  //   • "meta"      — Meta Graph API directly (needs a token + phone number id)
+  //   • "360dialog" — 360dialog BSP, which proxies the Cloud API (needs only a
+  //                   single D360-API-KEY; the number is bound to that key)
+  // Auto-detects 360dialog when D360_API_KEY is set; override with WHATSAPP_PROVIDER.
   whatsapp: {
+    provider:
+      process.env.WHATSAPP_PROVIDER?.trim().toLowerCase() ||
+      (process.env.D360_API_KEY?.trim() ? "360dialog" : "meta"),
+
+    // Meta Cloud API (direct)
     token: process.env.WHATSAPP_TOKEN?.trim() || "",
     phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID?.trim() || "",
-    verifyToken: process.env.WHATSAPP_VERIFY_TOKEN?.trim() || "drsaab-verify",
     apiVersion: process.env.WHATSAPP_API_VERSION?.trim() || "v21.0",
+
+    // 360dialog (BSP)
+    apiKey: process.env.D360_API_KEY?.trim() || "",
+    baseUrl: process.env.D360_BASE_URL?.trim() || "https://waba-v2.360dialog.io",
+
+    verifyToken: process.env.WHATSAPP_VERIFY_TOKEN?.trim() || "drsaab-verify",
     port: parseInt(process.env.WHATSAPP_PORT || "8082", 10),
     get enabled() {
-      return !!(this.token && this.phoneNumberId);
+      return this.provider === "360dialog" ? !!this.apiKey : !!(this.token && this.phoneNumberId);
     },
   },
 };

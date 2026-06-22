@@ -3,12 +3,15 @@
 // This is the contracted delivery channel. The conversation logic is shared
 // with Telegram — we reuse handleMessage / handleCallback and only translate
 // the transport here:
-//   • inbound  : Meta webhook  → Telegram-shaped msg/query objects
-//   • outbound : a "virtual bot" → Graph API messages (text + interactive)
+//   • inbound  : Cloud-API webhook → Telegram-shaped msg/query objects
+//   • outbound : a "virtual bot"   → Cloud-API messages (text + interactive)
 //
-// It only starts when WHATSAPP_TOKEN and WHATSAPP_PHONE_NUMBER_ID are set
-// (i.e. once the client grants Meta access + a verified number). Until then it
-// stays dormant and the Telegram adapter keeps running.
+// Works with two providers that speak the SAME Cloud API (see config.js):
+//   • Meta directly  — set WHATSAPP_TOKEN + WHATSAPP_PHONE_NUMBER_ID
+//   • 360dialog (BSP)— set D360_API_KEY (recommended: one key, no FB app needed)
+// 360dialog forwards Meta's exact webhook JSON, so the inbound parsing below is
+// unchanged. Until one provider is configured the adapter stays dormant and the
+// Telegram adapter keeps running.
 
 import http from "node:http";
 import { config } from "./config.js";
@@ -17,10 +20,19 @@ import { handleMessage, handleCallback } from "./bot.js";
 const GRAPH = "https://graph.facebook.com";
 
 function api() {
-  const { apiVersion, phoneNumberId, token } = config.whatsapp;
+  const w = config.whatsapp;
+  if (w.provider === "360dialog") {
+    // 360dialog Cloud API: identical message payloads to Meta, but a different
+    // host + auth header, and no phone-number-id in the path (the API key is
+    // already bound to the WhatsApp number).
+    return {
+      url: `${w.baseUrl.replace(/\/$/, "")}/messages`,
+      headers: { "D360-API-KEY": w.apiKey, "Content-Type": "application/json" },
+    };
+  }
   return {
-    url: `${GRAPH}/${apiVersion}/${phoneNumberId}/messages`,
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    url: `${GRAPH}/${w.apiVersion}/${w.phoneNumberId}/messages`,
+    headers: { Authorization: `Bearer ${w.token}`, "Content-Type": "application/json" },
   };
 }
 
@@ -134,10 +146,12 @@ async function onInbound(value) {
 
 export function startWhatsApp() {
   if (!config.whatsapp.enabled) {
-    console.log("   WhatsApp adapter: dormant (set WHATSAPP_TOKEN + WHATSAPP_PHONE_NUMBER_ID to enable).");
+    console.log(
+      "   WhatsApp adapter: dormant (set D360_API_KEY for 360dialog, or WHATSAPP_TOKEN + WHATSAPP_PHONE_NUMBER_ID for Meta)."
+    );
     return;
   }
-  const { port, verifyToken } = config.whatsapp;
+  const { port, verifyToken, provider } = config.whatsapp;
 
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, `http://localhost:${port}`);
@@ -181,6 +195,6 @@ export function startWhatsApp() {
   });
 
   server.listen(port, () => {
-    console.log(`   WhatsApp adapter on http://localhost:${port}/whatsapp/webhook`);
+    console.log(`   WhatsApp adapter (${provider}) on http://localhost:${port}/whatsapp/webhook`);
   });
 }
