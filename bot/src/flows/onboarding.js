@@ -22,11 +22,104 @@ import { updateUser } from "../supabase.js";
 import { refreshKB } from "../kb.js";
 import { resetFlow } from "../session.js";
 
-// "Non-clinical" user types skip diabetes-specific steps (diabetes type,
-// diagnosis history, HbA1c, sugar readings, diabetes meds, glucose monitoring).
-// They still answer other-conditions, goal, challenge, motivation, disclaimer.
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+const MONTH_TOKENS = {
+  january: 1, jan: 1,
+  february: 2, feb: 2,
+  march: 3, mar: 3,
+  april: 4, apr: 4,
+  may: 5,
+  june: 6, jun: 6,
+  july: 7, jul: 7,
+  august: 8, aug: 8,
+  september: 9, sept: 9, sep: 9,
+  october: 10, oct: 10,
+  november: 11, nov: 11,
+  december: 12, dec: 12,
+};
+
+// Best-effort DOB extractor. Returns a merge over `existing` of any fields it
+// can pull from the new text. The flow re-prompts until day, month, and year
+// are all set.
+function parseDob(text, existing = {}) {
+  const out = { day: existing.day ?? null, month: existing.month ?? null, year: existing.year ?? null };
+  const lower = (text || "").toLowerCase();
+  const currentYear = new Date().getFullYear();
+
+  const sortedNames = Object.keys(MONTH_TOKENS).sort((a, b) => b.length - a.length);
+  for (const name of sortedNames) {
+    if (new RegExp(`\\b${name}\\b`).test(lower)) {
+      out.month = MONTH_TOKENS[name];
+      break;
+    }
+  }
+
+  const iso = text.match(/\b(19\d{2}|20\d{2})[-\/.](\d{1,2})[-\/.](\d{1,2})\b/);
+  if (iso) {
+    out.year = out.year ?? parseInt(iso[1], 10);
+    out.month = out.month ?? parseInt(iso[2], 10);
+    out.day = out.day ?? parseInt(iso[3], 10);
+  } else {
+    const dmy = text.match(/\b(\d{1,2})[-\/.](\d{1,2})(?:[-\/.](\d{2,4}))?\b/);
+    if (dmy) {
+      const a = parseInt(dmy[1], 10);
+      const b = parseInt(dmy[2], 10);
+      if (a >= 1 && a <= 31 && b >= 1 && b <= 12) {
+        out.day = out.day ?? a;
+        out.month = out.month ?? b;
+      } else if (a >= 1 && a <= 12 && b >= 1 && b <= 31) {
+        out.month = out.month ?? a;
+        out.day = out.day ?? b;
+      }
+      if (dmy[3]) {
+        const yrNum = parseInt(dmy[3], 10);
+        const fullYr = yrNum < 100 ? (yrNum > 30 ? 1900 + yrNum : 2000 + yrNum) : yrNum;
+        out.year = out.year ?? fullYr;
+      }
+    }
+  }
+
+  if (!out.year) {
+    const yr = text.match(/\b(19\d{2}|20\d{2})\b/);
+    if (yr) out.year = parseInt(yr[1], 10);
+  }
+
+  if (out.month && !out.day) {
+    const matches = [...text.matchAll(/\b(\d{1,2})\b/g)].map((m) => parseInt(m[1], 10));
+    for (const n of matches) {
+      if (n >= 1 && n <= 31) { out.day = n; break; }
+    }
+  }
+
+  if (out.month && (out.month < 1 || out.month > 12)) out.month = null;
+  if (out.day && (out.day < 1 || out.day > 31)) out.day = null;
+  if (out.year && (out.year < 1900 || out.year > currentYear)) out.year = null;
+
+  return out;
+}
+
+function dobMissingPieces(dob, lang) {
+  const missing = [];
+  if (!dob.day) missing.push(lang === "ur" ? "دن" : "day");
+  if (!dob.month) missing.push(lang === "ur" ? "مہینہ" : "month");
+  if (!dob.year) missing.push(lang === "ur" ? "سال" : "year");
+  return missing;
+}
+
+function formatDob(dob) {
+  return `${dob.day} ${MONTH_NAMES[dob.month - 1]} ${dob.year}`;
+}
+
+// Only user_type=diabetes goes through the full clinical funnel (diabetes type,
+// diagnosis history, HbA1c, sugar readings, diabetes meds, monitoring habits).
+// Everyone else (prediabetes, build-healthier, parent, exploring) skips the
+// clinical block and jumps from city -> other_conditions.
 function isNonClinical(data) {
-  return data.user_type === "parent" || data.user_type === "exploring";
+  return data.user_type !== "diabetes";
 }
 
 // Compute the next step from the current one + collected data.
@@ -35,16 +128,17 @@ function nextStep(step, data) {
     case "name":
       return "user_type";
     case "user_type":
-      return "age";
-    case "age":
+      // Ask "Do you know which type you have?" right after user_type, but
+      // only for users who said they have diabetes.
+      return data.user_type === "diabetes" ? "diabetes_type" : "dob";
+    case "diabetes_type":
+      return "dob";
+    case "dob":
       return "gender";
     case "gender":
       return "city";
     case "city":
       if (isNonClinical(data)) return "other_conditions_known";
-      if (data.user_type === "notsure") return "diagnosis_duration";
-      return "diabetes_type";
-    case "diabetes_type":
       return "diagnosis_duration";
     case "diagnosis_duration":
       return "hba1c_known";
@@ -114,7 +208,7 @@ async function promptStep(bot, chatId, session) {
         keyboard: userTypeKeyboard(lang),
         markdown: true,
       });
-    case "age":
+    case "dob":
       return send(bot, chatId, t(lang, "ask_age_v2"), { markdown: true });
     case "gender":
       return send(bot, chatId, t(lang, "ask_gender"), {
@@ -206,15 +300,25 @@ async function promptStep(bot, chatId, session) {
         markdown: true,
       });
     case "primary_goal":
-      return send(bot, chatId, t(lang, "ask_primary_goal"), {
-        keyboard: primaryGoalKeyboard(lang),
-        markdown: true,
-      });
+      return send(
+        bot,
+        chatId,
+        `${t(lang, "ask_primary_goal")}\n\n${t(lang, "multi_select_hint")}`,
+        {
+          keyboard: primaryGoalKeyboard(lang, session.data.primary_goals || []),
+          markdown: true,
+        }
+      );
     case "primary_challenge":
-      return send(bot, chatId, t(lang, "ask_primary_challenge"), {
-        keyboard: challengeKeyboard(lang),
-        markdown: true,
-      });
+      return send(
+        bot,
+        chatId,
+        `${t(lang, "ask_primary_challenge")}\n\n${t(lang, "multi_select_hint")}`,
+        {
+          keyboard: challengeKeyboard(lang, session.data.primary_challenges || []),
+          markdown: true,
+        }
+      );
     case "motivation_driver":
       return send(bot, chatId, t(lang, "ask_motivation_driver"), {
         keyboard: motivationKeyboard(lang),
@@ -285,8 +389,12 @@ async function finish(bot, chatId, session) {
     non_diabetes_meds: otherMedsJson,
     monitoring_habit: d.monitoring_habit ?? null,
     monitoring_device: d.monitoring_device ?? null,
-    primary_goal: d.primary_goal ?? null,
-    primary_challenge: d.primary_challenge ?? null,
+    primary_goal: Array.isArray(d.primary_goals) && d.primary_goals.length
+      ? d.primary_goals.join("; ")
+      : null,
+    primary_challenge: Array.isArray(d.primary_challenges) && d.primary_challenges.length
+      ? d.primary_challenges.join("; ")
+      : null,
     motivation_driver: d.motivation_driver ?? null,
     disclaimer_accepted: true,
     onboarded: true,
@@ -296,7 +404,9 @@ async function finish(bot, chatId, session) {
   if (Array.isArray(d.diab_meds) && d.diab_meds.length) {
     patch.medications = d.diab_meds.join("; ");
   }
-  if (d.primary_goal) patch.goals = d.primary_goal;
+  if (Array.isArray(d.primary_goals) && d.primary_goals.length) {
+    patch.goals = d.primary_goals.map((k) => t(lang, `pg_${k}`)).join("; ");
+  }
 
   const updated = await updateUser(session.user.id, patch);
   session.user = updated;
@@ -342,24 +452,19 @@ export async function onboardingText(bot, chatId, session, text) {
       await send(bot, chatId, t(lang, "name_ack", { name: sanitizeMd(first) }), { markdown: true });
       return advance(bot, chatId, session);
     }
-    case "age": {
-      // Accept either an age (1–120) or a date of birth string.
-      const isPureNumber = /^\d{1,3}$/.test(val);
-      if (isPureNumber) {
-        const n = parseInt(val, 10);
-        if (n < 1 || n > 120) return send(bot, chatId, t(lang, "invalid_number"));
-        session.data.age = n;
-      } else {
-        // Treat as DOB free text. Try to extract a 4-digit year to derive age too.
-        session.data.date_of_birth = val.slice(0, 40);
-        const yearMatch = val.match(/(19|20)\d{2}/);
-        if (yearMatch) {
-          const yr = parseInt(yearMatch[0], 10);
-          const thisYr = new Date().getFullYear();
-          const derived = thisYr - yr;
-          if (derived >= 1 && derived <= 120) session.data.age = derived;
-        }
+    case "dob": {
+      const partial = parseDob(val, session.data.dob_partial || {});
+      session.data.dob_partial = partial;
+      const missing = dobMissingPieces(partial, lang);
+      if (missing.length) {
+        const missingStr = missing.length === 3
+          ? (lang === "ur" ? "دن، مہینہ اور سال" : "day, month and year")
+          : missing.join(lang === "ur" ? " اور " : " and ");
+        return send(bot, chatId, t(lang, "ask_dob_missing", { missing: missingStr }), { markdown: true });
       }
+      session.data.date_of_birth = formatDob(partial);
+      const derivedAge = new Date().getFullYear() - partial.year;
+      if (derivedAge >= 1 && derivedAge <= 120) session.data.age = derivedAge;
       return advance(bot, chatId, session);
     }
     case "city":
@@ -525,12 +630,33 @@ export async function onboardingCallback(bot, chatId, session, data) {
     return advance(bot, chatId, session);
   }
   if (kind === "pg" && session.step === "primary_goal") {
-    session.data.primary_goal = value;
-    return advance(bot, chatId, session);
+    const current = session.data.primary_goals || [];
+    if (value === "__done") {
+      if (!current.length) {
+        // Need at least one selection — re-prompt with the same keyboard.
+        return promptStep(bot, chatId, session);
+      }
+      return advance(bot, chatId, session);
+    }
+    const idx = current.indexOf(value);
+    if (idx >= 0) current.splice(idx, 1);
+    else current.push(value);
+    session.data.primary_goals = current;
+    return promptStep(bot, chatId, session);
   }
   if (kind === "ch" && session.step === "primary_challenge") {
-    session.data.primary_challenge = value;
-    return advance(bot, chatId, session);
+    const current = session.data.primary_challenges || [];
+    if (value === "__done") {
+      if (!current.length) {
+        return promptStep(bot, chatId, session);
+      }
+      return advance(bot, chatId, session);
+    }
+    const idx = current.indexOf(value);
+    if (idx >= 0) current.splice(idx, 1);
+    else current.push(value);
+    session.data.primary_challenges = current;
+    return promptStep(bot, chatId, session);
   }
   if (kind === "mt" && session.step === "motivation_driver") {
     session.data.motivation_driver = value;

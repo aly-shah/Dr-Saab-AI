@@ -179,15 +179,14 @@ export function genderKeyboardV2(lang) {
 }
 
 export function diabetesTypeKeyboard(lang) {
+  // Prediabetes intentionally omitted — already covered by the user_type
+  // question ("I have prediabetes") asked one step earlier.
   return stack([
     [
       { text: t(lang, "dt_type1"), callback_data: "dt:type1" },
       { text: t(lang, "dt_type2"), callback_data: "dt:type2" },
     ],
-    [
-      { text: t(lang, "dt_prediabetes"), callback_data: "dt:prediabetes" },
-      { text: t(lang, "dt_gestational"), callback_data: "dt:gestational" },
-    ],
+    { text: t(lang, "dt_gestational"), callback_data: "dt:gestational" },
     { text: t(lang, "dt_notsure"), callback_data: "dt:notsure" },
   ]);
 }
@@ -275,32 +274,41 @@ export function monitoringDeviceKeyboard(lang) {
   };
 }
 
-export function primaryGoalKeyboard(lang) {
+// Multi-select label decorator. Uses geometric shapes (●/○) so cleanKeyboard
+// (which strips most emoji/symbols) leaves them intact.
+function markSelected(label, selected) {
+  return `${selected ? "●" : "○"} ${label}`;
+}
+
+export function primaryGoalKeyboard(lang, selected = []) {
+  const sel = new Set(selected);
+  const opt = (key, val) => ({
+    text: markSelected(t(lang, key), sel.has(val)),
+    callback_data: `pg:${val}`,
+  });
   return stack([
-    { text: t(lang, "pg_lower_a1c"), callback_data: "pg:lower_a1c" },
-    { text: t(lang, "pg_lose_weight"), callback_data: "pg:lose_weight" },
-    { text: t(lang, "pg_eat_healthy"), callback_data: "pg:eat_healthy" },
-    { text: t(lang, "pg_exercise"), callback_data: "pg:exercise" },
-    { text: t(lang, "pg_consistent"), callback_data: "pg:consistent" },
-    { text: t(lang, "pg_understand"), callback_data: "pg:understand" },
+    opt("pg_lower_a1c", "lower_a1c"),
+    opt("pg_lose_weight", "lose_weight"),
+    opt("pg_eat_healthy", "eat_healthy"),
+    opt("pg_exercise", "exercise"),
+    opt("pg_consistent", "consistent"),
+    opt("pg_understand", "understand"),
+    { text: t(lang, "btn_multi_done"), callback_data: "pg:__done" },
   ]);
 }
 
-export function challengeKeyboard(lang) {
+export function challengeKeyboard(lang, selected = []) {
+  const sel = new Set(selected);
+  const opt = (key, val) => ({
+    text: markSelected(t(lang, key), sel.has(val)),
+    callback_data: `ch:${val}`,
+  });
   return stack([
-    [
-      { text: t(lang, "ch_diet"), callback_data: "ch:diet" },
-      { text: t(lang, "ch_exercise"), callback_data: "ch:exercise" },
-    ],
-    [
-      { text: t(lang, "ch_motivation"), callback_data: "ch:motivation" },
-      { text: t(lang, "ch_meds"), callback_data: "ch:meds" },
-    ],
-    [
-      { text: t(lang, "ch_stress"), callback_data: "ch:stress" },
-      { text: t(lang, "ch_time"), callback_data: "ch:time" },
-    ],
-    { text: t(lang, "ch_understand"), callback_data: "ch:understand" },
+    [opt("ch_diet", "diet"), opt("ch_exercise", "exercise")],
+    [opt("ch_motivation", "motivation"), opt("ch_meds", "meds")],
+    [opt("ch_stress", "stress"), opt("ch_time", "time")],
+    opt("ch_understand", "understand"),
+    { text: t(lang, "btn_multi_done"), callback_data: "ch:__done" },
   ]);
 }
 

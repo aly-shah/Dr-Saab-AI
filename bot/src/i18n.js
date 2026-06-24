@@ -113,17 +113,21 @@ const STR = {
     btn_lang_urdu: "اردو",
     btn_lang_whatsapp_urdu: "WhatsApp Urdu",
 
-    ask_name_v2: "Before we begin, what should I call you?",
+    ask_name_v2: "Before we begin, what's your name?",
     name_ack:
       "Nice to meet you, *{name}* 👋\nLet's build your profile so I can personalize my coaching for you.",
     ask_user_type: "Which best describes you?",
     ut_diabetes: "I have diabetes",
     ut_prediabetes: "I have prediabetes",
-    ut_notsure: "I'm not sure",
+    ut_notsure: "Build healthier habits",
     ut_parent: "I'm a parent/family member",
     ut_exploring: "Just exploring",
 
-    ask_age_v2: "How old are you?\nOr simply tell me your date of birth.",
+    ask_age_v2: "Ok great. Let's begin. When is your birthday?\nPlease share day, month and year (e.g. 12 March 1985).",
+    ask_dob_missing:
+      "I just need a complete birthday — please send the missing *{missing}* (e.g. 12 March 1985).",
+    btn_multi_done: "Done",
+    multi_select_hint: "_Tap multiple options, then press Done._",
     g_prefer_not: "Prefer not to say",
     ask_city_v2: "Which city do you live in?",
 
@@ -542,17 +546,21 @@ const STR = {
     btn_lang_urdu: "اردو",
     btn_lang_whatsapp_urdu: "WhatsApp Urdu",
 
-    ask_name_v2: "شروع کرنے سے پہلے، میں آپ کو کس نام سے پکاروں؟",
+    ask_name_v2: "شروع کرنے سے پہلے، آپ کا نام کیا ہے؟",
     name_ack:
       "آپ سے مل کر خوشی ہوئی، *{name}* 👋\nآئیے آپ کا پروفائل مکمل کرتے ہیں تاکہ میں آپ کے لیے بہتر رہنمائی فراہم کر سکوں۔",
     ask_user_type: "ان میں سے کون سی بات آپ پر سب سے بہتر لاگو ہوتی ہے؟",
     ut_diabetes: "مجھے ذیابیطس ہے",
     ut_prediabetes: "مجھے پری ذیابیطس ہے",
-    ut_notsure: "مجھے یقین نہیں",
+    ut_notsure: "صحت مند عادات بنانا",
     ut_parent: "میں والدین/اہلِ خانہ ہوں",
     ut_exploring: "بس دیکھ رہا ہوں",
 
-    ask_age_v2: "آپ کی عمر کیا ہے؟\nیا اپنی تاریخِ پیدائش بتا دیں۔",
+    ask_age_v2: "بہت خوب۔ آئیے شروع کرتے ہیں۔ آپ کی تاریخِ پیدائش کیا ہے؟\nبراہِ کرم دن، مہینہ اور سال بتائیں (مثلاً 12 مارچ 1985)۔",
+    ask_dob_missing:
+      "پوری تاریخِ پیدائش درکار ہے — براہِ کرم *{missing}* بھیجیں (مثلاً 12 مارچ 1985)۔",
+    btn_multi_done: "مکمل",
+    multi_select_hint: "_ایک سے زیادہ آپشن منتخب کریں، پھر مکمل دبائیں۔_",
     g_prefer_not: "بتانا نہیں چاہتا",
     ask_city_v2: "آپ کس شہر میں رہتے ہیں؟",
 
@@ -774,17 +782,21 @@ const STR = {
     btn_lang_urdu: "اردو",
     btn_lang_whatsapp_urdu: "WhatsApp Urdu",
 
-    ask_name_v2: "Shuru karnay se pehlay, main aap ko kis naam se pukaroon?",
+    ask_name_v2: "Shuru karnay se pehlay, aap ka naam kya hai?",
     name_ack:
       "Aap se mil kar khushi hui, *{name}* 👋\nAaiye aap ka profile mukammal karte hain taake main aap ke liye behtar rehnumai faraham kar sakoon.",
     ask_user_type: "In mein se kaunsi baat aap par sab se zyada lagu hoti hai?",
     ut_diabetes: "Mujhe diabetes hai",
     ut_prediabetes: "Mujhe prediabetes hai",
-    ut_notsure: "Mujhe yaqeen nahi",
+    ut_notsure: "Sehatmand aadatein banana",
     ut_parent: "Main parent/ahl-e-khana hoon",
     ut_exploring: "Bas dekh raha hoon",
 
-    ask_age_v2: "Aap ki umar kya hai?\nYa apni date of birth bata dein.",
+    ask_age_v2: "Bohat khoob. Aaiye shuru karte hain. Aap ki date of birth kya hai?\nDay, month aur year zaroori hain (misaal: 12 March 1985).",
+    ask_dob_missing:
+      "Mujhe poori date of birth chahiye — barah-e-karam *{missing}* bhejein (misaal: 12 March 1985).",
+    btn_multi_done: "Done",
+    multi_select_hint: "_Ek se zyada option chunein, phir Done dabayein._",
     g_prefer_not: "Batana nahi chahta",
     ask_city_v2: "Aap kis shehar mein rehte hain?",
 
