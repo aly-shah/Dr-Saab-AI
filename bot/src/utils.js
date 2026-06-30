@@ -62,9 +62,12 @@ export async function typing(bot, chatId) {
   }
 }
 
-// Download the largest photo in a message and return a base64 data URL
-// suitable for OpenAI vision. Returns null if there's no photo.
+// Return a base64 data URL for any image attached to the message, suitable for
+// the vision model. Adapters that resolve media themselves (e.g. WhatsApp)
+// pass it pre-computed as msg.__imageDataUrl; Telegram downloads on demand.
+// Returns null if there's no photo.
 export async function photoDataUrl(bot, msg) {
+  if (msg?.__imageDataUrl) return msg.__imageDataUrl;
   const photos = msg.photo;
   if (!photos || !photos.length) return null;
   const fileId = photos[photos.length - 1].file_id;

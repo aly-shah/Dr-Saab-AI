@@ -1,21 +1,12 @@
 import "dotenv/config";
-
-function required(name) {
-  const v = process.env[name];
-  if (!v || v.trim() === "") {
-    console.error(`\n❌ Missing required environment variable: ${name}`);
-    console.error("   Copy .env.example to .env and fill it in.\n");
-    process.exit(1);
-  }
-  return v.trim();
-}
+import { red } from "./log.js";
 
 const groqKey = process.env.GROQ_API_KEY?.trim();
 const openaiKey = process.env.OPENAI_API_KEY?.trim();
 const llmKey = groqKey || openaiKey;
 
 if (!llmKey) {
-  console.error("\n❌ Provide GROQ_API_KEY (recommended) or OPENAI_API_KEY in .env\n");
+  console.error(red("\n✖ No LLM key. Provide GROQ_API_KEY (recommended) or OPENAI_API_KEY in .env\n"));
   process.exit(1);
 }
 
@@ -25,8 +16,13 @@ const databaseUrl = process.env.DATABASE_URL?.trim() || "";
 const supabaseUrl = process.env.SUPABASE_URL?.trim() || "";
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || "";
 
+// WhatsApp is now the primary delivery channel; Telegram is optional. The bot
+// boots as long as AT LEAST ONE channel is configured (validated below).
+const telegramToken = process.env.TELEGRAM_BOT_TOKEN?.trim() || "";
+
 export const config = {
-  telegramToken: required("TELEGRAM_BOT_TOKEN"),
+  telegramToken,
+  telegramEnabled: !!telegramToken,
 
   llm: {
     provider: usingGroq ? "groq" : "openai",
@@ -80,3 +76,13 @@ export const config = {
     },
   },
 };
+
+// At least one messaging channel must be configured. WhatsApp is the primary
+// channel; Telegram is an optional fallback.
+if (!config.telegramEnabled && !config.whatsapp.enabled) {
+  console.error(red("\n✖ No messaging channel configured."));
+  console.error(red("  Set WhatsApp credentials (D360_API_KEY for 360dialog, or"));
+  console.error(red("  WHATSAPP_TOKEN + WHATSAPP_PHONE_NUMBER_ID for Meta Cloud API),"));
+  console.error(red("  and/or TELEGRAM_BOT_TOKEN for the optional Telegram channel.\n"));
+  process.exit(1);
+}

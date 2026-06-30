@@ -3,6 +3,7 @@
 // NOTE: in-memory data resets when the process restarts.
 
 import { config } from "./config.js";
+import { logError } from "./log.js";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const yesterdayISO = () => new Date(Date.now() - 86400000).toISOString().slice(0, 10);
@@ -28,10 +29,10 @@ async function makeSupabaseBackend() {
       if (error) throw error;
       return data;
     },
-    async createUser(telegramId) {
+    async createUser(telegramId, source = "telegram") {
       const { data, error } = await db
         .from("users")
-        .insert({ telegram_id: telegramId, tier: config.defaultTier })
+        .insert({ telegram_id: telegramId, tier: config.defaultTier, source })
         .select("*")
         .single();
       if (error) throw error;
@@ -223,7 +224,23 @@ async function makePostgresBackend() {
   types.setTypeParser(1082, (v) => v);
 
   const pool = new Pool({ connectionString: config.databaseUrl, max: 5 });
-  pool.on("error", (e) => console.error("pg pool error:", e?.message));
+  pool.on("error", (e) => logError("Database pool", e?.message));
+
+  // Fail fast & loud if the DB is unreachable, so it's obvious in the logs
+  // (wrong DATABASE_URL, DB down, bad credentials) rather than every feature
+  // silently erroring later.
+  try {
+    const c = await pool.connect();
+    await c.query("select 1");
+    c.release();
+  } catch (e) {
+    const why = /password|auth|role/i.test(e?.message)
+      ? "authentication failed — check the credentials in DATABASE_URL."
+      : /ENOTFOUND|ECONNREFUSED|timeout|EAI_AGAIN/i.test(e?.message)
+      ? "cannot reach the database host — check DATABASE_URL and that the DB is running."
+      : e?.message;
+    logError("Database", `connection test failed: ${why}`);
+  }
 
   const insertDynamic = async (table, obj) => {
     const keys = Object.keys(obj);
@@ -246,11 +263,11 @@ async function makePostgresBackend() {
     },
     async allActiveUsers() {
       const { rows } = await pool.query(
-        `select u.id, u.telegram_id, u.language, u.streak, u.last_log_date,
+        `select u.id, u.telegram_id, u.source, u.language, u.streak, u.last_log_date,
                 u.last_reminder_date, u.last_streak_date, u.last_winback_date, u.last_summary_date,
                 kb.last_seen
          from users u left join patient_kb kb on kb.user_id = u.id
-         where u.onboarded and coalesce(u.source,'telegram') = 'telegram'`
+         where u.onboarded and coalesce(u.source,'telegram') in ('telegram','whatsapp')`
       );
       return rows;
     },

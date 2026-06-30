@@ -1,5 +1,7 @@
 import OpenAI from "openai";
 import { config } from "./config.js";
+import { logError } from "./log.js";
+import { describeLlmError } from "./errors.js";
 
 // OpenAI-compatible client. Points at Groq when GROQ_API_KEY is set.
 const client = new OpenAI({
@@ -56,13 +58,22 @@ const KIND_ROLE = {
 };
 
 async function complete(messages, { maxTokens = 600, model } = {}) {
-  const res = await client.chat.completions.create({
-    model: model || config.llm.model,
-    messages,
-    max_tokens: maxTokens,
-    temperature: 0.6,
-  });
-  return res.choices[0]?.message?.content?.trim() || "";
+  const usedModel = model || config.llm.model;
+  try {
+    const res = await client.chat.completions.create({
+      model: usedModel,
+      messages,
+      max_tokens: maxTokens,
+      temperature: 0.6,
+    });
+    return res.choices[0]?.message?.content?.trim() || "";
+  } catch (e) {
+    // Explain the real cause in red (e.g. "GROQ rate limit hit (429)…") so it's
+    // obvious in the logs why a reply failed. Flows still show the user a
+    // friendly generic message and continue.
+    logError(`${config.llm.provider.toUpperCase()} LLM`, describeLlmError(e, config.llm.provider, usedModel));
+    throw e;
+  }
 }
 
 function userContent(text, imageDataUrl) {

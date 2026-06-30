@@ -12,7 +12,13 @@
       "Bash(python3 -c \"import reportlab; print\\('reportlab:', reportlab.__version__\\)\")",
       "Bash(python3 -c \"import matplotlib; print\\('matplotlib:', matplotlib.__version__\\)\")",
       "Bash(google-chrome --headless --disable-gpu --no-sandbox --no-pdf-header-footer --print-to-pdf=DrSaab-AI-Monthly-Cost-Report.pdf --print-to-pdf-no-header --virtual-time-budget=10000 \"file://$\\(pwd\\)/report.html\")",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(GROQ_API_KEY=dummy WHATSAPP_TOKEN=tok WHATSAPP_PHONE_NUMBER_ID=12345 TELEGRAM_BOT_TOKEN=111:dummy WHATSAPP_PORT=18083 WEB_API_PORT=18084 timeout 4 node src/index.js)",
+      "Bash(sed -i 's#\"./src/errors.js\"#\"/home/zsn/Downloads/Dr-Saab-AI/bot/src/errors.js\"#' /tmp/claude-1000/-home-zsn-Downloads-Dr-Saab-AI/9482ed5f-fee6-4491-ab26-e9c707ecb5aa/scratchpad/t.mjs)",
+      "Bash(node /tmp/claude-1000/-home-zsn-Downloads-Dr-Saab-AI/9482ed5f-fee6-4491-ab26-e9c707ecb5aa/scratchpad/t.mjs)",
+      "Bash(GROQ_API_KEY=dummy D360_API_KEY=dummy-key WHATSAPP_PORT=18085 WEB_API_PORT=18086 timeout 4 node src/index.js)",
+      "Bash(echo \"exit \\(124=ran ok\\): $?\")",
+      "Bash(cd *)"
     ]
   }
 }

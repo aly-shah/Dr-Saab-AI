@@ -1,14 +1,19 @@
-# DrSaab AI — Telegram Bot (MVP)
+# DrSaab AI — WhatsApp Bot
 
 A multilingual (English / Urdu / Roman Urdu) diabetes self-management & coaching
-bot built on **Telegram + Supabase + OpenAI**. Designed to run on a VPS under
-**pm2**, using long-polling for the MVP (no domain required) and switchable to
-webhooks later.
+bot built on the **WhatsApp Cloud API + Supabase + OpenAI**. Designed to run on
+a VPS under **pm2**.
 
-> WhatsApp Cloud API wasn't available, so this MVP targets **Telegram**. The
-> conversation logic (onboarding, tracking, coaches, summaries) is
-> platform-agnostic — only `src/index.js` + `src/bot.js` are the Telegram
-> adapter, so a WhatsApp adapter can be added later without touching the flows.
+> **WhatsApp is the primary channel.** It works with two providers that speak
+> the same Cloud API: **360dialog** (BSP — one `D360_API_KEY`, no Facebook app
+> needed) or **Meta Cloud API direct** (`WHATSAPP_TOKEN` +
+> `WHATSAPP_PHONE_NUMBER_ID`). Inbound goes through the `/whatsapp/webhook`
+> server in `src/whatsapp.js`.
+>
+> **Telegram is an optional fallback** — set `TELEGRAM_BOT_TOKEN` to also run it.
+> The conversation logic (onboarding, tracking, coaches, summaries) is fully
+> platform-agnostic: `src/bot.js` is shared, and `src/whatsapp.js` / `src/index.js`
+> (Telegram) / `src/web.js` (web demo) are just transport adapters over it.
 
 ## Features in this MVP
 
@@ -36,9 +41,11 @@ webhooks later.
 ## 1. Prerequisites
 
 - Node.js 18+ (works on 18/20/22 — `ws` is bundled for Node < 22).
-- A Telegram bot token from **@BotFather**.
-- A **Supabase** project.
-- An **OpenAI** API key.
+- A **WhatsApp** sender: either a **360dialog** API key, or a **Meta Cloud API**
+  token + phone-number id. (Optionally a Telegram bot token from **@BotFather**
+  to run the fallback channel too.)
+- A **Supabase** project (or any Postgres via `DATABASE_URL`).
+- An **OpenAI** or **Groq** API key.
 
 ## 2. Database setup
 
@@ -50,10 +57,16 @@ In the Supabase dashboard → **SQL Editor**, paste and run
 ```bash
 cd bot
 cp .env.example .env
-# edit .env with your TELEGRAM_BOT_TOKEN, OPENAI_API_KEY,
-# SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
+# edit .env with your WhatsApp creds (D360_API_KEY, or WHATSAPP_TOKEN +
+# WHATSAPP_PHONE_NUMBER_ID), your LLM key (GROQ_API_KEY or OPENAI_API_KEY),
+# and SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (or DATABASE_URL for Postgres).
+# Optional: TELEGRAM_BOT_TOKEN to also run the Telegram fallback.
 npm install
 ```
+
+Point your WhatsApp provider's webhook at `https://<your-host>/whatsapp/webhook`
+(the bot listens on `WHATSAPP_PORT`, default 8082) and use `WHATSAPP_VERIFY_TOKEN`
+for Meta's verification handshake.
 
 > Use the **service_role** key (Project Settings → API). It's a backend-only
 > service, so it bypasses RLS. Keep it secret — never ship it to a client.
@@ -67,7 +80,8 @@ Set it to `free` for production.
 npm start
 ```
 
-Open Telegram, find your bot, send **/start**, and complete onboarding.
+Message your WhatsApp number (or, if you set `TELEGRAM_BOT_TOKEN`, open Telegram
+and find your bot), send **hi** / **/start**, and complete onboarding.
 
 ## 5. Deploy on your VPS with pm2
 
@@ -103,8 +117,9 @@ bot/
 ├─ ecosystem.config.cjs     # pm2 config
 ├─ .env.example
 └─ src/
-   ├─ index.js              # entry: Telegram adapter (polling/webhook)
-   ├─ bot.js                # message + callback router
+   ├─ index.js              # entry: boots channels (WhatsApp + optional Telegram)
+   ├─ whatsapp.js           # WhatsApp Cloud API adapter (primary channel)
+   ├─ bot.js                # message + callback router (shared by all channels)
    ├─ config.js             # env loading & validation
    ├─ supabase.js           # data access layer
    ├─ openai.js             # coach / lab / summary prompts

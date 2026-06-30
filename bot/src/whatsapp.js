@@ -16,6 +16,8 @@
 import http from "node:http";
 import { config } from "./config.js";
 import { handleMessage, handleCallback } from "./bot.js";
+import { logError } from "./log.js";
+import { describeWhatsAppError } from "./errors.js";
 
 const GRAPH = "https://graph.facebook.com";
 
@@ -40,9 +42,60 @@ async function sendRaw(payload) {
   const { url, headers } = api();
   try {
     const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(payload) });
-    if (!res.ok) console.error("whatsapp send failed:", res.status, await res.text());
+    if (!res.ok) {
+      const body = await res.text();
+      logError("WhatsApp send", describeWhatsAppError(res.status, body, config.whatsapp.provider));
+    }
   } catch (e) {
-    console.error("whatsapp send error:", e?.message);
+    logError("WhatsApp send", `network error reaching the WhatsApp API: ${e?.message}`);
+  }
+}
+
+// Resolve an inbound WhatsApp media id to a base64 data URL for the vision model.
+// It is a two-step flow on the Cloud API: GET the media id → a (short-lived,
+// authenticated) download URL, then GET that URL with the same auth.
+//   • Meta direct : both calls use the Bearer token, the URL is on graph.facebook.com
+//   • 360dialog   : both calls use the D360-API-KEY; the returned URL must be
+//                   fetched through 360dialog's own host, so we swap the origin.
+async function fetchMediaDataUrl(mediaId) {
+  const w = config.whatsapp;
+  try {
+    if (w.provider === "360dialog") {
+      const base = w.baseUrl.replace(/\/$/, "");
+      const headers = { "D360-API-KEY": w.apiKey };
+      const metaRes = await fetch(`${base}/${mediaId}`, { headers });
+      if (!metaRes.ok) {
+        logError("WhatsApp media", describeWhatsAppError(metaRes.status, await metaRes.text(), w.provider), "resolve URL");
+        return null;
+      }
+      const { url, mime_type } = await metaRes.json();
+      const u = new URL(url);
+      const binRes = await fetch(`${base}${u.pathname}${u.search}`, { headers });
+      if (!binRes.ok) {
+        logError("WhatsApp media", describeWhatsAppError(binRes.status, await binRes.text(), w.provider), "download");
+        return null;
+      }
+      const buf = Buffer.from(await binRes.arrayBuffer());
+      return `data:${mime_type || "image/jpeg"};base64,${buf.toString("base64")}`;
+    }
+    // Meta Cloud API (direct)
+    const headers = { Authorization: `Bearer ${w.token}` };
+    const metaRes = await fetch(`${GRAPH}/${w.apiVersion}/${mediaId}`, { headers });
+    if (!metaRes.ok) {
+      logError("WhatsApp media", describeWhatsAppError(metaRes.status, await metaRes.text(), w.provider), "resolve URL");
+      return null;
+    }
+    const { url, mime_type } = await metaRes.json();
+    const binRes = await fetch(url, { headers });
+    if (!binRes.ok) {
+      logError("WhatsApp media", describeWhatsAppError(binRes.status, await binRes.text(), w.provider), "download");
+      return null;
+    }
+    const buf = Buffer.from(await binRes.arrayBuffer());
+    return `data:${mime_type || "image/jpeg"};base64,${buf.toString("base64")}`;
+  } catch (e) {
+    logError("WhatsApp media", `could not download image: ${e?.message}`);
+    return null;
   }
 }
 
@@ -86,9 +139,10 @@ function stripMd(s = "") {
   return String(s).replace(/[*_`]/g, "");
 }
 
-// A Telegram-bot-shaped object the shared flows can call. Each call becomes a
-// WhatsApp Graph API request to the given chat (phone number).
-function virtualBot() {
+// A Telegram-bot-shaped object the shared flows (and the scheduler) can call.
+// Each call becomes a WhatsApp Graph API request to the given chat (phone
+// number). Exported so the scheduler can push proactive messages to WA users.
+export function whatsappBot() {
   return {
     async sendMessage(to, text, opts = {}) {
       const kb = opts.reply_markup?.inline_keyboard;
@@ -108,7 +162,9 @@ function virtualBot() {
     async sendChatAction() {},
     async answerCallbackQuery() {},
     async getFileLink() {
-      return null; // media download via the WhatsApp media API — TODO
+      // Not used on WhatsApp: inbound images are pre-resolved to a data URL in
+      // onInbound() and passed via msg.__imageDataUrl (see utils.photoDataUrl).
+      return null;
     },
     async setMyCommands() {},
     on() {},
@@ -118,7 +174,7 @@ function virtualBot() {
 async function onInbound(value) {
   const messages = value?.messages;
   if (!messages || !messages.length) return; // status callbacks etc.
-  const bot = virtualBot();
+  const bot = whatsappBot();
 
   for (const m of messages) {
     const from = m.from; // sender phone number (digits) — fits a bigint key
@@ -131,15 +187,19 @@ async function onInbound(value) {
         message: { chat: { id: from } },
         from: { id: from },
         __source: "whatsapp",
-      }).catch((e) => console.error("wa callback error:", e?.message));
+      }).catch((e) => logError("WhatsApp inbound (button)", e?.message));
     } else {
-      const text = m.text?.body ?? m.button?.text ?? "";
+      // Image messages feed the food/lab vision coaches. Resolve the media to a
+      // base64 data URL up front; the caption (if any) becomes the message text.
+      const imageDataUrl = m.type === "image" && m.image?.id ? await fetchMediaDataUrl(m.image.id) : null;
+      const text = m.text?.body ?? m.button?.text ?? m.image?.caption ?? "";
       await handleMessage(bot, {
         chat: { id: from },
         from: { id: from },
         text,
+        __imageDataUrl: imageDataUrl,
         __source: "whatsapp",
-      }).catch((e) => console.error("wa message error:", e?.message));
+      }).catch((e) => logError("WhatsApp inbound (message)", e?.message));
     }
   }
 }
@@ -180,11 +240,11 @@ export function startWhatsApp() {
           const data = JSON.parse(body || "{}");
           for (const entry of data.entry || []) {
             for (const change of entry.changes || []) {
-              onInbound(change.value).catch((e) => console.error("wa inbound error:", e?.message));
+              onInbound(change.value).catch((e) => logError("WhatsApp inbound", e?.message));
             }
           }
         } catch (e) {
-          console.error("wa webhook parse error:", e?.message);
+          logError("WhatsApp webhook", `could not parse inbound payload: ${e?.message}`);
         }
       });
       return;
@@ -192,6 +252,12 @@ export function startWhatsApp() {
 
     res.writeHead(404);
     res.end("not found");
+  });
+
+  server.on("error", (e) => {
+    if (e?.code === "EADDRINUSE")
+      logError("WhatsApp adapter", `port ${port} is already in use — set WHATSAPP_PORT to a free port.`);
+    else logError("WhatsApp adapter", `webhook server error: ${e?.message}`);
   });
 
   server.listen(port, () => {

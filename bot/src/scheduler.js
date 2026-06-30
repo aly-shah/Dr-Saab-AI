@@ -1,7 +1,8 @@
 // Proactive, TEMPLATE-ONLY messages (no AI cost): daily log reminders,
 // streak protection, inactivity win-backs, a weekly summary, and any
 // user-created reminder schedules (Build 1).
-// Runs inside the bot process; only messages real Telegram users.
+// Runs inside the bot process. Each user is messaged on their OWN channel
+// (WhatsApp or Telegram) by picking the matching virtual bot from `bots`.
 
 import {
   allActiveUsers,
@@ -26,10 +27,17 @@ function nowParts() {
 }
 const daysSince = (ts) => (ts ? (Date.now() - new Date(ts).getTime()) / 86400000 : 9999);
 
+// Pick the virtual bot for a user's channel. Falls back to whichever channel is
+// configured so a user is never silently skipped if `source` is missing.
+function botFor(bots, user) {
+  const src = user.source || "telegram";
+  return bots[src] || bots.whatsapp || bots.telegram || null;
+}
+
 // Build 1: user-created reminder schedules — fire any that are due, then bump
 // next_fire_at by frequency_days. Uses the same users list the rest of the
 // tick already loaded, so we don't add an extra round-trip.
-async function fireDueReminders(bot, usersById) {
+async function fireDueReminders(bots, usersById) {
   let due;
   try {
     due = await dueReminders(new Date().toISOString());
@@ -40,6 +48,8 @@ async function fireDueReminders(bot, usersById) {
   for (const r of due) {
     const u = usersById.get(r.user_id);
     if (!u) continue;
+    const bot = botFor(bots, u);
+    if (!bot) continue;
     const lang = u.language || "en";
     const templateKey = `reminder_template_${r.category}`;
     const body = t(lang, templateKey, { name: r.label || "" });
@@ -62,7 +72,7 @@ function bumpNextFire(r) {
   return new Date(next).toISOString();
 }
 
-async function runTick(bot) {
+async function runTick(bots) {
   const { hour, dow, date } = nowParts();
   let users;
   try {
@@ -75,9 +85,11 @@ async function runTick(bot) {
   // Fire user-created reminders (Build 1). Independent of the daily-template
   // logic below — both can run on the same tick.
   const usersById = new Map(users.map((u) => [u.id, u]));
-  await fireDueReminders(bot, usersById);
+  await fireDueReminders(bots, usersById);
 
   for (const u of users) {
+    const bot = botFor(bots, u);
+    if (!bot) continue; // no configured channel for this user
     const lang = u.language || "en";
     const chat = u.telegram_id;
     try {
@@ -125,8 +137,14 @@ async function runTick(bot) {
   }
 }
 
-export function startScheduler(bot) {
-  const tick = () => runTick(bot).catch((e) => console.error("scheduler:", e?.message));
+// `bots` maps a user `source` ("whatsapp" / "telegram") to its virtual bot.
+// A missing channel is simply skipped — see botFor().
+export function startScheduler(bots = {}) {
+  if (!bots.whatsapp && !bots.telegram) {
+    console.log("   Scheduler off (no messaging channel configured).");
+    return;
+  }
+  const tick = () => runTick(bots).catch((e) => console.error("scheduler:", e?.message));
   setInterval(tick, 15 * 60 * 1000); // every 15 minutes
   setTimeout(tick, 30 * 1000); // and shortly after boot
   console.log("   Scheduler on (reminders/streak/summary/inactivity, template-only).");

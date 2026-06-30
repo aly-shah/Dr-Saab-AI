@@ -110,12 +110,26 @@ PGPASSWORD="${DB_PASS}" psql -h localhost -U "${DB_USER}" -d "${DB_NAME}" -f bot
 # ---------- 4. environment ----------
 log "Configuring environment"
 if [ ! -f bot/.env ]; then
+  # WhatsApp is the primary channel. 360dialog needs a single API key; Meta
+  # Cloud API needs WHATSAPP_TOKEN + WHATSAPP_PHONE_NUMBER_ID instead. Telegram
+  # is now an optional fallback (leave TELEGRAM_BOT_TOKEN blank to skip it).
+  D360="${D360_API_KEY:-}"
   TG="${TELEGRAM_BOT_TOKEN:-}"
   GQ="${GROQ_API_KEY:-}"
-  [ -z "$TG" ] && read -rp "Telegram bot token: " TG
+  [ -z "$D360" ] && read -rp "360dialog WhatsApp API key (blank if using Meta Cloud API): " D360
   [ -z "$GQ" ] && read -rp "Groq API key: " GQ
   cat > bot/.env <<ENV
+# ---- WhatsApp (primary channel) ----
+# 360dialog BSP: set D360_API_KEY. Meta Cloud API: set WHATSAPP_TOKEN +
+# WHATSAPP_PHONE_NUMBER_ID instead. WHATSAPP_VERIFY_TOKEN guards the webhook.
+D360_API_KEY=${D360}
+WHATSAPP_TOKEN=${WHATSAPP_TOKEN:-}
+WHATSAPP_PHONE_NUMBER_ID=${WHATSAPP_PHONE_NUMBER_ID:-}
+WHATSAPP_VERIFY_TOKEN=${WHATSAPP_VERIFY_TOKEN:-drsaab-verify}
+WHATSAPP_PORT=${WHATSAPP_PORT:-8082}
+# ---- Telegram (optional fallback) ----
 TELEGRAM_BOT_TOKEN=${TG}
+# ---- LLM + data ----
 GROQ_API_KEY=${GQ}
 LLM_MODEL=${LLM_MODEL}
 LLM_VISION_MODEL=${LLM_VISION_MODEL}
