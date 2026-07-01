@@ -76,7 +76,15 @@ if [ -f bot/.env ] && grep -q '^WEB_API_PORT=' bot/.env; then
 fi
 [ -z "$WEB_API_PORT" ] && WEB_API_PORT="$(find_free "$DEFAULT_API_PORT")"
 WEB_PORT="$(find_free "$DEFAULT_WEB_PORT")"
-log "Using ports — website: ${WEB_PORT}  ·  bot web API: ${WEB_API_PORT}"
+
+# WhatsApp inbound webhook port (the adapter's HTTP server). nginx proxies
+# /whatsapp/webhook to it so 360dialog / Meta can deliver messages over HTTPS.
+WHATSAPP_PORT=""
+if [ -f bot/.env ] && grep -q '^WHATSAPP_PORT=' bot/.env; then
+  WHATSAPP_PORT="$(grep '^WHATSAPP_PORT=' bot/.env | head -1 | cut -d= -f2 | tr -d '[:space:]')"
+fi
+[ -z "$WHATSAPP_PORT" ] && WHATSAPP_PORT="8082"
+log "Using ports — website: ${WEB_PORT}  ·  bot web API: ${WEB_API_PORT}  ·  WhatsApp webhook: ${WHATSAPP_PORT}"
 
 # ---------- 3. PostgreSQL ----------
 log "Setting up PostgreSQL ($DB_NAME)"
@@ -191,12 +199,24 @@ if command -v ufw >/dev/null 2>&1 && $SUDO ufw status 2>/dev/null | grep -q "Sta
 fi
 
 if [ -f "$NGINX_AVAIL" ] || [ -f "$NGINX_ENABLED" ]; then
-  log "Updating existing nginx vhost -> 127.0.0.1:${WEB_PORT} (SSL preserved)"
+  log "Updating existing nginx vhost -> web ${WEB_PORT} / whatsapp ${WHATSAPP_PORT} (SSL preserved)"
   for f in "$NGINX_AVAIL" "$NGINX_ENABLED"; do
-    [ -f "$f" ] && $SUDO sed -i -E "s#proxy_pass http://127\.0\.0\.1:[0-9]+#proxy_pass http://127.0.0.1:${WEB_PORT}#g" "$f"
+    [ -f "$f" ] || continue
+    # Keep the main site proxy pointed at the current web port. Scope the
+    # replacement to the bare "location / {" block so it never rewrites the
+    # /whatsapp/webhook proxy_pass below.
+    $SUDO sed -i -E "/location \/ \{/,/\}/ s#proxy_pass http://127\.0\.0\.1:[0-9]+#proxy_pass http://127.0.0.1:${WEB_PORT}#g" "$f"
+    # Make sure the WhatsApp webhook route exists; inject it before the first
+    # "location / {" if missing (idempotent).
+    if ! grep -q "location /whatsapp/webhook" "$f"; then
+      $SUDO sed -i "0,/location \/ {/ s##location /whatsapp/webhook {\n        proxy_pass http://127.0.0.1:${WHATSAPP_PORT};\n        proxy_set_header Host \$host;\n        proxy_set_header X-Real-IP \$remote_addr;\n        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto \$scheme;\n    }\n\n    location / {#" "$f"
+    else
+      # Already present — keep its port in sync.
+      $SUDO sed -i -E "/location \/whatsapp\/webhook \{/,/\}/ s#proxy_pass http://127\.0\.0\.1:[0-9]+#proxy_pass http://127.0.0.1:${WHATSAPP_PORT}#g" "$f"
+    fi
   done
 else
-  log "Creating nginx vhost for ${SERVER_NAMES} -> 127.0.0.1:${WEB_PORT}"
+  log "Creating nginx vhost for ${SERVER_NAMES} -> web ${WEB_PORT} / whatsapp ${WHATSAPP_PORT}"
   $SUDO tee "$NGINX_AVAIL" >/dev/null <<NGINX
 server {
     listen 80;
@@ -204,6 +224,15 @@ server {
     server_name ${SERVER_NAMES};
 
     client_max_body_size 12M;
+
+    # WhatsApp Cloud API inbound webhook -> the bot's adapter (separate process).
+    location /whatsapp/webhook {
+        proxy_pass http://127.0.0.1:${WHATSAPP_PORT};
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
 
     location / {
         proxy_pass http://127.0.0.1:${WEB_PORT};

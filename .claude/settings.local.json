@@ -18,7 +18,11 @@
       "Bash(node /tmp/claude-1000/-home-zsn-Downloads-Dr-Saab-AI/9482ed5f-fee6-4491-ab26-e9c707ecb5aa/scratchpad/t.mjs)",
       "Bash(GROQ_API_KEY=dummy D360_API_KEY=dummy-key WHATSAPP_PORT=18085 WEB_API_PORT=18086 timeout 4 node src/index.js)",
       "Bash(echo \"exit \\(124=ran ok\\): $?\")",
-      "Bash(cd *)"
+      "Bash(cd *)",
+      "Bash(pm2 list *)",
+      "Bash(pm2 describe *)",
+      "Bash(timeout 5 node src/index.js)",
+      "Bash(echo \"exit \\(124=stayed up ok\\): $?\")"
     ]
   }
 }
