@@ -92,6 +92,8 @@ const STR = {
       "💎 This is a *Consistency Builder* feature.\nUpgrade to unlock the AI Coach, Food & Fitness coaches and lab analysis.",
     cancelled: "Cancelled. Back to the menu. 📋",
     error_generic: "😕 Something went wrong. Please try again in a moment.",
+    error_ai_limit:
+      "🤖 I'm getting a lot of messages right now and hit a temporary AI limit. Please try again in a minute — your data is safe.",
     disclaimer:
       "_DrSaab gives general guidance and is not a substitute for professional medical advice._",
     reminder_daily: "Good morning! Time to log your fasting blood sugar. Just send your reading, e.g. 130.",
@@ -526,6 +528,8 @@ const STR = {
       "💎 یہ *Consistency Builder* فیچر ہے۔\nاے آئی کوچ، فوڈ و فٹنس کوچ اور لیب تجزیہ کے لیے اپ گریڈ کریں۔",
     cancelled: "منسوخ۔ مینو پر واپس۔ 📋",
     error_generic: "😕 کچھ مسئلہ ہو گیا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔",
+    error_ai_limit:
+      "🤖 ابھی بہت زیادہ پیغامات آ رہے ہیں اور اے آئی کی عارضی حد پوری ہو گئی ہے۔ ایک منٹ بعد دوبارہ کوشش کریں — آپ کا ڈیٹا محفوظ ہے۔",
     disclaimer: "_DrSaab عمومی رہنمائی دیتا ہے اور طبی مشورے کا متبادل نہیں۔_",
     reminder_daily: "صبح بخیر! اپنی فاسٹنگ شوگر لاگ کرنے کا وقت ہے۔ بس اپنی ریڈنگ بھیجیں، مثلاً 130۔",
     reminder_streak: "آپ کا {streak} دن کا سلسلہ جاری ہے! آج ایک ریڈنگ لاگ کریں تاکہ یہ برقرار رہے۔",
@@ -762,6 +766,8 @@ const STR = {
       "💎 Yeh *Consistency Builder* feature hai.\nAI Coach, Food & Fitness coach aur lab analysis ke liye upgrade karein.",
     cancelled: "Cancel. Menu par wapas. 📋",
     error_generic: "😕 Kuch masla ho gaya. Thori dair baad dobara koshish karein.",
+    error_ai_limit:
+      "🤖 Abhi bohat zyada messages aa rahe hain aur AI ki temporary limit puri ho gayi hai. Ek minute baad dobara koshish karein — aap ka data mehfooz hai.",
     disclaimer: "_DrSaab aam rahnumai deta hai aur tibbi mashware ka mutabadil nahi._",
     reminder_daily: "Good morning! Apni fasting sugar log karne ka waqt hai. Bas apni reading bhejein, masalan 130.",
     reminder_streak: "Aap ka {streak}-din ka streak chal raha hai! Aaj ek reading log karein taake yeh barqarar rahe.",

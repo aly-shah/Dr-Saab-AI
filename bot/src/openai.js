@@ -70,7 +70,11 @@ async function complete(messages, { maxTokens = 600, model } = {}) {
   } catch (e) {
     // Explain the real cause in red (e.g. "GROQ rate limit hit (429)…") so it's
     // obvious in the logs why a reply failed. Flows still show the user a
-    // friendly generic message and continue.
+    // friendly message and continue.
+    // Tag rate-limit / quota errors (HTTP 429) so callers can tell the user
+    // "AI is busy, try again shortly" instead of a generic failure — or silence.
+    const status = e?.status ?? e?.response?.status;
+    if (status === 429) e.aiLimited = true;
     logError(`${config.llm.provider.toUpperCase()} LLM`, describeLlmError(e, config.llm.provider, usedModel));
     throw e;
   }

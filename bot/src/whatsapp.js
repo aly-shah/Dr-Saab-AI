@@ -18,6 +18,19 @@ import { config } from "./config.js";
 import { handleMessage, handleCallback } from "./bot.js";
 import { logError } from "./log.js";
 import { describeWhatsAppError } from "./errors.js";
+import { t } from "./i18n.js";
+import { getSession } from "./session.js";
+import { langOf } from "./utils.js";
+
+// Safety net: if a flow throws (e.g. the Groq/LLM API rate-limited us), tell the
+// WhatsApp user what happened instead of leaving them with silence. Flows that
+// call the LLM already catch and send their own message, so this only fires for
+// genuinely unhandled errors. A 429 is flagged as `aiLimited` in openai.js.
+async function replyOnError(bot, to, e) {
+  const lang = langOf(getSession(to));
+  const key = e?.aiLimited ? "error_ai_limit" : "error_generic";
+  await bot.sendMessage(to, t(lang, key)).catch(() => {});
+}
 
 const GRAPH = "https://graph.facebook.com";
 
@@ -187,7 +200,10 @@ async function onInbound(value) {
         message: { chat: { id: from } },
         from: { id: from },
         __source: "whatsapp",
-      }).catch((e) => logError("WhatsApp inbound (button)", e?.message));
+      }).catch((e) => {
+        logError("WhatsApp inbound (button)", e?.message);
+        return replyOnError(bot, from, e);
+      });
     } else {
       // Image messages feed the food/lab vision coaches. Resolve the media to a
       // base64 data URL up front; the caption (if any) becomes the message text.
@@ -199,7 +215,10 @@ async function onInbound(value) {
         text,
         __imageDataUrl: imageDataUrl,
         __source: "whatsapp",
-      }).catch((e) => logError("WhatsApp inbound (message)", e?.message));
+      }).catch((e) => {
+        logError("WhatsApp inbound (message)", e?.message);
+        return replyOnError(bot, from, e);
+      });
     }
   }
 }

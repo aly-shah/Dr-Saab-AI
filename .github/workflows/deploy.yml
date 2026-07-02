@@ -1,0 +1,44 @@
+name: Deploy to VPS
+
+# Auto-deploy on every push to master, or run manually from the Actions tab.
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH in, pull latest, rebuild, restart
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.VPS_APP_DIR || '/var/www/Dr-Saab-AI' }}"
+
+            # Get the exact pushed commit (discards stray edits on the server;
+            # gitignored files like bot/.env and .env.production are untouched).
+            git fetch --all --prune
+            git reset --hard origin/master
+
+            # Bot (Telegram + web chat API)
+            ( cd bot && npm install --omit=dev )
+
+            # Website (Next.js) — rebuild so the /bot page + admin reflect changes
+            npm install --include=dev
+            npm run build
+
+            # Restart both services with refreshed env
+            pm2 restart drsaab-bot drsaab-web --update-env
+            pm2 save
+            echo "Deployed $(git rev-parse --short HEAD)"

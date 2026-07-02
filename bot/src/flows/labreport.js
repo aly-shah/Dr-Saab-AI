@@ -33,6 +33,7 @@ export async function labText(bot, chatId, session, text, msg) {
     await send(bot, chatId, t(lang, "disclaimer"), { markdown: true });
   } catch (e) {
     console.error("lab error:", e?.message);
-    await send(bot, chatId, t(lang, "error_generic"), { keyboard: backKeyboard(lang) });
+    const key = e?.aiLimited ? "error_ai_limit" : "error_generic";
+    await send(bot, chatId, t(lang, key), { keyboard: backKeyboard(lang) });
   }
 }

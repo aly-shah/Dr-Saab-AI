@@ -73,7 +73,8 @@ export async function showSummary(bot, chatId, session) {
     await send(bot, chatId, summary, { keyboard: backKeyboard(lang) });
   } catch (e) {
     console.error("summary error:", e?.message);
-    await send(bot, chatId, t(lang, "error_generic"), { keyboard: backKeyboard(lang) });
+    const key = e?.aiLimited ? "error_ai_limit" : "error_generic";
+    await send(bot, chatId, t(lang, key), { keyboard: backKeyboard(lang) });
   }
 }
 
