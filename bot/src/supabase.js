@@ -445,6 +445,94 @@ async function makePostgresBackend() {
         [id, nextFireAt]
       );
     },
+
+    // ---- Check-In v2 helpers (2026-07) ----
+    async countGlucose(userId) {
+      const { rows } = await pool.query("select count(*)::int as n from glucose_logs where user_id=$1", [userId]);
+      return rows[0]?.n || 0;
+    },
+    async countMedicationLogs(userId) {
+      const { rows } = await pool.query("select count(*)::int as n from medication_logs where user_id=$1", [userId]);
+      return rows[0]?.n || 0;
+    },
+    async countWeightEntries(userId) {
+      const { rows } = await pool.query(
+        "select count(*)::int as n from health_logs where user_id=$1 and weight_kg is not null",
+        [userId]
+      );
+      return rows[0]?.n || 0;
+    },
+    async countActivityEntries(userId) {
+      const { rows } = await pool.query(
+        `select count(*)::int as n from health_logs
+         where user_id=$1 and (steps is not null or note ilike '%activity%' or note ilike '%walk%' or note ilike '%gym%')`,
+        [userId]
+      );
+      return rows[0]?.n || 0;
+    },
+    async addGlucoseFull(userId, { value, unit, measure_kind, context, note }) {
+      await insertDynamic("glucose_logs", {
+        user_id: userId,
+        value_mgdl: value,
+        context: context || measure_kind || "random",
+        unit: unit || "mg_dl",
+        measure_kind: measure_kind || null,
+        note: note || null,
+      });
+    },
+    async addWellbeingLog(userId, { score, label, note, category }) {
+      await insertDynamic("wellbeing_logs", {
+        user_id: userId,
+        score,
+        label: label || null,
+        note: note || null,
+        category: category || "unclassified",
+      });
+    },
+    async addMedicationMasterFull(userId, fields) {
+      const cols = ["user_id", "name", "dose", "frequency", "reminder_enabled", "active", "units", "is_insulin", "preferred_time"];
+      const vals = [
+        userId,
+        fields.name,
+        fields.dose || null,
+        fields.frequency || null,
+        !!fields.reminder_enabled,
+        true,
+        fields.units || null,
+        !!fields.is_insulin,
+        fields.preferred_time || null,
+      ];
+      const { rows } = await pool.query(
+        `insert into medications (${cols.join(", ")}) values (${cols.map((_, i) => `$${i + 1}`).join(", ")}) returning *`,
+        vals
+      );
+      return rows[0];
+    },
+    async enrollMedConsistency(userId) {
+      await pool.query(
+        `insert into med_consistency (user_id, enrolled, phase, yes_streak)
+         values ($1, true, 1, 0)
+         on conflict (user_id) do update set enrolled = true, phase = 1, yes_streak = 0`,
+        [userId]
+      );
+    },
+    async getMedConsistency(userId) {
+      const { rows } = await pool.query("select * from med_consistency where user_id=$1", [userId]);
+      return rows[0] || null;
+    },
+    async updateMedConsistency(userId, patch) {
+      const keys = Object.keys(patch);
+      if (!keys.length) return;
+      const set = keys.map((k, i) => `${k} = $${i + 1}`).join(", ");
+      const vals = keys.map((k) => patch[k]);
+      await pool.query(`update med_consistency set ${set} where user_id = $${vals.length + 1}`, [...vals, userId]);
+    },
+    async logMedConsistencyResponse(userId, taken, reason) {
+      await insertDynamic("med_consistency_responses", { user_id: userId, taken: !!taken, reason: reason || null });
+    },
+    async addMedSatisfaction(userId, response, note) {
+      await insertDynamic("med_satisfaction", { user_id: userId, response, note: note || null });
+    },
   };
 }
 
@@ -636,6 +724,29 @@ function makeMemoryBackend() {
         r.next_fire_at = nextFireAt;
       }
     },
+    // Check-In v2 helpers — in-memory stubs (used when Postgres is unavailable)
+    async countGlucose(userId) { return glucose.filter((r) => r.user_id === userId).length; },
+    async countMedicationLogs(userId) { return meds.filter((r) => r.user_id === userId).length; },
+    async countWeightEntries(userId) {
+      return health.filter((r) => r.user_id === userId && r.weight_kg != null).length;
+    },
+    async countActivityEntries(userId) {
+      return health.filter((r) => r.user_id === userId && r.steps != null).length;
+    },
+    async addGlucoseFull(userId, { value, context }) {
+      glucose.push({ user_id: userId, value_mgdl: value, context: context || "random", created_at: nowISO() });
+    },
+    async addWellbeingLog() { /* not persisted in memory mode */ },
+    async addMedicationMasterFull(userId, fields) {
+      const row = { id: "m" + medSeq++, user_id: userId, active: true, created_at: nowISO(), ...fields };
+      medsMaster.push(row);
+      return row;
+    },
+    async enrollMedConsistency() { /* stub */ },
+    async getMedConsistency() { return null; },
+    async updateMedConsistency() { /* stub */ },
+    async logMedConsistencyResponse() { /* stub */ },
+    async addMedSatisfaction() { /* stub */ },
   };
 }
 
@@ -736,6 +847,21 @@ export const addSymptomLog = (id, sx) => backend.addSymptomLog(id, sx);
 export const addReminderSchedule = (id, fields) => backend.addReminderSchedule(id, fields);
 export const listReminders = (id) => backend.listReminders(id);
 export const deactivateReminder = (id, rid) => backend.deactivateReminder(id, rid);
+// Check-In v2 (2026-07)
+export const countGlucose = (id) => backend.countGlucose(id);
+export const countMedicationLogs = (id) => backend.countMedicationLogs(id);
+export const countWeightEntries = (id) => backend.countWeightEntries(id);
+export const countActivityEntries = (id) => backend.countActivityEntries(id);
+export const addGlucoseFull = (id, fields) => backend.addGlucoseFull(id, fields);
+export const addWellbeingLog = (id, fields) => backend.addWellbeingLog(id, fields);
+export const addMedicationMasterFull = (id, fields) => backend.addMedicationMasterFull(id, fields);
+export const enrollMedConsistency = (id) => backend.enrollMedConsistency(id);
+export const getMedConsistency = (id) => backend.getMedConsistency(id);
+export const updateMedConsistency = (id, patch) => backend.updateMedConsistency(id, patch);
+export const logMedConsistencyResponse = (id, taken, reason) =>
+  backend.logMedConsistencyResponse(id, taken, reason);
+export const addMedSatisfaction = (id, response, note) => backend.addMedSatisfaction(id, response, note);
+
 export const dueReminders = (nowIso = new Date().toISOString()) =>
   backend.dueReminders ? backend.dueReminders(nowIso) : Promise.resolve([]);
 export const markReminderFired = (rid, nextFireAt) =>

@@ -7,7 +7,13 @@ import { applyScores } from "../scores.js";
 import { compactKB } from "../kb.js";
 import { pushHistory } from "../session.js";
 
-const PROMPT_KEY = { coach: "coach_prompt", food: "food_prompt", fitness: "fitness_prompt" };
+const PROMPT_KEY = {
+  coach: "coach_prompt",
+  food: "food_prompt",
+  fitness: "fitness_prompt",
+  label: "foodhelp_label_prompt",
+  analyze: "foodhelp_analyze_prompt",
+};
 
 // kind: 'coach' | 'food' | 'fitness'  (all premium)
 export async function startCoach(bot, chatId, session, kind) {

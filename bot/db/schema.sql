@@ -112,7 +112,7 @@ alter table public.users add column if not exists last_winback_date  date;
 alter table public.users add column if not exists last_summary_date  date;
 
 -- v2 onboarding journey (DrSaab MVP – ENG/URDU/WhatsApp-Urdu)
-alter table public.users add column if not exists user_type           text;   -- diabetes | prediabetes | notsure | parent | exploring
+alter table public.users add column if not exists user_type           text;   -- diabetes | prediabetes | healthier | notsure | parent | exploring
 alter table public.users add column if not exists date_of_birth       text;   -- free-form (free-text answer)
 alter table public.users add column if not exists diagnosis_duration  text;   -- lt1 | 1_5 | 6_10 | gt10 | notsure
 alter table public.users add column if not exists latest_hba1c        numeric;
@@ -234,3 +234,61 @@ create table if not exists public.reminder_schedules (
 );
 create index if not exists reminder_schedules_active_idx on public.reminder_schedules(active, next_fire_at);
 create index if not exists reminder_schedules_user_idx   on public.reminder_schedules(user_id, active);
+
+-- ============================================================
+-- Check-In v2 additions (2026-07)
+-- ============================================================
+
+-- Blood sugar unit + measurement label (Fasting / Random / HbA1c).
+-- Values are always stored in mg/dL for consistency; unit records what
+-- the user originally entered so the display layer can echo it back.
+alter table public.glucose_logs add column if not exists unit          text default 'mg_dl';   -- mg_dl | mmol_l | hba1c
+alter table public.glucose_logs add column if not exists measure_kind  text;                   -- fasting | random | hba1c | pre_meal | post_meal | bedtime
+
+-- Insulin fields on the medications master (optional; text-entry flow only)
+alter table public.medications add column if not exists units          text;   -- e.g. "20"
+alter table public.medications add column if not exists is_insulin     boolean default false;
+alter table public.medications add column if not exists preferred_time text;   -- HH:MM or free-text (e.g. "before breakfast")
+
+-- Wellbeing check-ins (replaces "Symptoms" from a UX standpoint)
+create table if not exists public.wellbeing_logs (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid references public.users(id) on delete cascade,
+  score       int not null,                                -- 1..5 (1=Poor, 5=Great)
+  label       text,                                        -- great|good|okay|notgreat|poor
+  note        text,                                        -- optional free-text follow-up
+  category    text,                                        -- physical|emotional|diabetes|medication|sleep|lifestyle|urgent|unclassified
+  created_at  timestamptz default now()
+);
+create index if not exists wellbeing_logs_user_idx on public.wellbeing_logs(user_id, created_at desc);
+
+-- Medication Consistency Program state (one row per user, opt-in)
+create table if not exists public.med_consistency (
+  user_id           uuid primary key references public.users(id) on delete cascade,
+  enrolled          boolean default true,
+  phase             int default 1,                         -- 1=daily 7d, 2=weekly 2w, 3=biweekly
+  yes_streak        int default 0,                         -- consecutive 'yes' answers in current phase
+  last_asked_at     timestamptz,
+  last_answered_at  timestamptz,
+  created_at        timestamptz default now()
+);
+
+-- Medication Consistency responses (one row per answered check-in)
+create table if not exists public.med_consistency_responses (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid references public.users(id) on delete cascade,
+  taken       boolean not null,
+  reason      text,                                        -- forgot|busy|side_effects|ran_out|other
+  created_at  timestamptz default now()
+);
+create index if not exists med_consistency_responses_user_idx on public.med_consistency_responses(user_id, created_at desc);
+
+-- Medication Satisfaction survey responses (30-day)
+create table if not exists public.med_satisfaction (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid references public.users(id) on delete cascade,
+  response    text not null,                                -- yes | not_sure | no
+  note        text,
+  created_at  timestamptz default now()
+);
+create index if not exists med_satisfaction_user_idx on public.med_satisfaction(user_id, created_at desc);

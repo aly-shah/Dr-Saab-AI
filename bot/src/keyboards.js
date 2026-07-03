@@ -160,6 +160,7 @@ export function userTypeKeyboard(lang) {
   return stack([
     { text: t(lang, "ut_diabetes"), callback_data: "ut:diabetes" },
     { text: t(lang, "ut_prediabetes"), callback_data: "ut:prediabetes" },
+    { text: t(lang, "ut_healthier"), callback_data: "ut:healthier" },
     { text: t(lang, "ut_notsure"), callback_data: "ut:notsure" },
     { text: t(lang, "ut_parent"), callback_data: "ut:parent" },
     { text: t(lang, "ut_exploring"), callback_data: "ut:exploring" },
@@ -339,16 +340,36 @@ export function understandKeyboard(lang) {
 
 // New 6-item top menu per the Build 1 spec. Old features (Challenges, Goals,
 // Executive) move under "More" — see moreKeyboard below — so nothing is lost.
-export function mainMenuKeyboardV2(lang) {
+// A single profile-based row is prepended above the defaults when the user's
+// onboarding selection matches one of the special-case profiles.
+export function mainMenuKeyboardV2(lang, user) {
   const b = (key, action) => ({ text: t(lang, key), callback_data: `feat:${action}` });
-  return stack([
+  const rows = [];
+  const profileBtn = profileMenuButton(lang, user);
+  if (profileBtn) rows.push(profileBtn);
+  rows.push(
     b("btn_checkin", "checkin"),
     b("btn_foodhelp", "foodhelp"),
     b("btn_checkreport", "lab"),
     b("btn_myprogress", "myprogress"),
     b("btn_askdrsaab", "askdrsaab"),
     b("btn_more", "more"),
-  ]);
+  );
+  return stack(rows);
+}
+
+// Maps a user's onboarding profile to the one condition-specific menu button
+// they should see. Returns null for Type 2 and other users who get only the
+// default six items.
+function profileMenuButton(lang, user) {
+  const b = (key, action) => ({ text: t(lang, key), callback_data: `pfl:${action}` });
+  const ut = user?.user_type;
+  const dt = user?.diabetes_status;
+  if (ut === "diabetes" && dt === "type1") return b("btn_p_type1", "type1");
+  if (ut === "diabetes" && dt === "gestational") return b("btn_p_gestational", "gestational");
+  if (ut === "prediabetes") return b("btn_p_prediabetes", "prediabetes");
+  if (ut === "healthier") return b("btn_p_healthier", "healthier");
+  return null;
 }
 
 export function checkInKeyboard(lang) {
@@ -369,6 +390,7 @@ export function foodHelpKeyboard(lang) {
     b("btn_fh_analyze", "analyze"),
     b("btn_fh_caneat", "caneat"),
     b("btn_fh_restaurant", "restaurant"),
+    b("btn_fh_label", "label"),
     b("btn_fh_snacks", "snacks"),
     { text: t(lang, "btn_main_menu"), callback_data: "menu" },
   ]);
@@ -429,6 +451,87 @@ export function reminderFrequencyKeyboard(lang) {
     { text: t(lang, "btn_freq_3x_week"), callback_data: "remfreq:2" },
     { text: t(lang, "btn_freq_weekly"), callback_data: "remfreq:7" },
   ]);
+}
+
+// ---- Check-In v2 keyboards (2026-07) ----
+
+export function wellbeingMoodKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "wb_btn_great"), callback_data: "wb:great" },
+        { text: t(lang, "wb_btn_good"), callback_data: "wb:good" },
+      ],
+      [{ text: t(lang, "wb_btn_okay"), callback_data: "wb:okay" }],
+      [
+        { text: t(lang, "wb_btn_notgreat"), callback_data: "wb:notgreat" },
+        { text: t(lang, "wb_btn_poor"), callback_data: "wb:poor" },
+      ],
+      [{ text: t(lang, "btn_main_menu"), callback_data: "menu" }],
+    ],
+  };
+}
+
+export function medConfirmKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "med_btn_yes"), callback_data: "medconf:yes" },
+        { text: t(lang, "med_btn_edit"), callback_data: "medconf:edit" },
+        { text: t(lang, "med_btn_add"), callback_data: "medconf:add" },
+      ],
+    ],
+  };
+}
+
+export function medConsistencyOfferKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "btn_yes"), callback_data: "medcp:yes" },
+        { text: t(lang, "btn_no"), callback_data: "medcp:no" },
+      ],
+    ],
+  };
+}
+
+export function medConsistencyAnswerKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "medcp_btn_yes"), callback_data: "medcpans:yes" },
+        { text: t(lang, "medcp_btn_no"), callback_data: "medcpans:no" },
+      ],
+    ],
+  };
+}
+
+export function medConsistencyReasonKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "medcp_reason_forgot"), callback_data: "medcpreason:forgot" },
+        { text: t(lang, "medcp_reason_busy"), callback_data: "medcpreason:busy" },
+      ],
+      [
+        { text: t(lang, "medcp_reason_side_effects"), callback_data: "medcpreason:side_effects" },
+        { text: t(lang, "medcp_reason_ranout"), callback_data: "medcpreason:ran_out" },
+      ],
+      [{ text: t(lang, "medcp_reason_other"), callback_data: "medcpreason:other" }],
+    ],
+  };
+}
+
+export function medSatisfactionKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "medsat_btn_yes"), callback_data: "medsat:yes" },
+        { text: t(lang, "medsat_btn_notsure"), callback_data: "medsat:not_sure" },
+        { text: t(lang, "medsat_btn_no"), callback_data: "medsat:no" },
+      ],
+    ],
+  };
 }
 
 export function activityDaysKeyboard(lang) {

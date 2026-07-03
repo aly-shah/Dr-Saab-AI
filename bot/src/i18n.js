@@ -121,6 +121,7 @@ const STR = {
     ask_user_type: "Which best describes you?",
     ut_diabetes: "I have diabetes",
     ut_prediabetes: "I have prediabetes",
+    ut_healthier: "I want to live healthier",
     ut_notsure: "Build healthier habits",
     ut_parent: "I'm a parent/family member",
     ut_exploring: "Just exploring",
@@ -312,11 +313,18 @@ const STR = {
     menu_v2_title: "👋 What would you like help with today?",
     btn_checkin: "🩺 Check In",
     btn_foodhelp: "🍽️ Food Help",
-    btn_checkreport: "📋 Check My Report",
-    btn_myprogress: "📈 My Progress",
+    btn_checkreport: "📋 Explain My Report",
+    btn_myprogress: "🎯 Goals & Progress",
     btn_askdrsaab: "💬 Ask DrSaab",
     btn_more: "⚙️ More",
     btn_main_menu: "🏠 Main Menu",
+
+    // Profile-based main-menu additions (shown conditionally per user)
+    btn_p_type1: "🩸 Type 1 Diabetes",
+    btn_p_prediabetes: "🌱 Prediabetes",
+    btn_p_healthier: "🌟 I Want to Live Healthier",
+    btn_p_gestational: "🤰 Gestational Diabetes",
+    profile_menu_stub: "This section is being built — tell me what you'd like help with and I'll do my best.",
 
     // Check In submenu
     checkin_title: "🩺 *Check In* — what would you like to log?",
@@ -324,13 +332,14 @@ const STR = {
     btn_ci_medication: "💊 Medication",
     btn_ci_weight: "⚖️ Weight",
     btn_ci_activity: "🚶 Physical Activity",
-    btn_ci_symptoms: "🤒 Symptoms",
+    btn_ci_symptoms: "❤️ Wellbeing",
 
     // Food Help submenu
-    foodhelp_title: "🍽️ *Food Help* — how can I help?",
+    foodhelp_title: "🍽️ *Food Help* — select one of the options below:",
     btn_fh_analyze: "📸 Analyze My Meal",
     btn_fh_caneat: "🥗 What Can I Eat?",
-    btn_fh_restaurant: "🍔 Restaurant Guidance",
+    btn_fh_restaurant: "🍽️ Restaurant Guidance",
+    btn_fh_label: "🏷️ Scan Nutrition Label",
     btn_fh_snacks: "🥜 Healthy Snack Ideas",
 
     // My Progress submenu
@@ -358,19 +367,114 @@ const STR = {
     profile_gestational: "Gestational Diabetes",
     profile_newly: "Newly Diagnosed",
 
+    // ===== Check-In v2 (2026-07) =====
+
+    // Blood Sugar
+    bs_prompt_v2:
+      "Let's log your blood sugar! 🩸\nSend your reading and tell me whether it's *Fasting*, *Random*, or *HbA1c*.\n\n_Examples:_ `Fasting 112`, `Random 145`, `Fasting 6.2`, `HbA1c 7.2`",
+    bs_first_confirm:
+      "✅ *Got it!* Your first blood sugar reading has been saved.\n\nEvery journey starts with one number. Keep logging your readings so I can show you your progress over time.\n\nNext time you can skip the menu and simply type:\n`Log random 125`",
+    bs_confirm:
+      "✅ *Blood sugar saved.*\n\nYou're building a useful record of your diabetes. Keep it going!\n\n_Tip:_ Next time simply type: `Log fasting 102`",
+    bs_reminder_offer: "Would you like a reminder to test your blood sugar regularly?",
+    bs_reminder_yes:
+      "👍 Got it! I'll remind you if it's been a while since you last logged your blood sugar.",
+    bs_reminder_no: "👍 Sure! I won't send any blood sugar reminders. You can turn them back on anytime.",
+    bs_invalid: "Send a number (e.g. `Fasting 112` or `Random 6.5`).",
+
+    // Weight
+    weight_prompt_v2:
+      "Let's record your weight. ⚖️\nSimply send me your current weight.\n\n_Example:_ `72.5 kg`",
+    weight_first_confirm:
+      "✅ *Your weight has been recorded.*\n\nThis is your first weight entry. Keep logging regularly so I can show you your progress over time.\n\nNext time, you can simply type: `Log weight 72.5`",
+    weight_confirm: "✅ *Weight recorded.*",
+    weight_trend:
+      "📈 You're building your weight history.\nRegular weigh-ins help track long-term progress, not day-to-day changes.",
+
+    // Physical Activity
+    activity_prompt_v2:
+      "Let's record your activity. 🚶\nTell me what you did today and, if you know it, for how long.\n\n_Examples:_ `Walked 30 minutes`, `Gym for 1 hour`, `8,000 steps`, `Played cricket`",
+    activity_first_confirm:
+      "✅ *Your activity has been recorded.*\n\nThis is your first activity entry. Keep logging your activities so I can show your progress over time.\n\nNext time, simply type: `Log walked 30 min`",
+    activity_confirm: "✅ *Activity recorded.*",
+    activity_trend:
+      "📈 You're building your activity history.\nEvery activity counts and helps me understand your overall routine.",
+
+    // Wellbeing (replaces Symptoms)
+    wb_prompt: "How are you feeling today? ❤️",
+    wb_btn_great: "😄 Great",
+    wb_btn_good: "🙂 Good",
+    wb_btn_okay: "😐 Okay",
+    wb_btn_notgreat: "😕 Not Great",
+    wb_btn_poor: "😞 Poor",
+    wb_reply_great: "😊 That's great to hear! Keep up the good work.",
+    wb_reply_good: "👍 Glad to hear it. Let's keep the momentum going.",
+    wb_reply_okay: "💙 Thanks for checking in. Some days are just okay, and that's perfectly fine.",
+    wb_reply_notgreat: "❤️ I'm sorry to hear that.\n\n*What's been bothering you today?*",
+    wb_reply_poor: "❤️ I'm sorry you're having a difficult day.\n\n*Tell me a little about what's been going on.*",
+    wb_note_saved: "Thank you for sharing. I'll keep this in mind for our next check-in.",
+    wb_trend: "📈 You've been checking in regularly. This helps me understand how you're doing over time — not just how you're feeling today.",
+
+    // Medication — first-time setup
+    med_setup_prompt:
+      "Let's set up your medications. 💊\nYou can either:\n\n📷 *Upload a photo* of your medications or prescription (multiple medications in one photo is fine), or\n\n✍️ *Type your medications* in a message.\n\n_Example:_\n• Metformin 500mg twice daily\n• Rosuvastatin 10mg once daily\n• Humalog insulin 8 units before breakfast\n• Lantus insulin 20 units at bedtime",
+    med_photo_soon:
+      "📷 Photo extraction is coming soon. For now, please type your medications — you can list several in one message.",
+    med_confirm_intro: "Here's what I understood:\n\n{lines}\n\nIs everything correct?",
+    med_edit_ask:
+      "No problem — type the medication(s) again with the correction. You can list multiple in one message.",
+    med_add_ask: "Great — send the next medication(s) in a single message.",
+    med_saved_ok: "✅ Saved. You can update your medications any time from the *Medication* menu.",
+    med_setup_none: "I couldn't find a medication in that message. Try something like: `Metformin 500mg twice daily`.",
+    med_btn_yes: "✅ Yes",
+    med_btn_edit: "✏️ Edit",
+    med_btn_add: "➕ Add Another",
+
+    // Consistency Program
+    medcp_offer: "Would you like DrSaab to help you stay consistent with taking your medications?",
+    medcp_yes: "🎯 Enrolled. I'll check in once a day for the first week to help build the habit.",
+    medcp_no: "👍 Got it — I'll only save your medication list without check-ins.",
+    medcp_ask: "Did you take all of your medications today?",
+    medcp_btn_yes: "✅ Yes",
+    medcp_btn_no: "❌ No",
+    medcp_ack_yes: "🌟 Great — keep it going.",
+    medcp_ack_no: "Thanks for being honest. We'll restart the daily check-ins to help you build the habit back up.\n\nWould you like to tell me what got in the way today?",
+    medcp_reason_forgot: "🤔 Forgot",
+    medcp_reason_busy: "😴 Busy",
+    medcp_reason_side_effects: "🤒 Side Effects",
+    medcp_reason_ranout: "💊 Ran Out",
+    medcp_reason_other: "Other",
+    medcp_reason_saved: "Noted. I'll keep this in mind as we go.",
+
+    // Medication Satisfaction (30-day)
+    medsat_ask: "Are you happy with your current medications?",
+    medsat_btn_yes: "😊 Yes",
+    medsat_btn_notsure: "😐 Not Sure",
+    medsat_btn_no: "☹️ No",
+    medsat_note_ask: "Thanks for letting me know. Can you tell me what's been bothering you?",
+    medsat_note_ack:
+      "Thanks for sharing that. It's important to discuss any medication concerns with your doctor before making any changes.",
+
+    // Reminder-firing templates for new categories
+    reminder_template_med_consistency: "💊 {name}",
+
     // Ask DrSaab entry
     askdrsaab_prompt:
       "💬 *Ask DrSaab.* Ask me anything — your diabetes, food, fitness, lab results or just how you're feeling.\n_Tap Back when you're done._",
 
-    // Food Help seeded prompts
+    // Food Help seeded prompts (2026-07 spec copy)
     foodhelp_analyze_prompt:
-      "📸 Send a photo of your plate (or describe the meal in text) and I'll estimate carbs and suggest swaps.",
+      "Send me a photo of your meal, or describe what you're eating. 🍽️\nI'll estimate the carbohydrates, protein, fats and calories, then explain how this meal may affect your blood sugar and suggest healthier alternatives if needed.\n\n_Examples:_\n• Chicken biryani and raita\n• Two chapatis with chicken karahi\n• One apple and a handful of almonds",
     foodhelp_caneat_prompt:
-      "🥗 Tell me what's around — a meal, ingredients in the fridge, or a craving — and I'll guide you to diabetes-friendly choices.",
+      "What are you planning to eat, or what ingredients do you have? 🥗\nI'll suggest diabetes-friendly options.\n\n_Examples:_\n• What can I eat for breakfast?\n• I have eggs, spinach and bread.\n• Sehri ideas\n• Healthy dinner\n• Vegetarian lunch",
     foodhelp_restaurant_prompt:
-      "🍔 Where are you eating? Share the restaurant name or the menu options and I'll suggest the best choices.",
+      "Tell me the restaurant you're visiting or what you're thinking of ordering. 🍽️\nI'll help you make the healthiest choice.\n\n_Examples:_\n• McDonald's\n• KFC\n• Kolachi\n• BBQ Tonight\n• Pizza Hut\n• I'm having biryani",
     foodhelp_snacks_prompt:
-      "🥜 What kind of snack are you in the mood for — sweet, savory, on-the-go? I'll give you a few healthy ideas.",
+      "Looking for a snack? 🥜\nTell me if you're hungry, craving something sweet, or just need ideas.\n\n_Examples:_\n• Sweet craving\n• Office snack\n• Late-night snack\n• High-protein snack\n• Something under 200 calories",
+    foodhelp_label_prompt:
+      "Send me a photo of the *Nutrition Facts* label or *ingredients list* on any packaged food. 🏷️\nI'll explain what it means and whether it's a good choice for someone with diabetes.\n\n_Examples:_ Biscuits, breakfast cereal, chips, juice, frozen foods, protein bars, yogurt, bread.\n\nI'll cover:\n• Calories, carbs, added sugars, fibre, protein, serving size\n• A simple 🟢 Good Choice / 🟡 Okay Occasionally / 🔴 Best to Limit rating\n• A healthier alternative when relevant",
+    foodhelp_meal_confirm: "✅ Meal analysed.",
+    foodhelp_label_confirm: "✅ Nutrition label analysed.",
 
     // Blood sugar — reminder offer after first log
     bs_offer_reminder: "Would you like a reminder to check your blood sugar?",
@@ -556,6 +660,7 @@ const STR = {
     ask_user_type: "ان میں سے کون سی بات آپ پر سب سے بہتر لاگو ہوتی ہے؟",
     ut_diabetes: "مجھے ذیابیطس ہے",
     ut_prediabetes: "مجھے پری ذیابیطس ہے",
+    ut_healthier: "میں صحت مند زندگی چاہتا/چاہتی ہوں",
     ut_notsure: "صحت مند عادات بنانا",
     ut_parent: "میں والدین/اہلِ خانہ ہوں",
     ut_exploring: "بس دیکھ رہا ہوں",
@@ -794,6 +899,7 @@ const STR = {
     ask_user_type: "In mein se kaunsi baat aap par sab se zyada lagu hoti hai?",
     ut_diabetes: "Mujhe diabetes hai",
     ut_prediabetes: "Mujhe prediabetes hai",
+    ut_healthier: "Main sehatmand zindagi chahta/chahti hoon",
     ut_notsure: "Sehatmand aadatein banana",
     ut_parent: "Main parent/ahl-e-khana hoon",
     ut_exploring: "Bas dekh raha hoon",

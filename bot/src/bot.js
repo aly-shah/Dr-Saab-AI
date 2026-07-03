@@ -31,6 +31,10 @@ import {
   activityCallback,
   startSymptoms,
   symptomsText,
+  startWellbeing,
+  wellbeingText,
+  wellbeingCallback,
+  glucoseReminderCallback,
   startHealth,
   healthText,
 } from "./flows/tracking.js";
@@ -59,7 +63,7 @@ function planName(lang, tier) {
 async function showMenu(bot, chatId, session) {
   resetFlow(chatId);
   const lang = langOf(session);
-  await send(bot, chatId, t(lang, "menu_v2_title"), { keyboard: mainMenuKeyboardV2(lang), markdown: true });
+  await send(bot, chatId, t(lang, "menu_v2_title"), { keyboard: mainMenuKeyboardV2(lang, session.user), markdown: true });
 }
 
 async function startCommand(bot, chatId, session, scenario = "eng") {
@@ -68,7 +72,7 @@ async function startCommand(bot, chatId, session, scenario = "eng") {
   await send(bot, chatId, t(lang, "welcome_back", { name: sanitizeMd(session.user.name || "") }), {
     markdown: true,
   });
-  await send(bot, chatId, t(lang, "menu_v2_title"), { keyboard: mainMenuKeyboardV2(lang), markdown: true });
+  await send(bot, chatId, t(lang, "menu_v2_title"), { keyboard: mainMenuKeyboardV2(lang, session.user), markdown: true });
 }
 
 // Submenu show functions — each lands on its own keyboard, two-level cap.
@@ -273,11 +277,15 @@ export async function handleMessage(bot, msg) {
       return activityText(bot, chatId, session, text);
     case "symptoms":
       return symptomsText(bot, chatId, session, text);
+    case "wellbeing":
+      return wellbeingText(bot, chatId, session, text);
     case "health":
       return healthText(bot, chatId, session, text);
     case "coach":
     case "food":
     case "fitness":
+    case "label":
+    case "analyze":
       return coachText(bot, chatId, session, text, msg);
     case "lab":
       return labText(bot, chatId, session, text, msg);
@@ -346,7 +354,7 @@ export async function handleCallback(bot, query) {
     if (x === "med") return startMedication(bot, chatId, session);
     if (x === "weight") return startWeight(bot, chatId, session);
     if (x === "activity") return startActivity(bot, chatId, session);
-    if (x === "symptoms") return startSymptoms(bot, chatId, session);
+    if (x === "symptoms") return startWellbeing(bot, chatId, session);
   }
 
   // Food Help submenu — all four route into the Food coach with a seed prompt.
@@ -354,8 +362,19 @@ export async function handleCallback(bot, query) {
   // the user wasn't bounced to the upgrade gate).
   if (data.startsWith("fh:")) {
     const x = data.split(":")[1];
+    // "analyze" and "label" each use a dedicated coach kind so the AI answers
+    // in the exact structured format the spec requires. The conversational
+    // options (What Can I Eat / Restaurant / Snacks) share the general food
+    // coach with a seed prompt.
+    if (x === "analyze") {
+      await startCoach(bot, chatId, session, "analyze");
+      return;
+    }
+    if (x === "label") {
+      await startCoach(bot, chatId, session, "label");
+      return;
+    }
     const seedKey = {
-      analyze: "foodhelp_analyze_prompt",
       caneat: "foodhelp_caneat_prompt",
       restaurant: "foodhelp_restaurant_prompt",
       snacks: "foodhelp_snacks_prompt",
@@ -397,10 +416,21 @@ export async function handleCallback(bot, query) {
 
   // Reminder offer (Y/N). The embedded key tells us which flow asked.
   if (data.startsWith("remoffer:")) {
-    const key = data.split(":")[1];
-    if (key === "med" || key === "glucose") return medicationCallback(bot, chatId, session, data);
+    const [, key, ans] = data.split(":");
+    if (key === "glucose") return glucoseReminderCallback(bot, chatId, session, ans);
+    if (key === "med") return medicationCallback(bot, chatId, session, data);
     if (key === "weight") return weightCallback(bot, chatId, session, data);
     return;
+  }
+
+  // Medication setup: confirmation card (Yes/Edit/Add) and consistency offer.
+  if (data.startsWith("medconf:") || data.startsWith("medcp:")) {
+    return medicationCallback(bot, chatId, session, data);
+  }
+
+  // Wellbeing mood picker.
+  if (data.startsWith("wb:")) {
+    return wellbeingCallback(bot, chatId, session, data);
   }
 
   // Activity goal picker — only fires inside the activity flow.
@@ -414,6 +444,15 @@ export async function handleCallback(bot, query) {
   }
 
   if (data.startsWith("feat:")) return dispatchFeature(bot, chatId, session, data.split(":")[1]);
+
+  // Profile-based main-menu item. Behavior is TBD — for now, land on a stub
+  // that keeps the user in the Ask DrSaab flow so their next message goes to
+  // the coach with full context.
+  if (data.startsWith("pfl:")) {
+    const lang = langOf(session);
+    await send(bot, chatId, t(lang, "profile_menu_stub"), { markdown: true });
+    return startCoach(bot, chatId, session, "coach");
+  }
 }
 
 export function registerHandlers(bot) {
