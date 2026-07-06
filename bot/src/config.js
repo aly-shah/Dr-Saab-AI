@@ -34,6 +34,13 @@ export const config = {
     visionModel:
       process.env.LLM_VISION_MODEL?.trim() ||
       (usingGroq ? "meta-llama/llama-4-scout-17b-16e-instruct" : "gpt-4o-mini"),
+
+    // Paid-tier routing for Ask DrSaab (spec: free = basic AI, paid = OpenAI).
+    // If BOTH GROQ and OPENAI keys are present, paid users hit OpenAI directly
+    // via a second client. Otherwise paidModel just picks a stronger model on
+    // the same client (or falls back to the default model when unset).
+    paidApiKey: usingGroq && openaiKey ? openaiKey : null,
+    paidModel: process.env.LLM_PAID_MODEL?.trim() || (openaiKey ? "gpt-4o-mini" : null),
   },
 
   // Database selection priority: Postgres (DATABASE_URL) → Supabase → in-memory.

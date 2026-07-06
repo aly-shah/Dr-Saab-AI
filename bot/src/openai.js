@@ -9,6 +9,13 @@ const client = new OpenAI({
   baseURL: config.llm.baseURL,
 });
 
+// Optional second client used only for paid Ask DrSaab (spec: paid tier hits
+// OpenAI directly for richer reasoning/memory). Only exists when both a Groq
+// key and an OpenAI key are configured — otherwise paid users share `client`.
+const paidClient = config.llm.paidApiKey
+  ? new OpenAI({ apiKey: config.llm.paidApiKey })
+  : null;
+
 const LANG_NAME = {
   en: "English",
   ur: "Urdu (اردو script)",
@@ -48,6 +55,28 @@ function profileContext(user) {
   return parts.length ? `User profile:\n${parts.join("\n")}` : "No profile details yet.";
 }
 
+// Ask DrSaab persona — a warmer, broader voice than the domain-specific
+// coaches. Combines diabetes coach / diabetologist-educator / fitness trainer
+// / psychologist / patient educator into one friendly voice, per spec.
+const ASK_DRSAAB_PERSONA = `
+You are DrSaab, a warm, encouraging health coach on WhatsApp. You blend the perspectives of a diabetes coach, a diabetologist (educator, not prescriber), a fitness trainer, a psychologist and a patient educator into one friendly voice.
+
+Personality: friendly, encouraging, calm, patient, respectful, practical, motivating, honest, professional. Supportive without being overly emotional — think "kind coach with high standards": celebrate progress, encourage consistency, be direct when necessary, and never shame or guilt the user.
+
+Style:
+- Short, WhatsApp-length replies. Simple language, no unnecessary medical jargon.
+- Give practical next steps. Ask a follow-up question only when it's actually needed.
+- Do NOT use emojis or decorative symbols.
+- Use the user's stored health data ONLY when it makes the answer more useful. Do not restate profile information for its own sake, and do not repeat their personal details in every reply.
+
+Additional hard rules for Ask DrSaab:
+- Never present uncertain information as fact. If unsure, say so.
+- For potentially serious symptoms or emergencies, tell the user to seek immediate medical attention or contact their local emergency services.
+- Politely refuse medical misinformation, dangerous advice, illegal requests, hate speech, harassment, sexually explicit content, self-harm assistance, or violence.
+- If the user is abusive, stay polite and calm, do not argue, and continue helping if possible.
+- Always prioritize patient safety over completeness of the answer.
+`;
+
 const KIND_ROLE = {
   coach:
     "Focus on overall diabetes self-management: blood sugar patterns, habits, motivation, accountability and consistency.",
@@ -61,15 +90,20 @@ const KIND_ROLE = {
     "You are the FITNESS COACH. Suggest safe, realistic movement for someone with the user's profile (e.g. short post-meal walks, light strength work). Respect any limitations and keep goals achievable.",
 };
 
-async function complete(messages, { maxTokens = 600, model } = {}) {
-  const usedModel = model || config.llm.model;
+async function complete(messages, { maxTokens = 600, model, jsonMode = false, paid = false } = {}) {
+  const useOpenAI = paid && paidClient;
+  const chosenClient = useOpenAI ? paidClient : client;
+  const usedModel =
+    model || (useOpenAI ? config.llm.paidModel : null) || config.llm.model;
   try {
-    const res = await client.chat.completions.create({
+    const req = {
       model: usedModel,
       messages,
       max_tokens: maxTokens,
       temperature: 0.6,
-    });
+    };
+    if (jsonMode) req.response_format = { type: "json_object" };
+    const res = await chosenClient.chat.completions.create(req);
     return res.choices[0]?.message?.content?.trim() || "";
   } catch (e) {
     // Explain the real cause in red (e.g. "GROQ rate limit hit (429)…") so it's
@@ -123,30 +157,209 @@ export async function coachReply(user, history, text, kind = "coach", imageDataU
   });
 }
 
-/** One-shot lab report explanation (text and/or photo). */
-export async function explainLab(user, text, imageDataUrl = null) {
+/**
+ * Ask DrSaab open-ended reply. Same conversational shape as `coachReply` but
+ * with the broader DrSaab persona and richer personalization. Paid users are
+ * routed to the OpenAI-backed model when configured (see config.llm.paidApiKey).
+ *
+ * @param {object} user           user row
+ * @param {Array}  history        [{role, content}] prior turns (text only)
+ * @param {string} text           latest user text
+ * @param {object} [opts]
+ * @param {string} [opts.imageDataUrl] optional data URI for vision
+ * @param {string} [opts.personalCtx]  compact personalisation block
+ * @param {boolean}[opts.paid]         true → route to paid model when available
+ */
+export async function askDrsaabReply(user, history, text, opts = {}) {
+  const { imageDataUrl = null, personalCtx = "", paid = false } = opts;
   const lang = user?.language || "en";
   const system = [
     SAFETY,
-    `You are explaining a LAB REPORT in plain language. For each value the user shares: say what it measures, whether it looks low / normal / high in general terms, and what lifestyle steps may help. Group HbA1c, fasting glucose, lipids, kidney (creatinine/eGFR) and liver values if present. End with a clear reminder to review results with their own doctor. Do NOT give a diagnosis.`,
+    ASK_DRSAAB_PERSONA,
     profileContext(user),
+    personalCtx,
     languageInstruction(lang),
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  const messages = [
+    { role: "system", content: system },
+    ...history.slice(-12),
+    { role: "user", content: userContent(text, imageDataUrl) },
+  ];
+
+  // Vision always uses the vision model on the free/Groq client — OpenAI paid
+  // routing only applies to text turns.
+  if (imageDataUrl) {
+    return complete(messages, { maxTokens: 700, model: config.llm.visionModel });
+  }
+  return complete(messages, { maxTokens: paid ? 800 : 500, paid });
+}
+
+/**
+ * Lab report analyser. Extracts structured data AND generates a plain-language
+ * explanation in one JSON call. Returns:
+ *   { analysis, metadata, values, labSource }
+ *
+ * `analysis` is the markdown shown to the user. The other three are stored
+ * silently for history/trends/market intel — see labreport.js.
+ *
+ * When `priorValues` are provided (compact string of prior test → result rows)
+ * the model is asked to comment on trends vs. the last report.
+ */
+export async function explainLab(user, text, imageDataUrl = null, priorValues = "") {
+  const lang = user?.language || "en";
+  const system = [
+    SAFETY,
+    `You are a LAB REPORT ANALYST for a diabetes coaching app. The user gave you a report (image and/or pasted text). Return ONE JSON object — no prose outside the JSON — with these fields:
+
+{
+  "metadata": {
+    "lab_name": string|null,
+    "lab_branch": string|null,
+    "lab_address": string|null,
+    "report_date": string|null,
+    "patient_name": string|null,
+    "patient_age": string|null,
+    "patient_gender": string|null,
+    "report_type": string|null,
+    "doctor_name": string|null
+  },
+  "values": [
+    { "test": string, "result": string, "unit": string|null, "reference_range": string|null,
+      "status": "in_range" | "borderline" | "out_of_range" | "unknown" }
+  ],
+  "lab_source": {
+    "lab_name": string|null, "lab_branch": string|null, "lab_address": string|null,
+    "report_format": string|null
+  },
+  "analysis": string
+}
+
+Rules for extraction:
+- Prioritize these tests where present: HbA1c, fasting glucose, random glucose, LDL, HDL, total cholesterol, triglycerides, creatinine, eGFR, urea, ALT/SGPT, AST/SGOT, urine albumin, urine microalbumin, and any CBC values.
+- If the source is unreadable or missing a field, leave it null. Do not invent values.
+- Status is judged against the printed reference range on the report; if no range is given, use general adult reference ranges and mark "unknown" if you're not sure.
+
+Rules for the "analysis" field (markdown, user-facing):
+- Language: reply in ${LANG_NAME[lang] || "English"}.
+- Structure:
+    1. A short intro line naming the report type and lab (if known).
+    2. For each extracted value: a line beginning with a status dot (🟢 in range, 🟡 borderline, 🔴 outside range) then the test name and result, followed by one to two sentences explaining what the test measures, why it matters for diabetes, and a simple lifestyle suggestion where useful.
+    3. A "*Overall Summary*" section with 3–5 short bullets (e.g. "HbA1c is improving.", "Cholesterol is within range.").
+- If previous readings are provided below, compare the current value to the most recent prior value and note improvement or worsening in one short phrase.
+- Never diagnose diseases. Never tell the user to start / stop / change any prescribed medication.
+- Flag any significantly abnormal values by telling the user to contact their healthcare provider promptly.
+- Do NOT include a legal disclaimer in the analysis — the app appends one separately.
+
+Return valid JSON only.`,
+    profileContext(user),
+    priorValues ? `Previous readings for comparison (most recent first):\n${priorValues}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 
   const messages = [
     { role: "system", content: system },
     {
       role: "user",
       content: userContent(
-        text || "Please explain my lab report from the attached image.",
+        text || "Please analyse the attached lab report.",
         imageDataUrl
       ),
     },
   ];
-  return complete(messages, {
-    maxTokens: 900,
+  const raw = await complete(messages, {
+    maxTokens: 1500,
     model: imageDataUrl ? config.llm.visionModel : config.llm.model,
+    jsonMode: !imageDataUrl, // vision endpoints often reject response_format
   });
+
+  const parsed = parseLabJson(raw);
+  return {
+    analysis: parsed.analysis || raw, // fall back to raw text if JSON parse failed
+    metadata: parsed.metadata || null,
+    values: Array.isArray(parsed.values) ? parsed.values : null,
+    labSource: parsed.lab_source || null,
+  };
+}
+
+// Best-effort JSON extractor. Handles clean JSON, fenced ```json blocks, and
+// mixed prose where a { ... } object is embedded somewhere in the reply.
+function parseLabJson(raw) {
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    /* fall through */
+  }
+  const fence = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) {
+    try { return JSON.parse(fence[1]); } catch { /* fall through */ }
+  }
+  const first = raw.indexOf("{");
+  const last = raw.lastIndexOf("}");
+  if (first !== -1 && last > first) {
+    try { return JSON.parse(raw.slice(first, last + 1)); } catch { /* fall through */ }
+  }
+  return {};
+}
+
+/**
+ * Personalised Progress report. Two variants driven by the same underlying
+ * data blob so we don't fork the whole pipeline.
+ *
+ *   variant = "free"  → 5-8 line motivating summary (blood sugar / activity /
+ *                       weight callouts) that answers "what improved?" and
+ *                       "how close to the goal?" at a high level. Ends with a
+ *                       gentle nudge — the free/paid upsell UI is added by
+ *                       the caller.
+ *
+ *   variant = "paid"  → Comprehensive markdown report:
+ *                         1. Goal Progress (per active goal, with % if
+ *                            possible from the data)
+ *                         2. Biggest Win
+ *                         3. Biggest Opportunity
+ *                         4. Personalised Recommendations (3–5 bullets)
+ *                       All four framing questions from the spec must be
+ *                       answerable from the response.
+ *
+ * `data` fields (all optional): goals, motivation, glucose{avg,inRangePct,
+ * count,recent}, weight, weightTrend, activityCount, medicationCount,
+ * wellbeing, labSummary, streak, hba1c.
+ */
+export async function progressReport(user, data, variant = "paid") {
+  const lang = user?.language || "en";
+  const framing = `The report must be encouraging, practical and goal-oriented — not just statistics. It must implicitly answer four questions:\n1. What has improved for this user?\n2. What needs attention?\n3. How close are they to achieving each goal?\n4. What is the single most important thing they should focus on next?`;
+
+  const persona = variant === "free"
+    ? `Write a short 5-8 line MOTIVATING progress summary in ${LANG_NAME[lang] || "English"}. Use plain markdown with a few emoji (✅ / ⚠️ / 📈). Celebrate at least one improvement, gently flag one area to watch, and close by connecting to their goal. Do NOT include the words "Biggest Win" / "Biggest Opportunity" / "Recommendations" — that's the paid version. Keep it under 8 short lines.`
+    : `Write a COMPREHENSIVE progress report in ${LANG_NAME[lang] || "English"} using this exact structure and Markdown headings:\n\n*Goal Progress*\n(For each active goal in the data, one line: current status + % complete if the numbers support it, else a qualitative "on track / needs push / early days".)\n\n*Biggest Win*\n(One or two sentences on their strongest positive trend since the last report.)\n\n*Biggest Opportunity*\n(The single highest-impact habit change they could make to move toward their goal.)\n\n*Personalised Recommendations*\n(3–5 concrete bullets grounded in the data. Whenever appropriate, reference the user's stated motivation ("You mentioned that you want to be healthier for your children…").)\n\nEnd with a short encouraging sign-off line.`;
+
+  const system = [SAFETY, framing, persona, profileContext(user)]
+    .filter(Boolean)
+    .join("\n\n");
+
+  const goalsBlock = (data.goals || []).length
+    ? data.goals.map((g, i) => {
+        const parts = [`${i + 1}. ${g.title}`];
+        if (g.motivation) parts.push(`   motivation: ${g.motivation}`);
+        if (g.target_date) parts.push(`   target date: ${g.target_date}`);
+        else if (g.target_hint) parts.push(`   target: ${g.target_hint}`);
+        return parts.join("\n");
+      }).join("\n")
+    : "(no active goals set)";
+
+  const payload = `Active goals:\n${goalsBlock}\n\nRecent data (last 30 days unless noted):\n- Glucose readings logged: ${data.glucoseCount ?? 0}\n- Average glucose: ${data.glucoseAvg ?? "no data"} mg/dL\n- In-range percentage: ${data.inRangePct ?? "no data"}%\n- Estimated HbA1c: ${data.hba1c ?? "no data"}\n- Latest self-reported HbA1c: ${user?.latest_hba1c ?? "unknown"}\n- Weight: ${data.weight ?? "no data"} kg  (trend: ${data.weightTrend ?? "insufficient data"})\n- Activity entries: ${data.activityCount ?? 0}\n- Medication logs: ${data.medicationCount ?? 0}\n- Wellbeing check-ins: ${data.wellbeingCount ?? 0}\n- Lab summary: ${data.labSummary || "no recent lab reports"}\n- Current streak: ${data.streak ?? user?.streak ?? 0} day(s)\n\nUser motivation driver from profile: ${user?.motivation_driver || "unknown"}`;
+
+  return complete(
+    [
+      { role: "system", content: system },
+      { role: "user", content: payload },
+    ],
+    { maxTokens: variant === "free" ? 400 : 900 }
+  );
 }
 
 /** Weekly summary written from computed stats. */

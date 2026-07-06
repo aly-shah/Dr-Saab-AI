@@ -5,6 +5,7 @@ import {
   reminderOfferKeyboard,
   activityDaysKeyboard,
   wellbeingMoodKeyboard,
+  t1ConfidenceKeyboard,
   medConfirmKeyboard,
   medConsistencyOfferKeyboard,
 } from "../keyboards.js";
@@ -14,6 +15,7 @@ import {
   addMedication,
   addHealthLog,
   addWellbeingLog,
+  addT1ConfidenceLog,
   addMedicationMaster,
   addMedicationMasterFull,
   findMedicationByName,
@@ -573,6 +575,58 @@ export async function activityCallback(bot, chatId, session, data) {
 
 const MOOD_TO_SCORE = { great: 5, good: 4, okay: 3, notgreat: 2, poor: 1 };
 
+// Type 1 users get an extra periodic prompt after wellbeing. 14-day cadence so
+// we don't nag on daily check-ins but still capture drift in confidence.
+const T1_CONFIDENCE_DAYS = 14;
+
+function isType1(user) {
+  return user?.diabetes_status === "type1";
+}
+
+function t1ConfidenceDue(user) {
+  if (!isType1(user)) return false;
+  const last = user.t1_confidence_updated_at;
+  if (!last) return true;
+  const ageMs = Date.now() - new Date(last).getTime();
+  return ageMs >= T1_CONFIDENCE_DAYS * 24 * 60 * 60 * 1000;
+}
+
+async function offerT1Confidence(bot, chatId, session) {
+  if (!t1ConfidenceDue(session.user)) return false;
+  const lang = langOf(session);
+  session.state = "t1_confidence";
+  session.step = null;
+  await send(bot, chatId, t(lang, "t1c_prompt"), {
+    keyboard: t1ConfidenceKeyboard(lang),
+    markdown: true,
+  });
+  return true;
+}
+
+export async function t1ConfidenceCallback(bot, chatId, session, data) {
+  const lang = langOf(session);
+  if (!data.startsWith("t1c:")) return;
+  const level = data.split(":")[1];
+  if (!["very", "mostly", "sometimes", "help"].includes(level)) return;
+
+  const updated = await addT1ConfidenceLog(session.user.id, level).catch((e) => {
+    console.error("addT1ConfidenceLog:", e?.message);
+    return null;
+  });
+  if (updated) session.user = updated;
+  else {
+    session.user.t1_confidence = level;
+    session.user.t1_confidence_updated_at = new Date().toISOString();
+  }
+
+  await send(bot, chatId, t(lang, `t1c_reply_${level}`), {
+    keyboard: backKeyboard(lang),
+    markdown: true,
+  });
+  session.state = "idle";
+  session.step = null;
+}
+
 export async function startWellbeing(bot, chatId, session) {
   session.state = "wellbeing";
   session.data = {};
@@ -607,6 +661,7 @@ export async function wellbeingCallback(bot, chatId, session, data) {
   await send(bot, chatId, t(lang, `wb_reply_${mood}`), { keyboard: backKeyboard(lang), markdown: true });
   session.state = "idle";
   session.step = null;
+  await offerT1Confidence(bot, chatId, session);
 }
 
 export async function wellbeingText(bot, chatId, session, text) {
@@ -629,6 +684,7 @@ export async function wellbeingText(bot, chatId, session, text) {
   await send(bot, chatId, t(lang, "wb_note_saved"), { keyboard: backKeyboard(lang), markdown: true });
   session.state = "idle";
   session.step = null;
+  await offerT1Confidence(bot, chatId, session);
 }
 
 // ==================================================================

@@ -37,6 +37,18 @@ async function processWeb(sessionId, type, payload) {
         from: { id: sessionId },
         __source: "web",
       });
+    } else if (type === "image") {
+      // Web upload: frontend already read the file as a data URL. Feed it into
+      // the shared flow using the same __imageDataUrl channel WhatsApp uses.
+      const { dataUrl, caption } = payload || {};
+      await handleMessage(vbot, {
+        chat: { id: sessionId },
+        from: { id: sessionId },
+        text: caption || "",
+        caption: caption || "",
+        __imageDataUrl: dataUrl,
+        __source: "web",
+      });
     } else {
       await handleMessage(vbot, {
         chat: { id: sessionId },
@@ -75,14 +87,30 @@ export function startWebServer() {
     }
     if (req.method === "POST" && req.url === "/web/message") {
       let body = "";
-      req.on("data", (c) => (body += c));
+      // Base64-encoded lab-report images can easily exceed the tiny default
+      // limit, so cap generously (~10 MB post-encoding) but reject beyond that.
+      const MAX_BYTES = 10 * 1024 * 1024;
+      let aborted = false;
+      req.on("data", (c) => {
+        body += c;
+        if (body.length > MAX_BYTES) {
+          aborted = true;
+          req.destroy();
+        }
+      });
       req.on("end", async () => {
+        if (aborted) return sendJson(res, 413, { error: "payload too large" });
         try {
-          const { sessionId, type = "text", text = "", data = "" } = JSON.parse(body || "{}");
+          const parsed = JSON.parse(body || "{}");
+          const { sessionId, type = "text", text = "", data = "", dataUrl = "", caption = "" } = parsed;
           if (sessionId === undefined || sessionId === null) {
             return sendJson(res, 400, { error: "sessionId required" });
           }
-          const messages = await processWeb(sessionId, type, type === "callback" ? data : text);
+          let payload;
+          if (type === "callback") payload = data;
+          else if (type === "image") payload = { dataUrl, caption };
+          else payload = text;
+          const messages = await processWeb(sessionId, type, payload);
           return sendJson(res, 200, { messages });
         } catch (e) {
           return sendJson(res, 500, { error: e?.message || "error" });

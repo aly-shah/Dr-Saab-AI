@@ -72,6 +72,7 @@ export default function BotChatPage() {
   const scrollRef = useRef(null);
   const taRef = useRef(null);
   const startedRef = useRef(false);
+  const fileRef = useRef(null);
 
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
@@ -158,8 +159,32 @@ export default function BotChatPage() {
 
   const sendCallback = (btn) => {
     if (loading) return;
+    // Special-case: the "Upload Image" chip on the Explain My Report screen
+    // opens the browser file picker instead of firing the bot callback.
+    if (btn.data === "feat:upload_lab") {
+      fileRef.current?.click();
+      return;
+    }
     setMessages((prev) => [...prev, { from: "user", text: btn.label }]);
     callBot({ type: "callback", data: btn.data });
+  };
+
+  const onFilePicked = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file later
+    if (!file || loading) return;
+    if (!file.type?.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || "");
+      if (!dataUrl) return;
+      const caption = input.trim();
+      setMessages((prev) => [...prev, { from: "user", image: dataUrl, text: caption }]);
+      setInput("");
+      requestAnimationFrame(() => taRef.current && (taRef.current.style.height = "auto"));
+      callBot({ type: "image", dataUrl, caption });
+    };
+    reader.readAsDataURL(file);
   };
 
   const resetChat = () => {
@@ -239,6 +264,18 @@ export default function BotChatPage() {
               const shown = i === reveal.idx ? m.text.slice(0, reveal.n) : m.text;
 
               if (m.from === "user") {
+                if (m.image) {
+                  return (
+                    <div key={i} className="message-in flex justify-end">
+                      <div className="max-w-[75%] overflow-hidden rounded-3xl rounded-br-lg bg-primary p-1 shadow-soft">
+                        <img src={m.image} alt="Uploaded report" className="block max-h-72 w-full rounded-2xl object-cover" />
+                        {m.text ? (
+                          <div className="px-3 py-1.5 text-[15px] leading-relaxed text-white">{m.text}</div>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                }
                 return (
                   <div key={i} className="message-in flex justify-end">
                     <div className="max-w-[85%] whitespace-pre-wrap rounded-3xl rounded-br-lg bg-primary px-4 py-2.5 text-[15px] leading-relaxed text-white shadow-soft">
@@ -299,8 +336,27 @@ export default function BotChatPage() {
         <div className="mx-auto w-full max-w-3xl px-4 py-3 sm:px-6">
           <form
             onSubmit={(e) => { e.preventDefault(); sendText(input); }}
-            className="flex items-end gap-2 rounded-3xl border border-line bg-white p-1.5 pl-4 shadow-soft focus-within:border-primary focus-within:shadow-card"
+            className="flex items-end gap-1 rounded-3xl border border-line bg-white p-1.5 pl-2 shadow-soft focus-within:border-primary focus-within:shadow-card"
           >
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              onChange={onFilePicked}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={loading}
+              aria-label="Attach image"
+              title="Attach report image"
+              className="grid h-10 w-10 flex-none place-items-center rounded-full text-ink/55 transition hover:bg-muted hover:text-primary disabled:opacity-30"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21.4 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 1 1 4.95 4.95l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.49" />
+              </svg>
+            </button>
             <textarea
               ref={taRef}
               rows={1}

@@ -15,7 +15,7 @@ import {
   challengeKeyboard,
   motivationKeyboard,
   understandKeyboard,
-  mainMenuKeyboard,
+  mainMenuKeyboardV2,
 } from "../keyboards.js";
 import { sendWelcomeWithLangPicker } from "../welcome.js";
 import { updateUser } from "../supabase.js";
@@ -416,8 +416,8 @@ async function finish(bot, chatId, session) {
 
   const name = sanitizeMd(updated.name || "");
   await send(bot, chatId, t(lang, "profile_complete_v2", { name }), { markdown: true });
-  await send(bot, chatId, t(lang, "menu_title"), {
-    keyboard: mainMenuKeyboard(lang),
+  await send(bot, chatId, t(lang, "menu_v2_title"), {
+    keyboard: mainMenuKeyboardV2(lang, updated),
     markdown: true,
   });
 }

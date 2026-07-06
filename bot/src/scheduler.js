@@ -10,10 +10,13 @@ import {
   weeklyStats,
   dueReminders,
   markReminderFired,
+  goalsDueForReview,
+  updateGoal,
 } from "./supabase.js";
-import { send } from "./utils.js";
+import { send, sanitizeMd } from "./utils.js";
 import { t } from "./i18n.js";
 import { estHbA1c } from "./clinic.js";
+import { goalReviewKeyboard } from "./keyboards.js";
 
 const TZ_OFFSET = parseInt(process.env.REMINDER_TZ_OFFSET || "5", 10); // PKT default
 const HOUR_REMINDER = parseInt(process.env.HOUR_REMINDER || "8", 10);
@@ -63,6 +66,34 @@ async function fireDueReminders(bots, usersById) {
   }
 }
 
+async function fireGoalReviews(bots, usersById) {
+  let due;
+  try {
+    due = await goalsDueForReview(new Date().toISOString().slice(0, 10));
+  } catch (e) {
+    return console.error("goal reviews query:", e?.message);
+  }
+  if (!due?.length) return;
+  for (const g of due) {
+    const u = usersById.get(g.user_id);
+    if (!u) continue;
+    const bot = botFor(bots, u);
+    if (!bot) continue;
+    const lang = u.language || "en";
+    try {
+      await send(
+        bot,
+        u.telegram_id,
+        t(lang, "goal_review_prompt", { goal: sanitizeMd(g.title || "") }),
+        { keyboard: goalReviewKeyboard(lang, g.id), markdown: true },
+      );
+      await updateGoal(u.id, g.id, { review_sent_at: new Date().toISOString() });
+    } catch (e) {
+      console.error("goal review send:", e?.message);
+    }
+  }
+}
+
 function bumpNextFire(r) {
   const period = (r.frequency_days || 1) * 86400 * 1000;
   const base = r.next_fire_at ? new Date(r.next_fire_at).getTime() : Date.now();
@@ -86,6 +117,12 @@ async function runTick(bots) {
   // logic below — both can run on the same tick.
   const usersById = new Map(users.map((u) => [u.id, u]));
   await fireDueReminders(bots, usersById);
+
+  // Goal target-date reviews (2026-07 spec). Fires once per goal whose
+  // target_date is on or before today. We stamp review_sent_at so a goal
+  // never gets asked twice — the user's answer resets it if they update
+  // the target from the review flow.
+  await fireGoalReviews(bots, usersById);
 
   for (const u of users) {
     const bot = botFor(bots, u);

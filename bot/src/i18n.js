@@ -73,7 +73,15 @@ const STR = {
     fitness_prompt:
       "🏃 *Fitness Coach*. Tell me your day or energy level and I'll suggest safe movement.\n_Tap Back to Menu when done._",
     lab_prompt:
-      "🧪 *Explain Lab Report*. Paste your lab values as text *or send a photo* of the report and I'll explain it simply.\n_Tap Back to Menu when done._",
+      "📋 *Explain My Report*\n\nUpload your blood test or medical report — send a photo, or paste the values as text.\n\nI'll explain your results in simple language, highlight anything important, and tell you what it may mean for your diabetes.\n\n*Supported reports:*\n• Blood tests\n• HbA1c reports\n• Cholesterol / Lipid Profile\n• Kidney function tests\n• Liver function tests\n• Urine tests\n• Hospital laboratory reports\n• Diabetes-related investigations\n_Tap Back to Menu when done._",
+    btn_upload_lab: "📎 Upload Image",
+    upload_lab_hint:
+      "📸 Just attach the report photo and send.\n\n_Tap the attach icon (paperclip) in your chat, pick your report image, and hit send. I'll analyse it and add it to your record._",
+    lab_saved: "✅ Your report has been analyzed and added to your health record.",
+    lab_disclaimer:
+      "_Important: This explanation is for understanding your report only. Please consult your doctor before making any medical decisions or changing your treatment._",
+    lab_limit_reached:
+      "💎 You've used your *{limit}* free report analyses this month.\nUpgrade to *Consistency Coach* for unlimited report analysis and your full report history.",
     thinking: "✍️ Thinking…",
     // progress / summary
     progress_title: "📈 *Your Progress*",
@@ -82,6 +90,16 @@ const STR = {
     no_readings: "No glucose readings yet — log one from the menu!",
     summary_generating: "🗓 Building your weekly summary…",
     no_data_week: "Not enough data this week yet. Log a few readings and check back! 📥",
+    progress_generating: "📈 Building your progress report…",
+    progress_low_data:
+      "📈 *Your Progress*\n\nI don't have enough of your data yet to give you a useful report. Log a few blood-sugar readings, weight entries or a check-in, and talk to me regularly so I can spot trends. Your report gets better every time you use DrSaab.",
+    progress_goals_header: "🎯 *My Goals*",
+    progress_no_goals: "_You haven't set any goals yet. Tap Goals & Progress to add one._",
+    progress_free_upgrade:
+      "🔒 *Unlock Premium* to get:\n• Detailed progress reports\n• Goal tracking\n• Personalised AI recommendations\n• Advanced trend analysis\n• Doctor-ready summaries",
+    progress_upgrade_cta: "⭐ Upgrade Now",
+    progress_paid_intro:
+      "Here's your personalised progress report — combining your goals, blood sugar, weight, activity, medication consistency, wellbeing and lab results.",
     // misc
     profile_title:
       "⚙️ *Your Profile*\n\nName: {name}\nAge: {age}\nGender: {gender}\nCity: {city}\nDiabetes: {diabetes}\nGoals: {goals}\nPlan: *{tier}*\nLanguage: {language}",
@@ -246,13 +264,83 @@ const STR = {
     btn_reports: "📑 Reports",
     btn_executive: "⭐ Executive Services",
 
-    // ---- Goals ----
+    // ---- Goals (2026-07: up to 3 active goals, motivation + target date) ----
     goals_title: "🎯 *My Goals*",
     goals_current: "Your current goal: *{goal}*",
-    goals_none: "You haven't set a goal yet.",
+    goals_none: "You haven't set a goal yet. Tap *Add a goal* to get started.",
+    goals_list_header:
+      "🎯 *My Goals* — {count}/{max} active\n\nTap a goal to view or edit it.",
+    goals_full: "You already have *{max}* active goals. Mark one complete or remove it before adding a new one.",
     goals_prompt: "Send your main health goal in a sentence (e.g. *lower my HbA1c below 7*), or tap Back.",
     goals_saved: "✅ Goal saved: *{goal}*\nI'll keep this in mind while coaching you.",
     btn_set_goal: "✏️ Set / change goal",
+    btn_goal_add: "➕ Add a goal",
+    btn_goal_edit: "✏️ Edit goal",
+    btn_goal_complete: "✅ Mark as completed",
+    btn_goal_delete: "🗑 Remove goal",
+    btn_goal_edit_title: "✏️ Edit goal",
+    btn_goal_edit_motivation: "💭 Edit motivation",
+    btn_goal_edit_target: "📅 Edit target date",
+
+    // Suggested goals (in order per spec)
+    goal_pick_prompt: "Choose one of these goals — or tap *Other* to write your own.",
+    goalsug_lower_a1c: "Lower my HbA1c",
+    goalsug_lose_weight: "Lose weight",
+    goalsug_exercise_more: "Exercise more",
+    goalsug_walk_more: "Walk more",
+    goalsug_improve_blood_sugar: "Improve my blood sugar",
+    goalsug_take_meds: "Take my medication consistently",
+    goalsug_eat_healthy: "Eat healthier",
+    goalsug_improve_cholesterol: "Improve my cholesterol",
+    goalsug_improve_bp: "Improve my blood pressure",
+    goalsug_sleep_better: "Sleep better",
+    goalsug_prepare_surgery: "Prepare for surgery",
+    goalsug_run_5k: "Run a 5K",
+    goalsug_other: "✏️ Other (write my own)",
+
+    goal_custom_prompt:
+      "Write your goal in your own words (one line).\n_Example:_ Lose 5 kg by summer.",
+    goal_motivation_prompt:
+      "*Why is this goal important to you?* (Optional — tap Skip to move on.)\n\n_Examples:_\n• I want to be healthier for my children.\n• I want to feel more confident.\n• My doctor told me I need to improve.",
+    goal_motivation_saved: "💭 Got it. Your motivation is noted.",
+    goal_target_prompt:
+      "*Set a target date?* (Optional — tap Skip if you'd rather not.)\n\nSend a real date (e.g. `31 December 2026`) or a rough one like `In 6 months` or `Before Eid`.",
+    goal_target_saved: "📅 Target date noted.",
+    goal_target_skipped: "No target date — that's fine.",
+    goal_added:
+      "✅ *Goal added*\n\n🎯 {goal}\n\nI'll use this to personalise your coaching and progress reports. Stay consistent — I'm with you.",
+
+    // Detail view
+    goal_detail_title: "🎯 *{goal}*",
+    goal_detail_motivation: "💭 *Why:* {motivation}",
+    goal_detail_target: "📅 *Target:* {target}",
+    goal_detail_no_motivation: "_You haven't shared why this goal matters yet._",
+    goal_detail_no_target: "_No target date set._",
+    goal_completed_ack: "🎉 Goal marked complete. Great work!",
+    goal_deleted_ack: "🗑 Goal removed.",
+
+    // Edit prompts
+    goal_edit_title_prompt: "Send the new wording for this goal (one line).",
+    goal_edit_motivation_prompt:
+      "Send an updated *why* — what makes this goal important to you? (Tap Skip to clear it.)",
+    goal_edit_target_prompt:
+      "Send a new target date (e.g. `31 December 2026`, `In 3 months`, or `Before Ramadan`). Tap Skip to clear it.",
+
+    // Target-date review reminder
+    goal_review_prompt:
+      "📅 Today was your target date for your goal:\n*{goal}*\n\nDid you achieve your goal?",
+    btn_goal_review_yes: "🎉 Yes",
+    btn_goal_review_notyet: "😔 Not Yet",
+    goal_review_yes_prompt: "Congratulations! 🎉 What would you like to do with this goal?",
+    goal_review_notyet_prompt: "That's okay — progress takes time. What would you like to do?",
+    btn_goal_review_new: "🆕 Set a new goal",
+    btn_goal_review_continue: "🔄 Continue this goal",
+    btn_goal_review_remove: "🗑 Remove this goal",
+    btn_goal_review_update_target: "✏️ Update target date",
+    goal_review_continue_ack: "🔄 Keeping this goal active. I'll cheer you on.",
+    goal_review_remove_ack: "🗑 Goal removed. Well done for the effort you put in.",
+    goal_review_update_target_prompt:
+      "What's the new target date? Send a date, or a rough one like `In 6 months`.",
 
     // ---- Scores (4-score system) ----
     scores_title: "📊 *Your Scores* (out of 100)",
@@ -320,7 +408,8 @@ const STR = {
     btn_main_menu: "🏠 Main Menu",
 
     // Profile-based main-menu additions (shown conditionally per user)
-    btn_p_type1: "🩸 Type 1 Diabetes",
+    btn_p_type1: "🤝 Type 1 Community",
+    btn_p_type2: "🩸 Type 2 Diabetes",
     btn_p_prediabetes: "🌱 Prediabetes",
     btn_p_healthier: "🌟 I Want to Live Healthier",
     btn_p_gestational: "🤰 Gestational Diabetes",
@@ -460,7 +549,7 @@ const STR = {
 
     // Ask DrSaab entry
     askdrsaab_prompt:
-      "💬 *Ask DrSaab.* Ask me anything — your diabetes, food, fitness, lab results or just how you're feeling.\n_Tap Back when you're done._",
+      "Hi! I'm *DrSaab*.\nAsk me anything about diabetes, food, exercise, medications or your health.\n\n_Examples:_\n• Is 145 blood sugar okay?\n• Can I eat mango?\n• What should I have for breakfast?\n• I forgot my medication.\n• Can I exercise today?\n• Why is my sugar high in the morning?\n• Explain my HbA1c.\n• Can diabetics fast during Ramadan?\n\n_Tap Back when you're done._",
 
     // Food Help seeded prompts (2026-07 spec copy)
     foodhelp_analyze_prompt:
@@ -548,6 +637,128 @@ const STR = {
     reminder_template_weight: "⚖️ Monthly check-in — send your weight today.",
     reminder_template_lab: "🧪 Time for your next HbA1c. Book a test when you can.",
     reminder_template_activity: "🚶 Time to move — how about a short walk today?",
+
+    // ===== More section v2 (2026-07 spec) =====
+
+    // More menu
+    more_subtitle: "Select one of the options below:",
+    btn_more_subscription_v2: "💳 My Subscription",
+    btn_more_account: "👤 My Account",
+
+    // Reminders (category prefs + existing scheduled list)
+    reminders_prefs_title: "🔔 *Reminders*",
+    reminders_prefs_intro: "Choose which reminders you'd like to receive. Tap a category to turn it on or off.",
+    rem_cat_blood_sugar: "🩸 Blood Sugar",
+    rem_cat_medication: "💊 Medication Check-ins",
+    rem_cat_goals: "🎯 Goal Reminders",
+    rem_cat_coaching: "💬 Coaching Messages",
+    rem_cat_on: "On",
+    rem_cat_off: "Off",
+    rem_pref_row: "{icon} {label} — {state}",
+    rem_pref_updated: "✅ *{label}* is now *{state}*.",
+    reminders_scheduled_header: "*Your scheduled reminders*",
+    reminders_scheduled_none: "_You don't have any scheduled reminders yet._",
+
+    // Subscription
+    sub_title: "💳 *My Subscription*",
+    sub_current_plan: "*Current Plan:* {plan}",
+    sub_features_header: "*Features included:*",
+    sub_renewal: "*Renews:* {date}",
+    sub_no_renewal: "_Free plan — no renewal date._",
+    sub_features_free:
+      "• Daily check-ins & sugar/medication logging\n• Basic Ask DrSaab\n• Learn library\n• A few lab explanations per month",
+    sub_features_consistency:
+      "• Everything in Starter\n• Full Ask DrSaab, unlimited lab explanations\n• My Progress with all four scores\n• Weekly & monthly reports\n• Doctor-friendly report\n• Smart reminders\n• All challenges",
+    sub_features_executive:
+      "• Everything in Consistency Coach\n• Doctor case reviews\n• Live coach sessions\n• 3-monthly executive review\n• Priority help\n• Premium content",
+    btn_sub_upgrade: "⭐ Upgrade Plan",
+    btn_sub_manage: "💳 Manage Subscription",
+    btn_sub_billing: "📄 View Billing History",
+    sub_manage_stub:
+      "Manage Subscription is coming soon. For now, contact support@drsaabcoach.com to change or cancel your plan.",
+    sub_billing_stub:
+      "Billing history is coming soon — we'll email your invoices in the meantime.",
+
+    // My Account
+    account_title: "👤 *My Account*",
+    account_body:
+      "*Name:* {name}\n*Email:* {email}\n*WhatsApp Number:* {whatsapp}\n*Member Since:* {joined}\n*Diabetes Type:* {diabetes}",
+    account_field_empty: "—",
+    btn_account_edit: "✏️ Edit Profile",
+    btn_account_deactivate: "⏸️ Deactivate My Account",
+    btn_account_close: "🗑 Close My Account",
+    edit_profile_stub:
+      "Editing your profile from here is coming soon. In the meantime, tell me what you'd like to change and I'll help you update it.",
+
+    // Deactivate flow
+    deactivate_confirm_title: "⏸️ *Deactivate My Account*",
+    deactivate_confirm_body:
+      "Are you sure you want to deactivate your account?\n\nDrSaab will stop sending you messages and reminders, but your account and health information will be kept safely so you can return at any time.",
+    btn_confirm_deactivate: "✅ Deactivate",
+    btn_cancel: "Cancel",
+    deactivate_done:
+      "⏸️ Your account has been deactivated.\n\nCoaching and reminders will stop. Whenever you're ready, just send any message and I'll bring you back.",
+    reactivated_welcome:
+      "👋 Welcome back, *{name}*! Your account has been reactivated. Your data and settings are just as you left them.",
+
+    // Close flow
+    close_confirm_title: "🗑 *Close My Account*",
+    close_confirm_body:
+      "Are you sure you want to close your DrSaab account?\n\nYou will no longer be able to access your account or use DrSaab.\n\nCertain health records and account information may continue to be securely retained in accordance with our Privacy Policy and applicable legal requirements.",
+    btn_confirm_close: "🗑 Close My Account",
+    close_done:
+      "🗑 Your DrSaab account has been closed. Thank you for the time you spent with us — take care.",
+    account_closed_reply:
+      "This DrSaab account has been closed and can no longer be used. If you'd like to use DrSaab again, please register as a new user.",
+
+    // Type 1 Community — top-level menu for T1 users (spec 2026-07)
+    t1c_menu_title: "🤝 *Type 1 Community*",
+    t1c_menu_intro:
+      "Trusted resources, education and community support for people living with Type 1 diabetes in Pakistan. Pick a section to explore:",
+    t1c_menu_not_t1:
+      "The Type 1 Community section is only available for people living with Type 1 diabetes. You can update your profile if this changes.",
+    btn_t1c_support: "🤝 Support Network",
+    btn_t1c_blogs: "📚 Blogs for You",
+    btn_t1c_videos: "🎥 Videos for You",
+    btn_t1c_dailylife: "🧑‍🏫 Daily Life",
+    btn_t1c_events: "📅 Events Near You",
+    t1c_support_title: "🤝 *Support Network*",
+    t1c_blogs_title: "📚 *Blogs for You*",
+    t1c_videos_title: "🎥 *Videos for You*",
+    t1c_dailylife_title: "🧑‍🏫 *Daily Life*",
+    t1c_events_title: "📅 *Events Near You*",
+    t1c_placeholder_body:
+      "Content coming soon. We're partnering with trusted diabetes organisations across Pakistan to bring you curated support here. Check back soon!",
+    // T1 Community — Daily Life sub-flow
+    t1c_dailylife_intro:
+      "Practical guidance for everyday situations with Type 1 diabetes. Pick a category:",
+    btn_t1c_dl_children: "👨‍👩‍👧 Children & Parents",
+    btn_t1c_dl_teens: "🧑‍🎓 Teenagers & Young Adults",
+    btn_t1c_dl_adults: "🧑‍💼 Adults",
+    t1c_dl_cat_children: "👨‍👩‍👧 *Children & Parents*",
+    t1c_dl_cat_teens: "🧑‍🎓 *Teenagers & Young Adults*",
+    t1c_dl_cat_adults: "🧑‍💼 *Adults*",
+    t1c_dl_pick_topic: "Pick a topic to open its guide:",
+    t1c_dl_topic_missing: "This topic isn't available anymore. Please choose another from the list.",
+    t1c_dl_topic_no_pdf:
+      "*{title}*\n\nThe guide for this topic is being prepared and will be shared here soon.",
+    t1c_dl_topic_open:
+      "*{title}*\n\nHere's the guide: {url}",
+
+    // Type 1 Diabetes — periodic confidence check
+    t1c_prompt: "❤️ *How confident do you feel managing your Type 1 diabetes?*",
+    t1c_btn_very: "😊 Very Confident",
+    t1c_btn_mostly: "🙂 Mostly Confident",
+    t1c_btn_sometimes: "😐 Sometimes Difficult",
+    t1c_btn_help: "😟 I Need More Help",
+    t1c_reply_very:
+      "Wonderful — you're clearly doing a lot right. I'll keep our chats light and celebrate the wins with you. 🌟",
+    t1c_reply_mostly:
+      "Great to hear. I'll keep supporting you where it matters most and share tips as they come up. 💚",
+    t1c_reply_sometimes:
+      "Thanks for being honest. I'll pay closer attention to the parts you find tricky and surface help sooner.",
+    t1c_reply_help:
+      "I hear you — living with Type 1 is hard some days. I'll bring you more guides and community support you can reach out to. You're not alone. ❤️",
   },
 
   ur: {
@@ -610,12 +821,22 @@ const STR = {
     health_none: "کوئی قدر سمجھ نہ آئی۔ کوشش کریں: `weight 78, steps 6000, mood good`",
     coach_prompt:
       "🤖 *اے آئی کوچ* حاضر ہے۔ ذیابیطس، عادات یا حوصلہ افزائی کے بارے میں کچھ بھی پوچھیں۔\n_فارغ ہونے پر مینو پر واپس دبائیں۔_",
+    askdrsaab_prompt:
+      "السلام علیکم! میں *ڈاکٹر صاحب* ہوں۔\nذیابیطس، کھانے، ورزش، دواؤں یا اپنی صحت کے بارے میں کچھ بھی پوچھیں۔\n\n_مثالیں:_\n• کیا 145 بلڈ شوگر ٹھیک ہے؟\n• کیا میں آم کھا سکتا/سکتی ہوں؟\n• ناشتے میں کیا کھاؤں؟\n• میں دوا لینا بھول گیا/گئی۔\n• کیا آج ورزش کر سکتا/سکتی ہوں؟\n• صبح شوگر زیادہ کیوں ہوتی ہے؟\n• میری HbA1c رپورٹ سمجھائیں۔\n• کیا ذیابیطس والے رمضان میں روزہ رکھ سکتے ہیں؟\n\n_فارغ ہونے پر واپس دبائیں۔_",
     food_prompt:
       "🥗 *فوڈ کوچ*۔ اپنا کھانا بتائیں یا *پلیٹ کی تصویر بھیجیں*، میں کاربز کا اندازہ اور بہتر متبادل بتاؤں گا۔\n_مینو پر واپس دبائیں۔_",
     fitness_prompt:
       "🏃 *فٹنس کوچ*۔ اپنا دن یا توانائی بتائیں، میں محفوظ ورزش تجویز کروں گا۔\n_مینو پر واپس دبائیں۔_",
     lab_prompt:
-      "🧪 *لیب رپورٹ سمجھیں*۔ اپنی ویلیوز ٹیکسٹ میں بھیجیں *یا تصویر بھیجیں*، میں آسان الفاظ میں سمجھاؤں گا۔\n_مینو پر واپس دبائیں۔_",
+      "📋 *اپنی رپورٹ سمجھیں*\n\nاپنی خون کی جانچ یا میڈیکل رپورٹ اپلوڈ کریں — تصویر بھیجیں یا ویلیوز ٹیکسٹ میں لکھیں۔\n\nمیں آپ کے نتائج آسان الفاظ میں سمجھاؤں گا، اہم چیزوں پر روشنی ڈالوں گا، اور بتاؤں گا کہ آپ کی ذیابیطس کے لیے اس کا کیا مطلب ہو سکتا ہے۔\n\n*قابل قبول رپورٹس:*\n• خون کے ٹیسٹ\n• HbA1c رپورٹ\n• کولیسٹرول / لپڈ پروفائل\n• گردے کے ٹیسٹ\n• جگر کے ٹیسٹ\n• پیشاب کے ٹیسٹ\n• ہسپتال کی لیبارٹری رپورٹس\n• ذیابیطس سے متعلق تحقیقات\n_مینو پر واپس دبائیں۔_",
+    btn_upload_lab: "📎 تصویر اپلوڈ کریں",
+    upload_lab_hint:
+      "📸 بس رپورٹ کی تصویر منسلک کر کے بھیج دیں۔\n\n_چیٹ میں اٹیچ (پیپر کلپ) کے نشان پر کلک کریں، اپنی رپورٹ کی تصویر منتخب کریں اور بھیج دیں۔ میں تجزیہ کر کے آپ کے ریکارڈ میں محفوظ کر دوں گا۔_",
+    lab_saved: "✅ آپ کی رپورٹ کا تجزیہ ہو گیا اور آپ کے صحت کے ریکارڈ میں محفوظ ہو گئی۔",
+    lab_disclaimer:
+      "_اہم: یہ وضاحت صرف آپ کی رپورٹ سمجھنے کے لیے ہے۔ کوئی بھی طبی فیصلہ کرنے یا علاج تبدیل کرنے سے پہلے اپنے ڈاکٹر سے مشورہ کریں۔_",
+    lab_limit_reached:
+      "💎 آپ اس ماہ *{limit}* مفت رپورٹ تجزیے استعمال کر چکے ہیں۔\nلامحدود رپورٹ تجزیہ اور مکمل رپورٹ ہسٹری کے لیے *Consistency Coach* پر اپ گریڈ کریں۔",
     thinking: "✍️ سوچ رہا ہوں…",
     progress_title: "📈 *آپ کی پیش رفت*",
     progress_body:
@@ -778,15 +999,201 @@ const STR = {
     help_text:
       "🤖 *DrSaab مدد*\n\nآپ مجھ سے بات کر سکتے ہیں یا یہ استعمال کریں:\n• *Menu / Home* — مرکزی مینو\n• *Back* — واپس\n• *Cancel* — موجودہ مرحلہ روکیں\n• *Upgrade* — پلانز دیکھیں\n• *Help* — یہ پیغام\n\nشوگر لاگ کریں (مثلاً `130 fasting`)، سوال پوچھیں، یا مینو منتخب کریں۔",
     goals_title: "🎯 *میرے اہداف*",
-    goals_none: "آپ نے ابھی کوئی ہدف مقرر نہیں کیا۔",
+    goals_none: "آپ نے ابھی کوئی ہدف مقرر نہیں کیا۔ شروع کرنے کے لیے *ہدف شامل کریں* دبائیں۔",
     goals_current: "آپ کا موجودہ ہدف: *{goal}*",
+    goals_list_header: "🎯 *میرے اہداف* — {count}/{max} فعال\n\nدیکھنے یا ترمیم کے لیے کسی ہدف پر دبائیں۔",
+    goals_full: "آپ کے پہلے سے *{max}* فعال اہداف ہیں۔ نیا شامل کرنے سے پہلے کسی کو مکمل یا حذف کریں۔",
     goals_prompt: "اپنا بنیادی صحت کا ہدف ایک جملے میں بھیجیں (مثلاً *HbA1c کو 7 سے کم کرنا*)، یا واپس دبائیں۔",
     goals_saved: "✅ ہدف محفوظ ہو گیا: *{goal}*",
     btn_set_goal: "✏️ ہدف مقرر/تبدیل کریں",
+    btn_goal_add: "➕ ہدف شامل کریں",
+    btn_goal_edit: "✏️ ہدف میں ترمیم",
+    btn_goal_complete: "✅ مکمل بطور نشان زد",
+    btn_goal_delete: "🗑 ہدف حذف کریں",
+    btn_goal_edit_title: "✏️ ہدف کا متن",
+    btn_goal_edit_motivation: "💭 وجہ بدلیں",
+    btn_goal_edit_target: "📅 تاریخ بدلیں",
+
+    goal_pick_prompt: "ان اہداف میں سے ایک منتخب کریں — یا *دیگر* دبا کر اپنا لکھیں۔",
+    goalsug_lower_a1c: "میرا HbA1c کم کرنا",
+    goalsug_lose_weight: "وزن کم کرنا",
+    goalsug_exercise_more: "زیادہ ورزش کرنا",
+    goalsug_walk_more: "زیادہ چہل قدمی",
+    goalsug_improve_blood_sugar: "بلڈ شوگر بہتر بنانا",
+    goalsug_take_meds: "ادویات باقاعدگی سے لینا",
+    goalsug_eat_healthy: "صحت مند کھانا",
+    goalsug_improve_cholesterol: "کولیسٹرول بہتر بنانا",
+    goalsug_improve_bp: "بلڈ پریشر بہتر بنانا",
+    goalsug_sleep_better: "بہتر نیند",
+    goalsug_prepare_surgery: "سرجری کی تیاری",
+    goalsug_run_5k: "5K دوڑنا",
+    goalsug_other: "✏️ دیگر (خود لکھیں)",
+
+    goal_custom_prompt: "اپنا ہدف اپنے الفاظ میں لکھیں (ایک لائن)۔\n_مثال:_ گرمیوں تک 5 کلو وزن کم کرنا۔",
+    goal_motivation_prompt:
+      "*یہ ہدف آپ کے لیے کیوں اہم ہے؟* (اختیاری — چھوڑنے کے لیے Skip دبائیں۔)\n\n_مثالیں:_\n• میں اپنے بچوں کے لیے صحت مند رہنا چاہتا/چاہتی ہوں۔\n• میں زیادہ پُراعتماد محسوس کرنا چاہتا/چاہتی ہوں۔\n• ڈاکٹر نے کہا کہ بہتری لازمی ہے۔",
+    goal_motivation_saved: "💭 نوٹ کر لیا — آپ کی وجہ محفوظ ہے۔",
+    goal_target_prompt:
+      "*ہدف کی تاریخ مقرر کریں؟* (اختیاری — چاہیں تو Skip دبائیں۔)\n\nحقیقی تاریخ (مثلاً `31 دسمبر 2026`) یا تخمینی مدت (`6 ماہ میں`, `عید سے پہلے`) بھیجیں۔",
+    goal_target_saved: "📅 تاریخ نوٹ کر لی۔",
+    goal_target_skipped: "کوئی تاریخ نہیں — کوئی بات نہیں۔",
+    goal_added: "✅ *ہدف شامل ہو گیا*\n\n🎯 {goal}\n\nمیں یہ آپ کی کوچنگ اور پیش رفت رپورٹ میں شامل کروں گا۔",
+
+    goal_detail_title: "🎯 *{goal}*",
+    goal_detail_motivation: "💭 *وجہ:* {motivation}",
+    goal_detail_target: "📅 *ہدف تاریخ:* {target}",
+    goal_detail_no_motivation: "_ابھی وجہ درج نہیں۔_",
+    goal_detail_no_target: "_کوئی ہدف تاریخ نہیں۔_",
+    goal_completed_ack: "🎉 ہدف مکمل بطور نشان زد ہو گیا۔ شاباش!",
+    goal_deleted_ack: "🗑 ہدف حذف ہو گیا۔",
+
+    goal_edit_title_prompt: "اس ہدف کا نیا متن (ایک لائن) بھیجیں۔",
+    goal_edit_motivation_prompt: "نئی وجہ بھیجیں — یہ ہدف آپ کے لیے کیوں اہم ہے؟ (Skip دبائیں تو خالی ہو جائے گا۔)",
+    goal_edit_target_prompt:
+      "نئی ہدف تاریخ بھیجیں (مثلاً `31 دسمبر 2026`, `3 ماہ میں`, `رمضان سے پہلے`)۔ Skip دبائیں تو خالی۔",
+
+    goal_review_prompt: "📅 آج آپ کے ہدف کی مقررہ تاریخ ہے:\n*{goal}*\n\nکیا آپ نے ہدف حاصل کر لیا؟",
+    btn_goal_review_yes: "🎉 جی ہاں",
+    btn_goal_review_notyet: "😔 ابھی نہیں",
+    goal_review_yes_prompt: "مبارک ہو! 🎉 اب اس ہدف کے ساتھ کیا کرنا چاہیں گے؟",
+    goal_review_notyet_prompt: "کوئی بات نہیں — ترقی میں وقت لگتا ہے۔ اب کیا کرنا چاہیں گے؟",
+    btn_goal_review_new: "🆕 نیا ہدف مقرر کریں",
+    btn_goal_review_continue: "🔄 یہ ہدف جاری رکھیں",
+    btn_goal_review_remove: "🗑 یہ ہدف حذف کریں",
+    btn_goal_review_update_target: "✏️ تاریخ اپڈیٹ کریں",
+    goal_review_continue_ack: "🔄 ہدف فعال ہے۔ میں آپ کا ساتھ دوں گا۔",
+    goal_review_remove_ack: "🗑 ہدف حذف ہو گیا۔ کوشش پر شاباش۔",
+    goal_review_update_target_prompt:
+      "نئی ہدف تاریخ کیا ہے؟ کوئی تاریخ یا تخمینہ (مثلاً `6 ماہ میں`) بھیجیں۔",
+
+    progress_generating: "📈 آپ کی پیش رفت رپورٹ تیار ہو رہی ہے…",
+    progress_low_data:
+      "📈 *آپ کی پیش رفت*\n\nمفید رپورٹ کے لیے ابھی کافی معلومات نہیں۔ چند بلڈ شوگر ریڈنگز، وزن، یا چیک اِن لاگ کریں، اور DrSaab سے باقاعدہ بات کریں۔ جتنا آپ استعمال کریں گے، رپورٹ اتنی ہی بہتر ہو گی۔",
+    progress_goals_header: "🎯 *میرے اہداف*",
+    progress_no_goals: "_ابھی کوئی ہدف نہیں — Goals & Progress سے شامل کریں۔_",
+    progress_free_upgrade:
+      "🔒 *پریمیم* حاصل کریں:\n• تفصیلی پیش رفت رپورٹس\n• ہدف ٹریکنگ\n• ذاتی اے آئی سفارشات\n• جدید رجحان تجزیہ\n• ڈاکٹر کے لیے تیار خلاصے",
+    progress_upgrade_cta: "⭐ ابھی اپ گریڈ کریں",
+    progress_paid_intro:
+      "یہ آپ کی ذاتی پیش رفت رپورٹ ہے — آپ کے اہداف، بلڈ شوگر، وزن، سرگرمی، ادویات، تندرستی اور لیب نتائج کے حساب سے۔",
     scores_title: "📊 *آپ کے اسکور* (100 میں سے)",
     reports_title: "📑 *رپورٹس*",
     challenges_title: "🏆 *چیلنجز*",
     exec_title: "⭐ *ایگزیکٹو سروسز*",
+
+    // ===== More section v2 (2026-07 spec) =====
+    more_subtitle: "براہِ کرم درج ذیل میں سے ایک منتخب کریں:",
+    btn_more_subscription_v2: "💳 میری سبسکرپشن",
+    btn_more_account: "👤 میرا اکاؤنٹ",
+
+    reminders_prefs_title: "🔔 *یاد دہانیاں*",
+    reminders_prefs_intro:
+      "منتخب کریں کہ آپ کون سی یاد دہانیاں وصول کرنا چاہتے ہیں۔ آن یا آف کرنے کے لیے کسی زمرے پر دبائیں۔",
+    rem_cat_blood_sugar: "🩸 بلڈ شوگر",
+    rem_cat_medication: "💊 ادویات چیک اِن",
+    rem_cat_goals: "🎯 اہداف کی یاد دہانی",
+    rem_cat_coaching: "💬 کوچنگ پیغامات",
+    rem_cat_on: "آن",
+    rem_cat_off: "آف",
+    rem_pref_row: "{icon} {label} — {state}",
+    rem_pref_updated: "✅ *{label}* اب *{state}* ہے۔",
+    reminders_scheduled_header: "*آپ کی مقرر شدہ یاد دہانیاں*",
+    reminders_scheduled_none: "_ابھی کوئی مقرر شدہ یاد دہانی نہیں ہے۔_",
+
+    sub_title: "💳 *میری سبسکرپشن*",
+    sub_current_plan: "*موجودہ پلان:* {plan}",
+    sub_features_header: "*شامل خصوصیات:*",
+    sub_renewal: "*تجدید:* {date}",
+    sub_no_renewal: "_مفت پلان — کوئی تجدید کی تاریخ نہیں۔_",
+    sub_features_free:
+      "• روزانہ چیک اِن اور شوگر/ادویات لاگ\n• بنیادی Ask DrSaab\n• Learn لائبریری\n• ماہانہ چند لیب رپورٹ وضاحتیں",
+    sub_features_consistency:
+      "• Starter کی سب سہولیات\n• مکمل Ask DrSaab، لامحدود لیب وضاحتیں\n• My Progress کے چاروں اسکور\n• ہفتہ وار و ماہانہ رپورٹس\n• ڈاکٹر کے لیے تیار رپورٹ\n• سمارٹ یاد دہانیاں\n• تمام چیلنجز",
+    sub_features_executive:
+      "• Consistency Coach کی سب سہولیات\n• ڈاکٹر کیس ریویو\n• لائیو کوچ سیشنز\n• 3 ماہی ایگزیکٹو ریویو\n• ترجیحی مدد\n• پریمیم مواد",
+    btn_sub_upgrade: "⭐ پلان اپ گریڈ کریں",
+    btn_sub_manage: "💳 سبسکرپشن منظم کریں",
+    btn_sub_billing: "📄 بلنگ ہسٹری دیکھیں",
+    sub_manage_stub:
+      "سبسکرپشن مینجمنٹ جلد آ رہا ہے۔ ابھی کے لیے پلان تبدیل یا منسوخ کرنے کے لیے support@drsaabcoach.com پر رابطہ کریں۔",
+    sub_billing_stub: "بلنگ ہسٹری جلد آ رہی ہے — تب تک ہم آپ کو انوائسز ای میل کرتے رہیں گے۔",
+
+    account_title: "👤 *میرا اکاؤنٹ*",
+    account_body:
+      "*نام:* {name}\n*ای میل:* {email}\n*واٹس ایپ نمبر:* {whatsapp}\n*ممبر شپ کی تاریخ:* {joined}\n*ذیابیطس کی قسم:* {diabetes}",
+    account_field_empty: "—",
+    btn_account_edit: "✏️ پروفائل ترمیم کریں",
+    btn_account_deactivate: "⏸️ اکاؤنٹ عارضی طور پر بند کریں",
+    btn_account_close: "🗑 اکاؤنٹ مکمل بند کریں",
+    edit_profile_stub:
+      "براہِ راست ترمیم جلد آ رہی ہے۔ ابھی کے لیے مجھے بتائیں کہ آپ کیا تبدیل کرنا چاہتے ہیں اور میں اپڈیٹ کرنے میں مدد کروں گا۔",
+
+    deactivate_confirm_title: "⏸️ *اکاؤنٹ عارضی بند*",
+    deactivate_confirm_body:
+      "کیا آپ واقعی اپنا اکاؤنٹ عارضی طور پر بند کرنا چاہتے ہیں؟\n\nڈاکٹر صاحب پیغامات اور یاد دہانیاں بھیجنا بند کر دے گا، لیکن آپ کا اکاؤنٹ اور صحت کی معلومات محفوظ رہیں گی تاکہ آپ کسی بھی وقت واپس آ سکیں۔",
+    btn_confirm_deactivate: "✅ عارضی بند کریں",
+    btn_cancel: "منسوخ",
+    deactivate_done:
+      "⏸️ آپ کا اکاؤنٹ عارضی طور پر بند کر دیا گیا ہے۔\n\nکوچنگ اور یاد دہانیاں رک جائیں گی۔ جب چاہیں کوئی بھی پیغام بھیج دیں، میں دوبارہ فعال کر دوں گا۔",
+    reactivated_welcome:
+      "👋 واپسی مبارک، *{name}*! آپ کا اکاؤنٹ دوبارہ فعال ہو گیا ہے۔ آپ کا ڈیٹا اور سیٹنگز ویسے ہی محفوظ ہیں جیسے آپ چھوڑ کر گئے تھے۔",
+
+    close_confirm_title: "🗑 *اکاؤنٹ مکمل بند*",
+    close_confirm_body:
+      "کیا آپ واقعی اپنا ڈاکٹر صاحب اکاؤنٹ مکمل بند کرنا چاہتے ہیں؟\n\nاس کے بعد آپ اپنے اکاؤنٹ تک رسائی حاصل نہیں کر سکیں گے۔\n\nکچھ صحت کے ریکارڈ اور اکاؤنٹ کی معلومات ہماری پرائیویسی پالیسی اور قانونی تقاضوں کے تحت محفوظ رکھی جا سکتی ہیں۔",
+    btn_confirm_close: "🗑 اکاؤنٹ بند کریں",
+    close_done:
+      "🗑 آپ کا ڈاکٹر صاحب اکاؤنٹ بند کر دیا گیا ہے۔ آپ کے ہمارے ساتھ گزارے گئے وقت کا شکریہ — اپنا خیال رکھیے گا۔",
+    account_closed_reply:
+      "یہ ڈاکٹر صاحب اکاؤنٹ بند کر دیا گیا ہے اور اب استعمال نہیں ہو سکتا۔ اگر آپ ڈاکٹر صاحب دوبارہ استعمال کرنا چاہتے ہیں تو نئے صارف کے طور پر رجسٹر کریں۔",
+
+    // ٹائپ 1 کمیونٹی — T1 صارفین کے لیے اعلیٰ سطح کا مینو
+    t1c_menu_title: "🤝 *ٹائپ 1 کمیونٹی*",
+    t1c_menu_intro:
+      "پاکستان میں ٹائپ 1 ذیابیطس کے ساتھ رہنے والوں کے لیے قابلِ اعتماد وسائل، تعلیم اور کمیونٹی سپورٹ۔ ایک سیکشن منتخب کریں:",
+    t1c_menu_not_t1:
+      "ٹائپ 1 کمیونٹی سیکشن صرف ٹائپ 1 ذیابیطس والے صارفین کے لیے دستیاب ہے۔ اگر آپ کی حالت بدلی ہو تو اپنی پروفائل اپڈیٹ کریں۔",
+    btn_t1c_support: "🤝 سپورٹ نیٹ ورک",
+    btn_t1c_blogs: "📚 آپ کے لیے بلاگز",
+    btn_t1c_videos: "🎥 آپ کے لیے ویڈیوز",
+    btn_t1c_dailylife: "🧑‍🏫 روزمرہ زندگی",
+    btn_t1c_events: "📅 قریبی تقریبات",
+    t1c_support_title: "🤝 *سپورٹ نیٹ ورک*",
+    t1c_blogs_title: "📚 *آپ کے لیے بلاگز*",
+    t1c_videos_title: "🎥 *آپ کے لیے ویڈیوز*",
+    t1c_dailylife_title: "🧑‍🏫 *روزمرہ زندگی*",
+    t1c_events_title: "📅 *قریبی تقریبات*",
+    t1c_placeholder_body:
+      "مواد جلد آ رہا ہے۔ ہم پاکستان بھر کی معتبر ذیابیطس تنظیموں کے ساتھ مل کر آپ کے لیے منتخب سپورٹ لا رہے ہیں۔ جلد دوبارہ چیک کریں!",
+    t1c_dailylife_intro:
+      "ٹائپ 1 ذیابیطس کے ساتھ روزمرہ کے حالات کے لیے عملی رہنمائی۔ ایک زمرہ منتخب کریں:",
+    btn_t1c_dl_children: "👨‍👩‍👧 بچے اور والدین",
+    btn_t1c_dl_teens: "🧑‍🎓 نوجوان",
+    btn_t1c_dl_adults: "🧑‍💼 بالغ",
+    t1c_dl_cat_children: "👨‍👩‍👧 *بچے اور والدین*",
+    t1c_dl_cat_teens: "🧑‍🎓 *نوجوان*",
+    t1c_dl_cat_adults: "🧑‍💼 *بالغ*",
+    t1c_dl_pick_topic: "گائیڈ کھولنے کے لیے موضوع منتخب کریں:",
+    t1c_dl_topic_missing: "یہ موضوع اب دستیاب نہیں۔ فہرست سے کوئی اور منتخب کریں۔",
+    t1c_dl_topic_no_pdf:
+      "*{title}*\n\nاس موضوع کی گائیڈ تیار ہو رہی ہے اور جلد یہاں شیئر کر دی جائے گی۔",
+    t1c_dl_topic_open:
+      "*{title}*\n\nیہ رہی گائیڈ: {url}",
+
+    // ٹائپ 1 ذیابیطس — وقتی خود اعتمادی چیک
+    t1c_prompt: "❤️ *آپ ٹائپ 1 ذیابیطس کو سنبھالنے میں کتنے پُراعتماد محسوس کرتے ہیں؟*",
+    t1c_btn_very: "😊 بہت پُراعتماد",
+    t1c_btn_mostly: "🙂 زیادہ تر پُراعتماد",
+    t1c_btn_sometimes: "😐 کبھی کبھی مشکل",
+    t1c_btn_help: "😟 مجھے مزید مدد چاہیے",
+    t1c_reply_very:
+      "بہت خوب — آپ واقعی اچھا کر رہے ہیں۔ میں ہماری گفتگو ہلکی رکھوں گا اور آپ کی کامیابیاں مناتا رہوں گا۔ 🌟",
+    t1c_reply_mostly:
+      "یہ سن کر خوشی ہوئی۔ جہاں سب سے زیادہ ضرورت ہو، میں وہاں آپ کا ساتھ دیتا رہوں گا۔ 💚",
+    t1c_reply_sometimes:
+      "بتانے کا شکریہ۔ جو حصے آپ کو مشکل لگتے ہیں، میں ان پر زیادہ توجہ دوں گا اور جلد مدد پیش کروں گا۔",
+    t1c_reply_help:
+      "میں سمجھ سکتا ہوں — کچھ دن ٹائپ 1 کے ساتھ گزارنا مشکل ہوتا ہے۔ میں آپ کے لیے مزید رہنمائی اور کمیونٹی سپورٹ لاؤں گا۔ آپ اکیلے نہیں ہیں۔ ❤️",
   },
 
   roman_ur: {
@@ -849,12 +1256,22 @@ const STR = {
     health_none: "Koi value samajh nahi aayi. Koshish karein: `weight 78, steps 6000, mood good`",
     coach_prompt:
       "🤖 *AI Coach* hazir hai. Diabetes, aadaat ya himmat ke baare mein kuch bhi poochein.\n_Farigh ho kar Menu par wapas dabayein._",
+    askdrsaab_prompt:
+      "Hi! Main *DrSaab* hoon.\nDiabetes, khaana, exercise, dawaon ya apni sehat ke baare mein kuch bhi poochein.\n\n_Misaalein:_\n• Kya 145 blood sugar theek hai?\n• Kya main mango kha sakta/sakti hoon?\n• Nashte mein kya loon?\n• Main dawa lena bhool gaya/gayi.\n• Kya aaj exercise kar sakta/sakti hoon?\n• Subah sugar zyada kyun hoti hai?\n• Meri HbA1c samjhayein.\n• Kya diabetes wale Ramadan mein roza rakh sakte hain?\n\n_Farigh ho kar Back dabayein._",
     food_prompt:
       "🥗 *Food Coach*. Apna khana batayein ya *plate ki tasveer bhejein*, main carbs ka andaza aur behtar option bataonga.\n_Menu par wapas dabayein._",
     fitness_prompt:
       "🏃 *Fitness Coach*. Apna din ya energy batayein, main mehfooz exercise tajweez karoonga.\n_Menu par wapas dabayein._",
     lab_prompt:
-      "🧪 *Lab Report Samjhein*. Apni values text mein bhejein *ya tasveer bhejein*, main asaan alfaaz mein samjhaonga.\n_Menu par wapas dabayein._",
+      "📋 *Apni Report Samjhein*\n\nApni khoon ki jaanch ya medical report upload karein — tasveer bhejein ya values text mein likhein.\n\nMain aap ke natayij asaan alfaaz mein samjhaonga, ahem cheezon par roshni daaloonga, aur bataonga ke aap ki diabetes ke liye is ka kya matlab ho sakta hai.\n\n*Qabil qabool reports:*\n• Blood tests\n• HbA1c reports\n• Cholesterol / Lipid Profile\n• Gurdon ke tests\n• Jigar ke tests\n• Peshab ke tests\n• Hospital laboratory reports\n• Diabetes se mutalliq tehqeeqat\n_Menu par wapas dabayein._",
+    btn_upload_lab: "📎 Tasveer Upload Karein",
+    upload_lab_hint:
+      "📸 Bas report ki tasveer attach kar ke bhej dein.\n\n_Chat mein attach (paper-clip) icon dabayein, apni report ki tasveer chunein aur bhej dein. Main tajziya kar ke aap ke record mein mehfooz kar doonga._",
+    lab_saved: "✅ Aap ki report ka tajziya ho gaya aur aap ke health record mein mehfooz ho gayi.",
+    lab_disclaimer:
+      "_Ahem: Yeh wazahat sirf aap ki report samajhne ke liye hai. Koi bhi tibbi faisla karne ya ilaaj tabdeel karne se pehle apne doctor se mashwara karein._",
+    lab_limit_reached:
+      "💎 Aap is mahine *{limit}* muft report tajziye istemal kar chuke hain.\nLamehdood report tajziya aur mukammal report history ke liye *Consistency Coach* par upgrade karein.",
     thinking: "✍️ Soch raha hoon…",
     progress_title: "📈 *Aap ki Pesh-raft*",
     progress_body:
@@ -1017,15 +1434,201 @@ const STR = {
     help_text:
       "🤖 *DrSaab Help*\n\nAap mujh se baat kar saktay hain ya yeh use karein:\n• *Menu / Home* — main menu\n• *Back* — wapas\n• *Cancel* — mojooda step roken\n• *Upgrade* — plans dekhein\n• *Help* — yeh message\n\nSugar log karein (e.g. `130 fasting`), sawal poochein, ya menu select karein.",
     goals_title: "🎯 *Mere Goals*",
-    goals_none: "Aap ne abhi koi goal set nahi kiya.",
+    goals_none: "Aap ne abhi koi goal set nahi kiya. Shuru karne ke liye *Goal shamil karein* dabayein.",
     goals_current: "Aap ka mojooda goal: *{goal}*",
+    goals_list_header: "🎯 *Mere Goals* — {count}/{max} active\n\nKisi goal ko dekhne ya edit karne ke liye us par tap karein.",
+    goals_full: "Aap ke pehle se *{max}* active goals hain. Naya add karne se pehle kisi ko complete ya remove karein.",
     goals_prompt: "Apna main health goal ek jumlay mein bhejein (e.g. *HbA1c 7 se kam karna*), ya Back dabayein.",
     goals_saved: "✅ Goal save ho gaya: *{goal}*",
     btn_set_goal: "✏️ Goal set/change karein",
+    btn_goal_add: "➕ Goal shamil karein",
+    btn_goal_edit: "✏️ Goal edit karein",
+    btn_goal_complete: "✅ Complete mark karein",
+    btn_goal_delete: "🗑 Goal remove karein",
+    btn_goal_edit_title: "✏️ Goal ka matn",
+    btn_goal_edit_motivation: "💭 Wajah badlein",
+    btn_goal_edit_target: "📅 Target date badlein",
+
+    goal_pick_prompt: "In goals mein se ek chunein — ya *Other* dabayein aur khud likhein.",
+    goalsug_lower_a1c: "Mera HbA1c kam karna",
+    goalsug_lose_weight: "Wazan kam karna",
+    goalsug_exercise_more: "Zyada exercise karna",
+    goalsug_walk_more: "Zyada walk karna",
+    goalsug_improve_blood_sugar: "Blood sugar behtar karna",
+    goalsug_take_meds: "Dawaiyaan mustaqil lena",
+    goalsug_eat_healthy: "Sehatmand khana",
+    goalsug_improve_cholesterol: "Cholesterol behtar karna",
+    goalsug_improve_bp: "Blood pressure behtar karna",
+    goalsug_sleep_better: "Behtar neend",
+    goalsug_prepare_surgery: "Surgery ki tayyari",
+    goalsug_run_5k: "5K run karna",
+    goalsug_other: "✏️ Other (khud likhein)",
+
+    goal_custom_prompt: "Apna goal apne alfaaz mein likhein (ek line).\n_Misaal:_ Garmi tak 5 kg wazan kam karna.",
+    goal_motivation_prompt:
+      "*Yeh goal aap ke liye kyun ahem hai?* (Ikhtiyari — chhorne ke liye Skip dabayein.)\n\n_Misaalein:_\n• Main apne bachon ke liye sehatmand rehna chahta hoon.\n• Main zyada confident feel karna chahta hoon.\n• Doctor ne kaha hai ke behtari zaroori hai.",
+    goal_motivation_saved: "💭 Note kar liya — aap ki wajah save ho gayi.",
+    goal_target_prompt:
+      "*Target date set karein?* (Ikhtiyari — chahein to Skip dabayein.)\n\nAsli tareekh (e.g. `31 December 2026`) ya andaza (`6 months mein`, `Eid se pehle`) bhejein.",
+    goal_target_saved: "📅 Target date note ho gayi.",
+    goal_target_skipped: "Koi target date nahi — theek hai.",
+    goal_added: "✅ *Goal add ho gaya*\n\n🎯 {goal}\n\nMain isay aap ki coaching aur progress reports mein use karoonga.",
+
+    goal_detail_title: "🎯 *{goal}*",
+    goal_detail_motivation: "💭 *Wajah:* {motivation}",
+    goal_detail_target: "📅 *Target:* {target}",
+    goal_detail_no_motivation: "_Aap ne abhi wajah share nahi ki._",
+    goal_detail_no_target: "_Koi target date nahi._",
+    goal_completed_ack: "🎉 Goal complete mark ho gaya. Shabaash!",
+    goal_deleted_ack: "🗑 Goal remove ho gaya.",
+
+    goal_edit_title_prompt: "Is goal ka naya matn (ek line) bhejein.",
+    goal_edit_motivation_prompt: "Nayi wajah bhejein — yeh goal aap ke liye kyun ahem hai? (Skip dabayein to clear ho jayegi.)",
+    goal_edit_target_prompt:
+      "Nayi target date bhejein (e.g. `31 December 2026`, `3 months mein`, `Ramadan se pehle`). Skip dabayein to clear.",
+
+    goal_review_prompt: "📅 Aaj aap ke goal ki target date thi:\n*{goal}*\n\nKya aap ne goal hasil kar liya?",
+    btn_goal_review_yes: "🎉 Ji haan",
+    btn_goal_review_notyet: "😔 Abhi nahi",
+    goal_review_yes_prompt: "Mubarak ho! 🎉 Ab is goal ke saath kya karna chahenge?",
+    goal_review_notyet_prompt: "Koi baat nahi — taraqqi mein waqt lagta hai. Ab kya karna chahenge?",
+    btn_goal_review_new: "🆕 Naya goal set karein",
+    btn_goal_review_continue: "🔄 Yehi goal jari rakhein",
+    btn_goal_review_remove: "🗑 Goal remove karein",
+    btn_goal_review_update_target: "✏️ Target date update karein",
+    goal_review_continue_ack: "🔄 Goal active hai. Main aap ka saath doonga.",
+    goal_review_remove_ack: "🗑 Goal remove ho gaya. Koshish par shabaash.",
+    goal_review_update_target_prompt:
+      "Nayi target date kya hai? Tareekh ya andaza (jaise `6 months mein`) bhejein.",
+
+    progress_generating: "📈 Aap ki progress report ban rahi hai…",
+    progress_low_data:
+      "📈 *Aap ki Pesh-raft*\n\nMufeed report ke liye abhi kaafi data nahi. Kuch blood sugar readings, wazan, ya check-in log karein aur DrSaab se regular baat karein. Jitna aap use karenge, report utni behtar hoti jayegi.",
+    progress_goals_header: "🎯 *Mere Goals*",
+    progress_no_goals: "_Abhi koi goal nahi — Goals & Progress se add karein._",
+    progress_free_upgrade:
+      "🔒 *Premium* unlock karein:\n• Tafseeli progress reports\n• Goal tracking\n• Personalized AI recommendations\n• Advanced trend analysis\n• Doctor-ready summaries",
+    progress_upgrade_cta: "⭐ Abhi Upgrade karein",
+    progress_paid_intro:
+      "Yeh aap ki personalised progress report hai — aap ke goals, blood sugar, wazan, activity, medication consistency, wellbeing aur lab results ke hisaab se.",
     scores_title: "📊 *Aap ke Scores* (100 mein se)",
     reports_title: "📑 *Reports*",
     challenges_title: "🏆 *Challenges*",
     exec_title: "⭐ *Executive Services*",
+
+    // ===== More section v2 (2026-07 spec) =====
+    more_subtitle: "Neechay diye options mein se ek chunein:",
+    btn_more_subscription_v2: "💳 Meri Subscription",
+    btn_more_account: "👤 Mera Account",
+
+    reminders_prefs_title: "🔔 *Reminders*",
+    reminders_prefs_intro:
+      "Chunein ke aap kaun se reminders chahte hain. On ya off karne ke liye category par tap karein.",
+    rem_cat_blood_sugar: "🩸 Blood Sugar",
+    rem_cat_medication: "💊 Medication Check-ins",
+    rem_cat_goals: "🎯 Goal Reminders",
+    rem_cat_coaching: "💬 Coaching Messages",
+    rem_cat_on: "On",
+    rem_cat_off: "Off",
+    rem_pref_row: "{icon} {label} — {state}",
+    rem_pref_updated: "✅ *{label}* ab *{state}* hai.",
+    reminders_scheduled_header: "*Aap ke scheduled reminders*",
+    reminders_scheduled_none: "_Abhi koi scheduled reminder nahi hai._",
+
+    sub_title: "💳 *Meri Subscription*",
+    sub_current_plan: "*Mojooda Plan:* {plan}",
+    sub_features_header: "*Shamil features:*",
+    sub_renewal: "*Renew:* {date}",
+    sub_no_renewal: "_Free plan — koi renewal date nahi._",
+    sub_features_free:
+      "• Rozana check-ins aur sugar/medication logging\n• Basic Ask DrSaab\n• Learn library\n• Har mahine kuch lab report explanations",
+    sub_features_consistency:
+      "• Starter ke sab features\n• Full Ask DrSaab, unlimited lab explanations\n• My Progress mein charon scores\n• Weekly aur monthly reports\n• Doctor ke liye tayyar report\n• Smart reminders\n• Saare challenges",
+    sub_features_executive:
+      "• Consistency Coach ke sab features\n• Doctor case reviews\n• Live coach sessions\n• 3 mahine ka executive review\n• Priority help\n• Premium content",
+    btn_sub_upgrade: "⭐ Plan Upgrade karein",
+    btn_sub_manage: "💳 Subscription manage karein",
+    btn_sub_billing: "📄 Billing history dekhein",
+    sub_manage_stub:
+      "Subscription management jald aa raha hai. Abhi ke liye plan tabdeel ya cancel karne ke liye support@drsaabcoach.com par rabta karein.",
+    sub_billing_stub: "Billing history jald aa rahi hai — tab tak hum aap ko invoices email karte rahenge.",
+
+    account_title: "👤 *Mera Account*",
+    account_body:
+      "*Naam:* {name}\n*Email:* {email}\n*WhatsApp Number:* {whatsapp}\n*Member Since:* {joined}\n*Diabetes Type:* {diabetes}",
+    account_field_empty: "—",
+    btn_account_edit: "✏️ Profile Edit karein",
+    btn_account_deactivate: "⏸️ Account Deactivate karein",
+    btn_account_close: "🗑 Account Close karein",
+    edit_profile_stub:
+      "Yahan se direct edit jald aa raha hai. Abhi ke liye mujhe bata dein ke aap kya tabdeel karna chahte hain, main update karne mein madad karoonga.",
+
+    deactivate_confirm_title: "⏸️ *Account Deactivate*",
+    deactivate_confirm_body:
+      "Kya aap waqai apna account deactivate karna chahte hain?\n\nDrSaab messages aur reminders bhejna band kar dega, lekin aap ka account aur health information mehfooz rahegi taake aap jab chahen wapas aa sakein.",
+    btn_confirm_deactivate: "✅ Deactivate",
+    btn_cancel: "Cancel",
+    deactivate_done:
+      "⏸️ Aap ka account deactivate ho gaya hai.\n\nCoaching aur reminders ruk jayenge. Jab tayyar hon, koi bhi message bhej dein — main dobara activate kar doonga.",
+    reactivated_welcome:
+      "👋 Wapsi mubarak, *{name}*! Aap ka account dobara active ho gaya hai. Aap ka data aur settings waisay hi mehfooz hain jaise aap chhor kar gaye the.",
+
+    close_confirm_title: "🗑 *Account Close*",
+    close_confirm_body:
+      "Kya aap waqai apna DrSaab account close karna chahte hain?\n\nIs ke baad aap apne account tak rasai nahi kar sakenge aur DrSaab use nahi kar sakenge.\n\nKuch health records aur account information humari Privacy Policy aur qanooni taqazon ke tehat mehfooz rakhi ja sakti hai.",
+    btn_confirm_close: "🗑 Account Close karein",
+    close_done:
+      "🗑 Aap ka DrSaab account close ho gaya hai. Humaray saath guzaray gaye waqt ka shukriya — apna khayaal rakhein.",
+    account_closed_reply:
+      "Yeh DrSaab account close ho chuka hai aur ab use nahi ho sakta. Agar aap DrSaab dobara use karna chahte hain to naye user ke tor par register karein.",
+
+    // Type 1 Community — top-level menu for T1 users
+    t1c_menu_title: "🤝 *Type 1 Community*",
+    t1c_menu_intro:
+      "Pakistan mein Type 1 diabetes ke saath rehne walon ke liye trusted resources, education aur community support. Ek section chunein:",
+    t1c_menu_not_t1:
+      "Type 1 Community section sirf Type 1 diabetes wale users ke liye available hai. Agar aap ki halat badli ho to profile update karein.",
+    btn_t1c_support: "🤝 Support Network",
+    btn_t1c_blogs: "📚 Aap ke liye Blogs",
+    btn_t1c_videos: "🎥 Aap ke liye Videos",
+    btn_t1c_dailylife: "🧑‍🏫 Rozmarra Zindagi",
+    btn_t1c_events: "📅 Qareeb ki Events",
+    t1c_support_title: "🤝 *Support Network*",
+    t1c_blogs_title: "📚 *Aap ke liye Blogs*",
+    t1c_videos_title: "🎥 *Aap ke liye Videos*",
+    t1c_dailylife_title: "🧑‍🏫 *Rozmarra Zindagi*",
+    t1c_events_title: "📅 *Qareeb ki Events*",
+    t1c_placeholder_body:
+      "Content jald aa raha hai. Hum Pakistan bhar ki mo'tabar diabetes organizations ke saath mil kar aap ke liye curated support la rahe hain. Jald wapas check karein!",
+    t1c_dailylife_intro:
+      "Type 1 diabetes ke saath rozmarra ki situations ke liye practical guidance. Ek category chunein:",
+    btn_t1c_dl_children: "👨‍👩‍👧 Bachay aur Walidain",
+    btn_t1c_dl_teens: "🧑‍🎓 Nau-Jawan",
+    btn_t1c_dl_adults: "🧑‍💼 Baligh",
+    t1c_dl_cat_children: "👨‍👩‍👧 *Bachay aur Walidain*",
+    t1c_dl_cat_teens: "🧑‍🎓 *Nau-Jawan*",
+    t1c_dl_cat_adults: "🧑‍💼 *Baligh*",
+    t1c_dl_pick_topic: "Guide kholnay ke liye topic chunein:",
+    t1c_dl_topic_missing: "Yeh topic ab available nahi. List se koi aur chunein.",
+    t1c_dl_topic_no_pdf:
+      "*{title}*\n\nIs topic ka guide tayyar ho raha hai aur jald yahan share kiya jayega.",
+    t1c_dl_topic_open:
+      "*{title}*\n\nYeh raha guide: {url}",
+
+    // Type 1 Diabetes — periodic confidence check
+    t1c_prompt: "❤️ *Aap apni Type 1 diabetes sambhalne mein kitna confident feel karte hain?*",
+    t1c_btn_very: "😊 Bohot Confident",
+    t1c_btn_mostly: "🙂 Zyada tar Confident",
+    t1c_btn_sometimes: "😐 Kabhi kabhi mushkil",
+    t1c_btn_help: "😟 Mujhe zyada help chahiye",
+    t1c_reply_very:
+      "Bohot khoob — aap sach mein achha kar rahe hain. Main hamari baatein halki rakhoonga aur aap ki wins celebrate karta rahoonga. 🌟",
+    t1c_reply_mostly:
+      "Yeh sun kar khushi hui. Jahan sab se zyada zaroorat ho, wahan main aap ka saath deta rahoonga. 💚",
+    t1c_reply_sometimes:
+      "Batanay ka shukriya. Jo hissay aap ko mushkil lagtay hain, main un par zyada dhyaan doonga aur jaldi help offer karoonga.",
+    t1c_reply_help:
+      "Main samajh sakta hoon — kuch din Type 1 ke saath guzaarna mushkil hota hai. Main aap ke liye zyada guides aur community support laoonga. Aap akele nahi hain. ❤️",
   },
 };
 

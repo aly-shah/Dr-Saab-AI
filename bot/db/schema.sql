@@ -76,6 +76,15 @@ create table if not exists public.lab_reports (
 );
 create index if not exists lab_reports_user_idx on public.lab_reports(user_id, created_at desc);
 
+-- Structured extraction columns added 2026-07 for the "Explain My Report" spec.
+-- `metadata`   — report metadata shown to the user (lab, patient, date, doctor…)
+-- `lab_values` — array of extracted lab values with status (in_range / borderline / out_of_range)
+--                (named `lab_values`, not `values`, because VALUES is a reserved word in Postgres)
+-- `lab_source` — silent market-intel snapshot of the source lab (name/branch/address/format)
+alter table public.lab_reports add column if not exists metadata   jsonb;
+alter table public.lab_reports add column if not exists lab_values jsonb;
+alter table public.lab_reports add column if not exists lab_source jsonb;
+
 -- ---------- Coach message history (optional, for context/audit) ----------
 create table if not exists public.coach_messages (
   id          uuid primary key default gen_random_uuid(),
@@ -137,6 +146,23 @@ alter table public.users add column if not exists motivation_score    int defaul
 alter table public.users add column if not exists risk_score          int default 50;
 alter table public.users add column if not exists engagement_score    int default 50;
 alter table public.users add column if not exists total_checkins      int default 0;
+
+-- More → My Account (2026-07 spec). Deactivated users keep all data; any
+-- inbound message auto-reactivates them. Closed accounts are terminal from
+-- the app's point of view — data is retained per privacy policy but the
+-- user has to re-register to use DrSaab again.
+alter table public.users add column if not exists account_status text default 'active';
+  -- 'active' | 'inactive' | 'closed'
+alter table public.users add column if not exists deactivated_at timestamptz;
+alter table public.users add column if not exists closed_at      timestamptz;
+
+-- More → Reminders category prefs. Individual reminder_schedules rows still
+-- fire independently; these four master toggles gate categories globally so
+-- the user can silence a whole area without deleting every schedule.
+alter table public.users add column if not exists pref_rem_blood_sugar     boolean default true;
+alter table public.users add column if not exists pref_rem_med_consistency boolean default true;
+alter table public.users add column if not exists pref_rem_goals           boolean default true;
+alter table public.users add column if not exists pref_rem_coaching        boolean default true;
 
 -- keep updated_at fresh on users
 create or replace function public.touch_updated_at()
@@ -292,3 +318,199 @@ create table if not exists public.med_satisfaction (
   created_at  timestamptz default now()
 );
 create index if not exists med_satisfaction_user_idx on public.med_satisfaction(user_id, created_at desc);
+
+-- ============================================================
+-- My Goals (2026-07) — up to 3 active goals per user with optional
+-- motivation and target date. Legacy free-text `users.goals` is kept
+-- so old data isn't lost, but new goal management lives here.
+-- ============================================================
+create table if not exists public.user_goals (
+  id             uuid primary key default gen_random_uuid(),
+  user_id        uuid references public.users(id) on delete cascade,
+  title          text not null,                              -- goal statement (short)
+  suggestion_key text,                                        -- lower_a1c | lose_weight | walk_more | … | other | custom
+  motivation     text,                                        -- optional "why is this important"
+  target_date    date,                                        -- optional target date
+  target_hint    text,                                        -- original free-text (e.g. "Before Eid") if not a hard date
+  status         text default 'active',                       -- active | completed | removed
+  review_sent_at timestamptz,                                 -- when the target-date review was sent
+  completed_at   timestamptz,
+  created_at     timestamptz default now(),
+  updated_at     timestamptz default now()
+);
+create index if not exists user_goals_user_idx    on public.user_goals(user_id, status);
+create index if not exists user_goals_review_idx  on public.user_goals(status, target_date, review_sent_at);
+
+drop trigger if exists user_goals_touch on public.user_goals;
+create trigger user_goals_touch before update on public.user_goals
+  for each row execute function public.touch_updated_at();
+
+-- ============================================================
+-- Type 1 Diabetes enhancements (spec dated 2026-07)
+-- ============================================================
+
+-- T1 wellbeing: periodic confidence check. Latest answer lives on the user
+-- row for cheap gating; every answer is also appended to the log for trend
+-- analysis and future AI-driven coaching.
+alter table public.users add column if not exists t1_confidence            text;   -- very | mostly | sometimes | help
+alter table public.users add column if not exists t1_confidence_updated_at timestamptz;
+
+create table if not exists public.t1_confidence_logs (
+  id         bigint generated always as identity primary key,
+  user_id    uuid references public.users(id) on delete cascade,
+  level      text not null,                                     -- very | mostly | sometimes | help
+  created_at timestamptz default now()
+);
+create index if not exists t1_confidence_logs_user_idx on public.t1_confidence_logs(user_id, created_at desc);
+
+-- ---------- T1 Community content ----------
+-- Content in these tables is managed from the Admin Portal (spec 2026-07).
+-- The bot reads the active rows in `sort_order` and renders them into the
+-- corresponding T1 Community sub-menu.
+
+create table if not exists public.t1_organizations (
+  id            bigint generated always as identity primary key,
+  name          text not null,
+  description   text,
+  logo_url      text,
+  website       text,
+  contact       text,
+  facebook_url  text,
+  instagram_url text,
+  twitter_url   text,
+  youtube_url   text,
+  sort_order    int default 0,
+  active        boolean default true,
+  created_at    timestamptz default now(),
+  updated_at    timestamptz default now()
+);
+create index if not exists t1_organizations_sort_idx on public.t1_organizations(active, sort_order);
+drop trigger if exists t1_organizations_touch on public.t1_organizations;
+create trigger t1_organizations_touch before update on public.t1_organizations
+  for each row execute function public.touch_updated_at();
+
+create table if not exists public.t1_articles (
+  id          bigint generated always as identity primary key,
+  title       text not null,
+  summary     text,
+  url         text not null,
+  source      text,               -- e.g. "Meethi Zindagi", "DAP"
+  audience    text,               -- newly_diagnosed | parents | exercise | ramadan | general
+  tags        text[],
+  sort_order  int default 0,
+  active      boolean default true,
+  created_at  timestamptz default now(),
+  updated_at  timestamptz default now()
+);
+create index if not exists t1_articles_sort_idx on public.t1_articles(active, sort_order);
+drop trigger if exists t1_articles_touch on public.t1_articles;
+create trigger t1_articles_touch before update on public.t1_articles
+  for each row execute function public.touch_updated_at();
+
+create table if not exists public.t1_videos (
+  id          bigint generated always as identity primary key,
+  title       text not null,
+  description text,
+  url         text not null,
+  source      text,
+  audience    text,
+  tags        text[],
+  sort_order  int default 0,
+  active      boolean default true,
+  created_at  timestamptz default now(),
+  updated_at  timestamptz default now()
+);
+create index if not exists t1_videos_sort_idx on public.t1_videos(active, sort_order);
+drop trigger if exists t1_videos_touch on public.t1_videos;
+create trigger t1_videos_touch before update on public.t1_videos
+  for each row execute function public.touch_updated_at();
+
+create table if not exists public.t1_daily_life_topics (
+  id          bigint generated always as identity primary key,
+  category    text not null,      -- children_parents | teens_young_adults | adults
+  title       text not null,
+  pdf_url     text,               -- storage URL of the topic PDF (populated by Admin Portal)
+  sort_order  int default 0,
+  active      boolean default true,
+  created_at  timestamptz default now(),
+  updated_at  timestamptz default now()
+);
+create index if not exists t1_daily_life_topics_cat_idx on public.t1_daily_life_topics(active, category, sort_order);
+drop trigger if exists t1_daily_life_topics_touch on public.t1_daily_life_topics;
+create trigger t1_daily_life_topics_touch before update on public.t1_daily_life_topics
+  for each row execute function public.touch_updated_at();
+
+create table if not exists public.t1_events (
+  id          bigint generated always as identity primary key,
+  description text not null,      -- free-text: name — city — date — URL/contact (spec Build 1)
+  event_date  date,               -- optional; used for chronological ordering when set
+  url         text,
+  sort_order  int default 0,
+  active      boolean default true,
+  created_at  timestamptz default now(),
+  updated_at  timestamptz default now()
+);
+create index if not exists t1_events_date_idx on public.t1_events(active, event_date, sort_order);
+drop trigger if exists t1_events_touch on public.t1_events;
+create trigger t1_events_touch before update on public.t1_events
+  for each row execute function public.touch_updated_at();
+
+-- ---------- Seed initial T1 content ----------
+-- Runs only when the table is empty so migrations stay idempotent and the
+-- Admin Portal remains the source of truth once operators start editing.
+
+insert into public.t1_organizations (name, description, website, sort_order)
+select * from (values
+  ('Meethi Zindagi',
+   'Patient-led organisation supporting people living with Type 1 diabetes across Pakistan through community, education and advocacy.',
+   'https://meethizindagi.com', 10),
+  ('The Diabetes Center (TDC)',
+   'Karachi-based specialised diabetes centre offering clinical care, patient education and community programs.',
+   'https://thediabetescentre.com', 20),
+  ('Baqai Institute of Diabetology & Endocrinology (BIDE)',
+   'Leading tertiary diabetes and endocrinology institute providing patient care, training and research.',
+   'https://bide.edu.pk', 30),
+  ('Diabetes Association of Pakistan (DAP)',
+   'National diabetes association driving awareness, prevention and education programs across Pakistan.',
+   'https://dap.org.pk', 40)
+) as v(name, description, website, sort_order)
+where not exists (select 1 from public.t1_organizations);
+
+insert into public.t1_articles (title, url, source, audience, sort_order)
+select * from (values
+  ('Meethi Zindagi — Blogs & Articles',
+   'https://meethizindagi.com/blog', 'Meethi Zindagi', 'general', 10),
+  ('DAP Diabetes Digest',
+   'https://dap.org.pk/diabetes-digest', 'DAP', 'general', 20)
+) as v(title, url, source, audience, sort_order)
+where not exists (select 1 from public.t1_articles);
+
+insert into public.t1_videos (title, url, source, audience, sort_order)
+select * from (values
+  ('Type 1 Diabetes Pakistan — Educational Videos',
+   'https://www.youtube.com/@Type1DiabetesPakistan',
+   'Type 1 Diabetes Pakistan', 'general', 10)
+) as v(title, url, source, audience, sort_order)
+where not exists (select 1 from public.t1_videos);
+
+insert into public.t1_daily_life_topics (category, title, sort_order)
+select * from (values
+  ('children_parents', 'Starting School with Type 1 Diabetes',      10),
+  ('children_parents', 'Talking to Teachers',                        20),
+  ('children_parents', 'School Lunch Ideas',                         30),
+  ('children_parents', 'Sports Day Preparation',                     40),
+  ('children_parents', 'School Trip Checklist',                      50),
+  ('children_parents', 'Managing Diabetes During Exams',             60),
+  ('teens_young_adults', 'College & University Life',                10),
+  ('teens_young_adults', 'Living Away from Home',                    20),
+  ('teens_young_adults', 'Exercise & Sports',                        30),
+  ('teens_young_adults', 'Driving with Type 1 Diabetes',             40),
+  ('teens_young_adults', 'Social Events',                            50),
+  ('teens_young_adults', 'Travel Tips',                              60),
+  ('adults', 'Managing Diabetes at Work',                            10),
+  ('adults', 'Business Travel',                                      20),
+  ('adults', 'Exercising Safely',                                    30),
+  ('adults', 'Fasting During Ramadan',                               40),
+  ('adults', 'Sick Day Guidance',                                    50)
+) as v(category, title, sort_order)
+where not exists (select 1 from public.t1_daily_life_topics);

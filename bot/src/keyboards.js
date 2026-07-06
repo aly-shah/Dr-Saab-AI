@@ -1,11 +1,21 @@
 import { t, LANGUAGES } from "./i18n.js";
+import { isPaid } from "./tiers.js";
 
 // Inline keyboards use callback_data (language-independent), so menus
 // work the same regardless of the user's chosen language.
 
-export function languageKeyboard() {
+export function languageKeyboard(lang = "en", currentCode = lang, backCb = "menu") {
+  // Prefix the currently-selected language with ● (and others with ○) so the
+  // user can see at a glance which one is active. Geometric shapes survive the
+  // emoji stripper in utils.js.
   return {
-    inline_keyboard: LANGUAGES.map((l) => [{ text: l.label, callback_data: `lang:${l.code}` }]),
+    inline_keyboard: [
+      ...LANGUAGES.map((l) => [{
+        text: `${l.code === currentCode ? "●" : "○"} ${l.label}`,
+        callback_data: `lang:${l.code}`,
+      }]),
+      [{ text: t(lang, "btn_back"), callback_data: backCb }],
+    ],
   };
 }
 
@@ -74,13 +84,136 @@ export function upgradeKeyboard(lang) {
   };
 }
 
+// Legacy single-goal keyboard, kept so any old deep-link that lands on it still
+// works. New flow starts from goalsListKeyboard below.
 export function goalsKeyboard(lang) {
   return {
     inline_keyboard: [
-      [{ text: t(lang, "btn_set_goal"), callback_data: "goal:set" }],
+      [{ text: t(lang, "btn_set_goal"), callback_data: "goal:add" }],
       [{ text: t(lang, "btn_back"), callback_data: "menu" }],
     ],
   };
+}
+
+// ---- My Goals (2026-07): up to 3 active goals per user ----
+export const GOAL_MAX_ACTIVE = 3;
+
+// Suggestion keys map to i18n strings `goalsug_<key>`. `other` opens a
+// free-text prompt. Order matches the spec.
+export const GOAL_SUGGESTIONS = [
+  "lower_a1c",
+  "lose_weight",
+  "exercise_more",
+  "walk_more",
+  "improve_blood_sugar",
+  "take_meds",
+  "eat_healthy",
+  "improve_cholesterol",
+  "improve_bp",
+  "sleep_better",
+  "prepare_surgery",
+  "run_5k",
+];
+
+// Home screen for My Goals: one row per active goal (opens detail), plus
+// "Add a goal" if under the cap. Empty state falls back to just Add + Back.
+export function goalsListKeyboard(lang, activeGoals = []) {
+  const rows = [];
+  for (const g of activeGoals) {
+    const label = truncate(g.title || "goal", 40);
+    rows.push([{ text: label, callback_data: `goal:view:${g.id}` }]);
+  }
+  if (activeGoals.length < GOAL_MAX_ACTIVE) {
+    rows.push([{ text: t(lang, "btn_goal_add"), callback_data: "goal:add" }]);
+  }
+  rows.push([{ text: t(lang, "btn_back"), callback_data: "menu" }]);
+  return { inline_keyboard: rows };
+}
+
+export function goalSuggestionsKeyboard(lang) {
+  const rows = [];
+  for (let i = 0; i < GOAL_SUGGESTIONS.length; i += 2) {
+    const row = [];
+    for (const key of GOAL_SUGGESTIONS.slice(i, i + 2)) {
+      row.push({ text: t(lang, `goalsug_${key}`), callback_data: `goalsug:${key}` });
+    }
+    rows.push(row);
+  }
+  rows.push([{ text: t(lang, "goalsug_other"), callback_data: "goalsug:other" }]);
+  rows.push([{ text: t(lang, "btn_back"), callback_data: "feat:goals" }]);
+  return { inline_keyboard: rows };
+}
+
+// Motivation / target-date prompt: single Skip button (both fields are optional).
+export function goalSkipKeyboard(lang, action) {
+  return {
+    inline_keyboard: [
+      [{ text: t(lang, "btn_skip"), callback_data: `goal:skip:${action}` }],
+      [{ text: t(lang, "btn_back"), callback_data: "feat:goals" }],
+    ],
+  };
+}
+
+// Detail view for a single active goal — edit / mark complete / delete.
+export function goalDetailKeyboard(lang, goalId) {
+  return {
+    inline_keyboard: [
+      [{ text: t(lang, "btn_goal_edit"), callback_data: `goal:edit:${goalId}` }],
+      [{ text: t(lang, "btn_goal_complete"), callback_data: `goal:complete:${goalId}` }],
+      [{ text: t(lang, "btn_goal_delete"), callback_data: `goal:delete:${goalId}` }],
+      [{ text: t(lang, "btn_back"), callback_data: "feat:goals" }],
+    ],
+  };
+}
+
+export function goalEditKeyboard(lang, goalId) {
+  return {
+    inline_keyboard: [
+      [{ text: t(lang, "btn_goal_edit_title"), callback_data: `goaledit:${goalId}:title` }],
+      [{ text: t(lang, "btn_goal_edit_motivation"), callback_data: `goaledit:${goalId}:motivation` }],
+      [{ text: t(lang, "btn_goal_edit_target"), callback_data: `goaledit:${goalId}:target` }],
+      [{ text: t(lang, "btn_back"), callback_data: `goal:view:${goalId}` }],
+    ],
+  };
+}
+
+// Target-date reminder — Yes / Not Yet.
+export function goalReviewKeyboard(lang, goalId) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "btn_goal_review_yes"), callback_data: `goalrev:${goalId}:yes` },
+        { text: t(lang, "btn_goal_review_notyet"), callback_data: `goalrev:${goalId}:notyet` },
+      ],
+    ],
+  };
+}
+
+// Follow-up when the user says Yes (goal achieved).
+export function goalReviewYesKeyboard(lang, goalId) {
+  return {
+    inline_keyboard: [
+      [{ text: t(lang, "btn_goal_review_new"), callback_data: `goalrev:${goalId}:new` }],
+      [{ text: t(lang, "btn_goal_review_continue"), callback_data: `goalrev:${goalId}:continue` }],
+      [{ text: t(lang, "btn_goal_review_remove"), callback_data: `goalrev:${goalId}:remove` }],
+    ],
+  };
+}
+
+// Follow-up when the user says Not Yet.
+export function goalReviewNotYetKeyboard(lang, goalId) {
+  return {
+    inline_keyboard: [
+      [{ text: t(lang, "btn_goal_review_continue"), callback_data: `goalrev:${goalId}:continue` }],
+      [{ text: t(lang, "btn_goal_review_update_target"), callback_data: `goalrev:${goalId}:updatetarget` }],
+      [{ text: t(lang, "btn_goal_review_remove"), callback_data: `goalrev:${goalId}:remove` }],
+    ],
+  };
+}
+
+function truncate(s, n) {
+  const str = String(s || "");
+  return str.length <= n ? str : str.slice(0, n - 1) + "…";
 }
 
 export function reportsKeyboard(lang) {
@@ -134,8 +267,24 @@ export function executiveKeyboard(lang) {
   ]);
 }
 
-export function backKeyboard(lang) {
-  return { inline_keyboard: [[{ text: t(lang, "btn_back"), callback_data: "menu" }]] };
+// `target` is the callback_data the Back button fires. Defaults to "menu"
+// (main menu). Pass e.g. "feat:subscription" to bounce back to a parent
+// screen from a nested one.
+export function backKeyboard(lang, target = "menu") {
+  return { inline_keyboard: [[{ text: t(lang, "btn_back"), callback_data: target }]] };
+}
+
+// Keyboard shown on the "Explain My Report" prompt. The "Upload Image" button
+// is a UX affordance: the web chat frontend intercepts it and opens a native
+// file picker; on Telegram / WhatsApp it just prints instructions on where to
+// find the attach control in that client.
+export function labStartKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [{ text: t(lang, "btn_upload_lab"), callback_data: "feat:upload_lab" }],
+      [{ text: t(lang, "btn_back"), callback_data: "menu" }],
+    ],
+  };
 }
 
 export function profileKeyboard(lang) {
@@ -366,6 +515,7 @@ function profileMenuButton(lang, user) {
   const ut = user?.user_type;
   const dt = user?.diabetes_status;
   if (ut === "diabetes" && dt === "type1") return b("btn_p_type1", "type1");
+  if (ut === "diabetes" && dt === "type2") return b("btn_p_type2", "type2");
   if (ut === "diabetes" && dt === "gestational") return b("btn_p_gestational", "gestational");
   if (ut === "prediabetes") return b("btn_p_prediabetes", "prediabetes");
   if (ut === "healthier") return b("btn_p_healthier", "healthier");
@@ -407,20 +557,90 @@ export function myProgressKeyboard(lang) {
   ]);
 }
 
-// More — also home to Challenges / Goals / Executive (kept, not deleted).
+// More — spec 2026-07: four items only (Reminders, Language, Subscription,
+// Account). Goals / Challenges / Executive stay callable via their `feat:`
+// deep links (Goals is still on the top-level menu as "Goals & Progress");
+// they're just no longer surfaced from this screen.
 export function moreKeyboard(lang) {
   const b = (key, action) => ({ text: t(lang, key), callback_data: `mo:${action}` });
   return stack([
     b("btn_more_reminders", "reminders"),
     b("btn_more_language", "language"),
-    b("btn_more_plan", "plan"),
-    b("btn_more_subscription", "subscription"),
-    b("btn_more_support", "support"),
-    b("btn_more_goals", "goals"),
-    b("btn_more_challenges", "challenges"),
-    b("btn_more_executive", "executive"),
+    b("btn_more_subscription_v2", "subscription"),
+    b("btn_more_account", "account"),
     { text: t(lang, "btn_main_menu"), callback_data: "menu" },
   ]);
+}
+
+// Reminders category prefs — one row per category with an inline On/Off state.
+// The scheduler consults these master flags before firing any reminder in that
+// category, so a "medication" row set to Off silences every med schedule the
+// user has without deleting them.
+export const REMINDER_CATEGORIES = [
+  { key: "blood_sugar",     labelKey: "rem_cat_blood_sugar",     icon: "🩸", prefField: "pref_rem_blood_sugar" },
+  { key: "med_consistency", labelKey: "rem_cat_medication",      icon: "💊", prefField: "pref_rem_med_consistency" },
+  { key: "goals",           labelKey: "rem_cat_goals",           icon: "🎯", prefField: "pref_rem_goals" },
+  { key: "coaching",        labelKey: "rem_cat_coaching",        icon: "💬", prefField: "pref_rem_coaching" },
+];
+
+export function remindersPrefsKeyboard(lang, user) {
+  const rows = REMINDER_CATEGORIES.map((cat) => {
+    // Default true when the column hasn't been set — matches the schema default.
+    const on = user?.[cat.prefField] !== false;
+    const label = t(lang, "rem_pref_row", {
+      icon: cat.icon,
+      label: t(lang, cat.labelKey).replace(/^\S+\s/, ""),
+      state: t(lang, on ? "rem_cat_on" : "rem_cat_off"),
+    });
+    return { text: label, callback_data: `remp:${cat.key}` };
+  });
+  rows.push({ text: t(lang, "btn_back"), callback_data: "feat:more" });
+  return stack(rows);
+}
+
+// Subscription screen. Manage / Billing only appear for paid users — free
+// users just see Upgrade + Back.
+export function subscriptionKeyboard(lang, user) {
+  const rows = [{ text: t(lang, "btn_sub_upgrade"), callback_data: "sub:upgrade" }];
+  if (isPaid(user)) {
+    rows.push({ text: t(lang, "btn_sub_manage"), callback_data: "sub:manage" });
+    rows.push({ text: t(lang, "btn_sub_billing"), callback_data: "sub:billing" });
+  }
+  rows.push({ text: t(lang, "btn_back"), callback_data: "feat:more" });
+  return stack(rows);
+}
+
+export function accountKeyboard(lang) {
+  return stack([
+    { text: t(lang, "btn_account_edit"), callback_data: "acct:edit" },
+    { text: t(lang, "btn_account_deactivate"), callback_data: "acct:deactivate" },
+    { text: t(lang, "btn_account_close"), callback_data: "acct:close" },
+    { text: t(lang, "btn_back"), callback_data: "feat:more" },
+  ]);
+}
+
+// Confirmation dialogs for Deactivate / Close. Two-button rows so the
+// destructive action sits next to Cancel and can't be mistapped from a menu.
+export function deactivateConfirmKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "btn_confirm_deactivate"), callback_data: "acct:deactivate_confirm" },
+        { text: t(lang, "btn_cancel"), callback_data: "feat:account" },
+      ],
+    ],
+  };
+}
+
+export function closeConfirmKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "btn_confirm_close"), callback_data: "acct:close_confirm" },
+        { text: t(lang, "btn_cancel"), callback_data: "feat:account" },
+      ],
+    ],
+  };
 }
 
 export function medFrequencyKeyboard(lang) {
@@ -468,6 +688,52 @@ export function wellbeingMoodKeyboard(lang) {
         { text: t(lang, "wb_btn_poor"), callback_data: "wb:poor" },
       ],
       [{ text: t(lang, "btn_main_menu"), callback_data: "menu" }],
+    ],
+  };
+}
+
+// T1 Community — top-level section for Type 1 users (spec 2026-07).
+export function t1CommunityKeyboard(lang) {
+  const b = (key, action) => ({ text: t(lang, key), callback_data: `t1:${action}` });
+  return stack([
+    b("btn_t1c_support",   "support"),
+    b("btn_t1c_blogs",     "blogs"),
+    b("btn_t1c_videos",    "videos"),
+    b("btn_t1c_dailylife", "dailylife"),
+    b("btn_t1c_events",    "events"),
+    { text: t(lang, "btn_main_menu"), callback_data: "menu" },
+  ]);
+}
+
+// Daily Life — three category submenus. Each opens a topic list.
+export function t1DailyLifeCategoriesKeyboard(lang) {
+  const b = (key, cat) => ({ text: t(lang, key), callback_data: `t1:dl:${cat}` });
+  return stack([
+    b("btn_t1c_dl_children", "children_parents"),
+    b("btn_t1c_dl_teens",    "teens_young_adults"),
+    b("btn_t1c_dl_adults",   "adults"),
+    { text: t(lang, "btn_back"), callback_data: "feat:t1community" },
+  ]);
+}
+
+// One button per topic. Long titles are truncated for the inline button but
+// the full title is sent again with the PDF link on tap.
+export function t1DailyLifeTopicsKeyboard(lang, topics) {
+  const rows = topics.map((tp) => [
+    { text: truncate(tp.title, 60), callback_data: `t1:dt:${tp.id}` },
+  ]);
+  rows.push([{ text: t(lang, "btn_back"), callback_data: "t1:dailylife" }]);
+  return { inline_keyboard: rows };
+}
+
+// T1-only periodic confidence check (spec 2026-07).
+export function t1ConfidenceKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [{ text: t(lang, "t1c_btn_very"),      callback_data: "t1c:very" }],
+      [{ text: t(lang, "t1c_btn_mostly"),    callback_data: "t1c:mostly" }],
+      [{ text: t(lang, "t1c_btn_sometimes"), callback_data: "t1c:sometimes" }],
+      [{ text: t(lang, "t1c_btn_help"),      callback_data: "t1c:help" }],
     ],
   };
 }

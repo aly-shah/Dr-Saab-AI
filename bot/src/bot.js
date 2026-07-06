@@ -10,9 +10,16 @@ import {
   profileKeyboard,
   languageKeyboard,
   backKeyboard,
+  subscriptionKeyboard,
 } from "./keyboards.js";
 import { getSession, resetFlow, clearSession } from "./session.js";
-import { getOrCreateUser, updateUser, recordMessage, deleteUser } from "./supabase.js";
+import {
+  getOrCreateUser,
+  updateUser,
+  recordMessage,
+  deleteUser,
+  setAccountStatus,
+} from "./supabase.js";
 import { TIERS, normalizeTier } from "./tiers.js";
 
 import { startOnboarding, onboardingText, onboardingCallback } from "./flows/onboarding.js";
@@ -34,15 +41,30 @@ import {
   startWellbeing,
   wellbeingText,
   wellbeingCallback,
+  t1ConfidenceCallback,
   glucoseReminderCallback,
   startHealth,
   healthText,
 } from "./flows/tracking.js";
 import { startCoach, coachText } from "./flows/coach.js";
-import { startLab, labText } from "./flows/labreport.js";
+import { startAskDrsaab, askDrsaabText } from "./flows/askdrsaab.js";
+import { startLab, labText, handleUploadLabButton } from "./flows/labreport.js";
 import { showProgress, showSummary, showRecentActivity } from "./flows/progress.js";
 import { showEducation } from "./flows/education.js";
-import { showGoals, startGoalSet, goalsText } from "./flows/goals.js";
+import { showT1Community, dispatchT1Community } from "./flows/t1community.js";
+import {
+  showGoals,
+  startAddGoal,
+  pickGoalSuggestion,
+  showGoalDetail,
+  completeGoal,
+  deleteGoal,
+  showEditMenu,
+  startEditField,
+  handleReviewAction,
+  handleSkipAction,
+  goalsText,
+} from "./flows/goals.js";
 import {
   showChallenges,
   showMyChallenges,
@@ -52,7 +74,15 @@ import {
 import { showReports, showWeeklyReport, showMonthlyReport, showDoctorReport } from "./flows/reports.js";
 import { showExecutive, requestService } from "./flows/executive.js";
 import { profileqText, skipProfileQuestion } from "./flows/profileBuilder.js";
-import { showReminders, cancelReminder } from "./flows/reminders.js";
+import { showReminders, cancelReminder, toggleReminderPref } from "./flows/reminders.js";
+import {
+  showAccount,
+  startEditProfile,
+  showDeactivateConfirm,
+  doDeactivate,
+  showCloseConfirm,
+  doClose,
+} from "./flows/account.js";
 
 // Display name for a tier slug (handles legacy slugs).
 function planName(lang, tier) {
@@ -90,7 +120,10 @@ function showMyProgress(bot, chatId, session) {
 }
 function showMore(bot, chatId, session) {
   const lang = langOf(session);
-  return send(bot, chatId, t(lang, "more_title"), { keyboard: moreKeyboard(lang), markdown: true });
+  return send(bot, chatId, `${t(lang, "more_title")}\n\n${t(lang, "more_subtitle")}`, {
+    keyboard: moreKeyboard(lang),
+    markdown: true,
+  });
 }
 function showPlan(bot, chatId, session) {
   const lang = langOf(session);
@@ -124,10 +157,33 @@ function showProfile(bot, chatId, session) {
   return send(bot, chatId, text, { keyboard: profileKeyboard(lang), markdown: true });
 }
 
+// My Subscription — spec 2026-07. Shows current plan + features + renewal.
+// Renewal date is derived from `updated_at` (best-effort — the payment
+// system will populate a dedicated column when we integrate billing).
+function subscriptionFeaturesKey(tier) {
+  switch (normalizeTier(tier)) {
+    case "executive": return "sub_features_executive";
+    case "consistency": return "sub_features_consistency";
+    default: return "sub_features_free";
+  }
+}
+
 function showSubscription(bot, chatId, session) {
   const lang = langOf(session);
-  return send(bot, chatId, t(lang, "upgrade_intro", { plan: planName(lang, session.user.tier) }), {
-    keyboard: backKeyboard(lang),
+  const u = session.user || {};
+  const tier = normalizeTier(u.tier);
+  const lines = [
+    t(lang, "sub_title"),
+    "",
+    t(lang, "sub_current_plan", { plan: planName(lang, u.tier) }),
+    "",
+    t(lang, "sub_features_header"),
+    t(lang, subscriptionFeaturesKey(tier)),
+    "",
+    tier === "free" ? t(lang, "sub_no_renewal") : t(lang, "sub_renewal", { date: "—" }),
+  ];
+  return send(bot, chatId, lines.join("\n"), {
+    keyboard: subscriptionKeyboard(lang, u),
     markdown: true,
   });
 }
@@ -144,8 +200,9 @@ async function dispatchFeature(bot, chatId, session, action) {
     case "more":
       return showMore(bot, chatId, session);
     case "askdrsaab":
-      // Ask DrSaab is the open AI conversation — reuses the existing coach.
-      return startCoach(bot, chatId, session, "coach");
+      // Ask DrSaab is the open AI conversation — free-tier ready, paid users
+      // get the OpenAI-backed model and deeper personalisation.
+      return startAskDrsaab(bot, chatId, session);
     // ---- legacy actions kept so deep links / old buttons keep working ----
     case "glucose":
       return startGlucose(bot, chatId, session);
@@ -161,12 +218,16 @@ async function dispatchFeature(bot, chatId, session, action) {
       return startCoach(bot, chatId, session, "fitness");
     case "lab":
       return startLab(bot, chatId, session);
+    case "upload_lab":
+      return handleUploadLabButton(bot, chatId, session);
     case "progress":
       return showProgress(bot, chatId, session);
     case "summary":
       return showSummary(bot, chatId, session);
     case "learn":
       return showEducation(bot, chatId, session);
+    case "t1community":
+      return showT1Community(bot, chatId, session);
     case "goals":
       return showGoals(bot, chatId, session);
     case "challenges":
@@ -179,8 +240,20 @@ async function dispatchFeature(bot, chatId, session, action) {
       return showProfile(bot, chatId, session);
     case "subscription":
       return showSubscription(bot, chatId, session);
-    case "language":
-      return send(bot, chatId, t("en", "choose_language"), { keyboard: languageKeyboard(), markdown: true });
+    case "account":
+      return showAccount(bot, chatId, session);
+    case "reminders":
+      return showReminders(bot, chatId, session);
+    case "language": {
+      // Reached via the Profile screen's "Change language" button — after
+      // picking (or hitting Back), return to Profile rather than the main menu.
+      const lang = langOf(session);
+      session.languageReturn = "feat:profile";
+      return send(bot, chatId, t(lang, "choose_language"), {
+        keyboard: languageKeyboard(lang, lang, "feat:profile"),
+        markdown: true,
+      });
+    }
     default:
       return showMenu(bot, chatId, session);
   }
@@ -191,6 +264,27 @@ export async function handleMessage(bot, msg) {
   const chatId = msg.chat.id;
   const session = getSession(chatId);
   if (!session.user) session.user = await getOrCreateUser(msg.from?.id ?? chatId, msg.__source || "telegram");
+
+  // Account status gate (2026-07 spec — More → My Account).
+  //   inactive → any inbound message reactivates + welcomes back, then falls
+  //              through to normal handling.
+  //   closed   → terminal from the app's point of view; reply with a stock
+  //              message and stop.
+  const status = session.user?.account_status;
+  if (status === "closed") {
+    return send(bot, chatId, t(langOf(session), "account_closed_reply"));
+  }
+  if (status === "inactive") {
+    const reactivated = await setAccountStatus(session.user.id, "active").catch(() => null);
+    if (reactivated) session.user = reactivated;
+    await send(
+      bot,
+      chatId,
+      t(langOf(session), "reactivated_welcome", { name: sanitizeMd(session.user.name || "") }),
+      { markdown: true }
+    );
+    // fall through and let the rest of handleMessage process the message
+  }
 
   // Hard reset: typing DELETE (exact, all caps) wipes this user's profile and
   // ALL their data + chat history, then drops the session. Lets a demo be
@@ -232,7 +326,7 @@ export async function handleMessage(bot, msg) {
   const word = (text || "").trim().toLowerCase();
   const inFlow = [
     "onboarding", "glucose", "medication", "health",
-    "coach", "food", "fitness", "lab", "goals", "challenge_code", "profileq",
+    "coach", "food", "fitness", "askdrsaab", "lab", "goals", "challenge_code", "profileq",
     "weight", "activity", "symptoms",
   ].includes(session.state);
   if (session.user.onboarded) {
@@ -287,6 +381,8 @@ export async function handleMessage(bot, msg) {
     case "label":
     case "analyze":
       return coachText(bot, chatId, session, text, msg);
+    case "askdrsaab":
+      return askDrsaabText(bot, chatId, session, text, msg);
     case "lab":
       return labText(bot, chatId, session, text, msg);
     case "goals":
@@ -308,22 +404,50 @@ export async function handleCallback(bot, query) {
   const data = query.data || "";
   bot.answerCallbackQuery(query.id).catch(() => {});
 
+  // A closed account can't drive the menu either — the equivalent guard in
+  // handleMessage covers typed input. Reactivation only happens on a typed
+  // message, not a stray inline-button tap.
+  if (session.user?.account_status === "closed") {
+    return send(bot, chatId, t(langOf(session), "account_closed_reply"));
+  }
+
   // Onboarding choice buttons (language/gender/diabetes/skip)
   if (session.state === "onboarding") {
     return onboardingCallback(bot, chatId, session, data);
   }
 
-  // Language change from Profile
+  // Language change (from Profile or More → Language). Return the user to
+  // whichever screen they came from (session.languageReturn), falling back to
+  // the main menu if we don't have that context (e.g. process restart).
   if (data.startsWith("lang:")) {
     const code = data.split(":")[1];
     session.user = await updateUser(session.user.id, { language: code });
+    const back = session.languageReturn;
+    session.languageReturn = null;
+    if (back && back.startsWith("feat:")) {
+      return dispatchFeature(bot, chatId, session, back.split(":")[1]);
+    }
     return showMenu(bot, chatId, session);
   }
 
   if (data === "menu") return showMenu(bot, chatId, session);
 
-  // Goals
-  if (data === "goal:set") return startGoalSet(bot, chatId, session);
+  // Goals — spec 2026-07 (list / add flow / detail / edit / review)
+  if (data === "goal:add" || data === "goal:set") return startAddGoal(bot, chatId, session);
+  if (data.startsWith("goalsug:")) return pickGoalSuggestion(bot, chatId, session, data.split(":")[1]);
+  if (data.startsWith("goal:skip:")) return handleSkipAction(bot, chatId, session, data.split(":")[2]);
+  if (data.startsWith("goal:view:")) return showGoalDetail(bot, chatId, session, data.split(":")[2]);
+  if (data.startsWith("goal:edit:")) return showEditMenu(bot, chatId, session, data.split(":")[2]);
+  if (data.startsWith("goal:complete:")) return completeGoal(bot, chatId, session, data.split(":")[2]);
+  if (data.startsWith("goal:delete:")) return deleteGoal(bot, chatId, session, data.split(":")[2]);
+  if (data.startsWith("goaledit:")) {
+    const [, gid, field] = data.split(":");
+    return startEditField(bot, chatId, session, gid, field);
+  }
+  if (data.startsWith("goalrev:")) {
+    const [, gid, action] = data.split(":");
+    return handleReviewAction(bot, chatId, session, gid, action);
+  }
 
   // Challenges (feature prefix `chl:` — distinct from onboarding `ch:`)
   if (data.startsWith("chl:")) {
@@ -395,18 +519,68 @@ export async function handleCallback(bot, query) {
     if (x === "recent") return showRecentActivity(bot, chatId, session);
   }
 
-  // More submenu
+  // More submenu (spec 2026-07: 4 items). Legacy `mo:` deep links kept so
+  // any old inline button that still uses them keeps working.
   if (data.startsWith("mo:")) {
     const x = data.split(":")[1];
     if (x === "reminders") return showReminders(bot, chatId, session);
-    if (x === "language")
-      return send(bot, chatId, t("en", "choose_language"), { keyboard: languageKeyboard(), markdown: true });
-    if (x === "plan") return showPlan(bot, chatId, session);
+    if (x === "language") {
+      // Reached via More — after picking (or hitting Back), return to More.
+      const lang = langOf(session);
+      session.languageReturn = "feat:more";
+      return send(bot, chatId, t(lang, "choose_language"), {
+        keyboard: languageKeyboard(lang, lang, "feat:more"),
+        markdown: true,
+      });
+    }
     if (x === "subscription") return showSubscription(bot, chatId, session);
+    if (x === "account") return showAccount(bot, chatId, session);
+    if (x === "plan") return showPlan(bot, chatId, session);
     if (x === "support") return showSupport(bot, chatId, session);
     if (x === "goals") return showGoals(bot, chatId, session);
     if (x === "challenges") return showChallenges(bot, chatId, session);
     if (x === "executive") return showExecutive(bot, chatId, session);
+  }
+
+  // My Account actions
+  if (data.startsWith("acct:")) {
+    const x = data.split(":")[1];
+    if (x === "edit") return startEditProfile(bot, chatId, session);
+    if (x === "deactivate") return showDeactivateConfirm(bot, chatId, session);
+    if (x === "deactivate_confirm") return doDeactivate(bot, chatId, session);
+    if (x === "close") return showCloseConfirm(bot, chatId, session);
+    if (x === "close_confirm") return doClose(bot, chatId, session);
+  }
+
+  // My Subscription actions
+  if (data.startsWith("sub:")) {
+    const x = data.split(":")[1];
+    if (x === "upgrade") {
+      const lang = langOf(session);
+      return send(bot, chatId, t(lang, "upgrade_intro", { plan: planName(lang, session.user.tier) }), {
+        keyboard: backKeyboard(lang, "feat:subscription"),
+        markdown: true,
+      });
+    }
+    if (x === "manage") {
+      const lang = langOf(session);
+      return send(bot, chatId, t(lang, "sub_manage_stub"), {
+        keyboard: backKeyboard(lang, "feat:subscription"),
+        markdown: true,
+      });
+    }
+    if (x === "billing") {
+      const lang = langOf(session);
+      return send(bot, chatId, t(lang, "sub_billing_stub"), {
+        keyboard: backKeyboard(lang, "feat:subscription"),
+        markdown: true,
+      });
+    }
+  }
+
+  // Reminder category preference toggle (More → Reminders)
+  if (data.startsWith("remp:")) {
+    return toggleReminderPref(bot, chatId, session, data.split(":")[1]);
   }
 
   // Medication frequency picker — only fires inside the medication flow.
@@ -433,6 +607,11 @@ export async function handleCallback(bot, query) {
     return wellbeingCallback(bot, chatId, session, data);
   }
 
+  // Type 1 periodic confidence check (fires after wellbeing for T1 users).
+  if (data.startsWith("t1c:")) {
+    return t1ConfidenceCallback(bot, chatId, session, data);
+  }
+
   // Activity goal picker — only fires inside the activity flow.
   if (data.startsWith("actgoal:")) {
     return activityCallback(bot, chatId, session, data);
@@ -445,13 +624,20 @@ export async function handleCallback(bot, query) {
 
   if (data.startsWith("feat:")) return dispatchFeature(bot, chatId, session, data.split(":")[1]);
 
-  // Profile-based main-menu item. Behavior is TBD — for now, land on a stub
-  // that keeps the user in the Ask DrSaab flow so their next message goes to
-  // the coach with full context.
+  // T1 Community sub-menu (spec 2026-07): support / blogs / videos / dailylife / events.
+  if (data.startsWith("t1:")) {
+    return dispatchT1Community(bot, chatId, session, data.split(":")[1]);
+  }
+
+  // Profile-based main-menu item. Type 1 users land on the T1 Community
+  // section; other profiles fall through to the Ask DrSaab stub until their
+  // own section is built.
   if (data.startsWith("pfl:")) {
+    const profile = data.split(":")[1];
+    if (profile === "type1") return showT1Community(bot, chatId, session);
     const lang = langOf(session);
     await send(bot, chatId, t(lang, "profile_menu_stub"), { markdown: true });
-    return startCoach(bot, chatId, session, "coach");
+    return startAskDrsaab(bot, chatId, session);
   }
 }
 

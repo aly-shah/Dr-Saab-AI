@@ -61,9 +61,36 @@ async function makeSupabaseBackend() {
       const { error } = await db.from("health_logs").insert({ user_id: userId, ...fields });
       if (error) throw error;
     },
-    async addLabReport(userId, rawInput, analysis) {
-      const { error } = await db.from("lab_reports").insert({ user_id: userId, raw_input: rawInput, analysis });
+    async addLabReport(userId, rawInput, analysis, extras = {}) {
+      const { error } = await db.from("lab_reports").insert({
+        user_id: userId,
+        raw_input: rawInput,
+        analysis,
+        metadata: extras.metadata ?? null,
+        lab_values: extras.values ?? null,
+        lab_source: extras.lab_source ?? null,
+      });
       if (error) throw error;
+    },
+    async countLabReportsSince(userId, sinceIso) {
+      const { count, error } = await db
+        .from("lab_reports")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .gte("created_at", sinceIso);
+      if (error) throw error;
+      return count || 0;
+    },
+    async recentLabReports(userId, limit) {
+      const { data, error } = await db
+        .from("lab_reports")
+        .select("lab_values, metadata, created_at")
+        .eq("user_id", userId)
+        .not("lab_values", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return (data || []).map((r) => ({ values: r.lab_values, metadata: r.metadata, created_at: r.created_at }));
     },
     async saveCoachMessage(userId, kind, role, content) {
       try {
@@ -210,6 +237,64 @@ async function makeSupabaseBackend() {
     async markReminderFired(id, nextFireAt) {
       await db.from("reminder_schedules").update({ last_fired_at: new Date().toISOString(), next_fire_at: nextFireAt }).eq("id", id);
     },
+    // --- My Goals (2026-07) ---
+    async listActiveGoals(userId) {
+      const { data } = await db
+        .from("user_goals")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("status", "active")
+        .order("created_at", { ascending: true });
+      return data || [];
+    },
+    async listAllGoals(userId) {
+      const { data } = await db
+        .from("user_goals")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+      return data || [];
+    },
+    async getGoal(userId, goalId) {
+      const { data } = await db
+        .from("user_goals")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("id", goalId)
+        .maybeSingle();
+      return data || null;
+    },
+    async addGoal(userId, fields) {
+      const { data } = await db
+        .from("user_goals")
+        .insert({ user_id: userId, status: "active", ...fields })
+        .select("*")
+        .single();
+      return data;
+    },
+    async updateGoal(userId, goalId, patch) {
+      const { data } = await db
+        .from("user_goals")
+        .update(patch)
+        .eq("user_id", userId)
+        .eq("id", goalId)
+        .select("*")
+        .single();
+      return data;
+    },
+    async goalsDueForReview(todayIso) {
+      // Active goals whose target_date is on or before today and haven't
+      // been reviewed yet. Scheduler tick calls this once per run.
+      const { data } = await db
+        .from("user_goals")
+        .select("*")
+        .eq("status", "active")
+        .not("target_date", "is", null)
+        .lte("target_date", todayIso)
+        .is("review_sent_at", null)
+        .limit(200);
+      return data || [];
+    },
   };
 }
 
@@ -294,8 +379,33 @@ async function makePostgresBackend() {
     async addHealthLog(userId, fields) {
       await insertDynamic("health_logs", { user_id: userId, ...fields });
     },
-    async addLabReport(userId, rawInput, analysis) {
-      await insertDynamic("lab_reports", { user_id: userId, raw_input: rawInput, analysis });
+    async addLabReport(userId, rawInput, analysis, extras = {}) {
+      await insertDynamic("lab_reports", {
+        user_id: userId,
+        raw_input: rawInput,
+        analysis,
+        metadata: extras.metadata ?? null,
+        lab_values: extras.values ?? null,
+        lab_source: extras.lab_source ?? null,
+      });
+    },
+    async countLabReportsSince(userId, sinceIso) {
+      const { rows } = await pool.query(
+        "select count(*)::int as n from lab_reports where user_id=$1 and created_at>=$2",
+        [userId, sinceIso]
+      );
+      return rows[0]?.n || 0;
+    },
+    async recentLabReports(userId, limit) {
+      const { rows } = await pool.query(
+        `select lab_values as values, metadata, created_at
+           from lab_reports
+          where user_id=$1 and lab_values is not null
+          order by created_at desc
+          limit $2`,
+        [userId, limit]
+      );
+      return rows;
     },
     async saveCoachMessage(userId, kind, role, content) {
       try {
@@ -489,6 +599,82 @@ async function makePostgresBackend() {
         category: category || "unclassified",
       });
     },
+    async addT1ConfidenceLog(userId, level) {
+      await insertDynamic("t1_confidence_logs", { user_id: userId, level });
+      const { rows } = await pool.query(
+        `update users set t1_confidence = $1, t1_confidence_updated_at = now(), updated_at = now()
+           where id = $2 returning *`,
+        [level, userId]
+      );
+      return rows[0];
+    },
+    // ---- T1 Community content (read-only from the bot; managed via Admin Portal) ----
+    async listT1Organizations() {
+      const { rows } = await pool.query(
+        `select id, name, description, website, contact, logo_url,
+                facebook_url, instagram_url, twitter_url, youtube_url
+           from t1_organizations
+          where active
+          order by sort_order, name`
+      );
+      return rows;
+    },
+    async listT1Articles(limit = 10) {
+      const { rows } = await pool.query(
+        `select id, title, summary, url, source, audience
+           from t1_articles
+          where active
+          order by sort_order, title
+          limit $1`,
+        [limit]
+      );
+      return rows;
+    },
+    async listT1Videos(limit = 10) {
+      const { rows } = await pool.query(
+        `select id, title, description, url, source, audience
+           from t1_videos
+          where active
+          order by sort_order, title
+          limit $1`,
+        [limit]
+      );
+      return rows;
+    },
+    async listT1DailyLifeTopics(category = null) {
+      const params = [];
+      let where = "active";
+      if (category) {
+        params.push(category);
+        where += ` and category = $${params.length}`;
+      }
+      const { rows } = await pool.query(
+        `select id, category, title, pdf_url
+           from t1_daily_life_topics
+          where ${where}
+          order by category, sort_order, title`,
+        params
+      );
+      return rows;
+    },
+    async getT1DailyLifeTopic(id) {
+      const { rows } = await pool.query(
+        `select id, category, title, pdf_url from t1_daily_life_topics where id = $1 and active`,
+        [id]
+      );
+      return rows[0] || null;
+    },
+    async listT1Events(limit = 20) {
+      const { rows } = await pool.query(
+        `select id, description, event_date, url
+           from t1_events
+          where active
+          order by event_date nulls last, sort_order, id
+          limit $1`,
+        [limit]
+      );
+      return rows;
+    },
     async addMedicationMasterFull(userId, fields) {
       const cols = ["user_id", "name", "dose", "frequency", "reminder_enabled", "active", "units", "is_insulin", "preferred_time"];
       const vals = [
@@ -533,6 +719,61 @@ async function makePostgresBackend() {
     async addMedSatisfaction(userId, response, note) {
       await insertDynamic("med_satisfaction", { user_id: userId, response, note: note || null });
     },
+
+    // --- My Goals (2026-07) ---
+    async listActiveGoals(userId) {
+      const { rows } = await pool.query(
+        "select * from user_goals where user_id=$1 and status='active' order by created_at asc",
+        [userId]
+      );
+      return rows;
+    },
+    async listAllGoals(userId) {
+      const { rows } = await pool.query(
+        "select * from user_goals where user_id=$1 order by created_at desc",
+        [userId]
+      );
+      return rows;
+    },
+    async getGoal(userId, goalId) {
+      const { rows } = await pool.query(
+        "select * from user_goals where user_id=$1 and id=$2",
+        [userId, goalId]
+      );
+      return rows[0] || null;
+    },
+    async addGoal(userId, fields) {
+      const obj = { user_id: userId, status: "active", ...fields };
+      const keys = Object.keys(obj);
+      const cols = keys.join(", ");
+      const ph = keys.map((_, i) => `$${i + 1}`).join(", ");
+      const { rows } = await pool.query(
+        `insert into user_goals (${cols}) values (${ph}) returning *`,
+        Object.values(obj)
+      );
+      return rows[0];
+    },
+    async updateGoal(userId, goalId, patch) {
+      const keys = Object.keys(patch);
+      if (!keys.length) return this.getGoal(userId, goalId);
+      const set = keys.map((k, i) => `${k} = $${i + 1}`).join(", ");
+      const vals = keys.map((k) => patch[k]);
+      const { rows } = await pool.query(
+        `update user_goals set ${set} where user_id=$${vals.length + 1} and id=$${vals.length + 2} returning *`,
+        [...vals, userId, goalId]
+      );
+      return rows[0];
+    },
+    async goalsDueForReview(todayIso) {
+      const { rows } = await pool.query(
+        `select * from user_goals
+         where status='active' and target_date is not null
+           and target_date <= $1::date and review_sent_at is null
+         order by target_date limit 200`,
+        [todayIso]
+      );
+      return rows;
+    },
   };
 }
 
@@ -552,10 +793,12 @@ function makeMemoryBackend() {
   const medsMaster = [];
   const symptoms = [];
   const reminders = [];
+  const goals = [];
   let seq = 1;
   let reqSeq = 1;
   let medSeq = 1;
   let remSeq = 1;
+  let goalSeq = 1;
 
   return {
     async getUserByTelegramId(telegramId) {
@@ -603,7 +846,7 @@ function makeMemoryBackend() {
       const purge = (arr) => {
         for (let i = arr.length - 1; i >= 0; i--) if (arr[i].user_id === userId) arr.splice(i, 1);
       };
-      [glucose, meds, health, labs, challenges, serviceReqs].forEach(purge);
+      [glucose, meds, health, labs, challenges, serviceReqs, goals].forEach(purge);
     },
     async addGlucose(userId, value, context, note) {
       glucose.push({ user_id: userId, value_mgdl: value, context, note, created_at: nowISO() });
@@ -614,8 +857,25 @@ function makeMemoryBackend() {
     async addHealthLog(userId, fields) {
       health.push({ user_id: userId, ...fields, created_at: nowISO() });
     },
-    async addLabReport(userId, rawInput, analysis) {
-      labs.push({ user_id: userId, raw_input: rawInput, analysis, created_at: nowISO() });
+    async addLabReport(userId, rawInput, analysis, extras = {}) {
+      labs.push({
+        user_id: userId,
+        raw_input: rawInput,
+        analysis,
+        metadata: extras.metadata ?? null,
+        values: extras.values ?? null,
+        lab_source: extras.lab_source ?? null,
+        created_at: nowISO(),
+      });
+    },
+    async countLabReportsSince(userId, sinceIso) {
+      return labs.filter((r) => r.user_id === userId && r.created_at >= sinceIso).length;
+    },
+    async recentLabReports(userId, limit) {
+      return labs
+        .filter((r) => r.user_id === userId && r.values != null)
+        .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+        .slice(0, limit);
     },
     async saveCoachMessage() {
       /* not persisted in memory mode */
@@ -737,6 +997,19 @@ function makeMemoryBackend() {
       glucose.push({ user_id: userId, value_mgdl: value, context: context || "random", created_at: nowISO() });
     },
     async addWellbeingLog() { /* not persisted in memory mode */ },
+    async addT1ConfidenceLog(userId, level) {
+      const user = usersById.get(userId);
+      if (!user) return null;
+      user.t1_confidence = level;
+      user.t1_confidence_updated_at = nowISO();
+      return user;
+    },
+    async listT1Organizations() { return []; },
+    async listT1Articles() { return []; },
+    async listT1Videos() { return []; },
+    async listT1DailyLifeTopics() { return []; },
+    async getT1DailyLifeTopic() { return null; },
+    async listT1Events() { return []; },
     async addMedicationMasterFull(userId, fields) {
       const row = { id: "m" + medSeq++, user_id: userId, active: true, created_at: nowISO(), ...fields };
       medsMaster.push(row);
@@ -747,6 +1020,51 @@ function makeMemoryBackend() {
     async updateMedConsistency() { /* stub */ },
     async logMedConsistencyResponse() { /* stub */ },
     async addMedSatisfaction() { /* stub */ },
+    // --- My Goals (2026-07) ---
+    async listActiveGoals(userId) {
+      return goals
+        .filter((g) => g.user_id === userId && g.status === "active")
+        .sort((a, b) => (a.created_at > b.created_at ? 1 : -1));
+    },
+    async listAllGoals(userId) {
+      return goals
+        .filter((g) => g.user_id === userId)
+        .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+    },
+    async getGoal(userId, goalId) {
+      return goals.find((g) => g.user_id === userId && g.id === goalId) || null;
+    },
+    async addGoal(userId, fields) {
+      const row = {
+        id: "g" + goalSeq++,
+        user_id: userId,
+        status: "active",
+        review_sent_at: null,
+        completed_at: null,
+        created_at: nowISO(),
+        updated_at: nowISO(),
+        title: null,
+        suggestion_key: null,
+        motivation: null,
+        target_date: null,
+        target_hint: null,
+        ...fields,
+      };
+      goals.push(row);
+      return row;
+    },
+    async updateGoal(userId, goalId, patch) {
+      const g = goals.find((x) => x.user_id === userId && x.id === goalId);
+      if (!g) return null;
+      Object.assign(g, patch, { updated_at: nowISO() });
+      return g;
+    },
+    async goalsDueForReview(todayIso) {
+      const today = todayIso.slice(0, 10);
+      return goals.filter(
+        (g) => g.status === "active" && g.target_date && g.target_date <= today && !g.review_sent_at
+      );
+    },
   };
 }
 
@@ -789,7 +1107,9 @@ export async function registerActivity(user) {
 export const addGlucose = (id, v, c = "random", n = null) => backend.addGlucose(id, v, c, n);
 export const addMedication = (id, name, dose = null) => backend.addMedication(id, name, dose);
 export const addHealthLog = (id, fields) => backend.addHealthLog(id, fields);
-export const addLabReport = (id, raw, analysis) => backend.addLabReport(id, raw, analysis);
+export const addLabReport = (id, raw, analysis, extras) => backend.addLabReport(id, raw, analysis, extras);
+export const countLabReportsSince = (id, sinceIso) => backend.countLabReportsSince(id, sinceIso);
+export const recentLabReports = (id, limit = 3) => backend.recentLabReports(id, limit);
 export const saveCoachMessage = (id, kind, role, content) => backend.saveCoachMessage(id, kind, role, content);
 export const recentGlucose = (id, limit = 5) => backend.recentGlucose(id, limit);
 export const latestWeight = (id) => backend.latestWeight(id);
@@ -854,6 +1174,20 @@ export const countWeightEntries = (id) => backend.countWeightEntries(id);
 export const countActivityEntries = (id) => backend.countActivityEntries(id);
 export const addGlucoseFull = (id, fields) => backend.addGlucoseFull(id, fields);
 export const addWellbeingLog = (id, fields) => backend.addWellbeingLog(id, fields);
+export const addT1ConfidenceLog = (id, level) =>
+  backend.addT1ConfidenceLog ? backend.addT1ConfidenceLog(id, level) : Promise.resolve(null);
+export const listT1Organizations = () =>
+  backend.listT1Organizations ? backend.listT1Organizations() : Promise.resolve([]);
+export const listT1Articles = (limit) =>
+  backend.listT1Articles ? backend.listT1Articles(limit) : Promise.resolve([]);
+export const listT1Videos = (limit) =>
+  backend.listT1Videos ? backend.listT1Videos(limit) : Promise.resolve([]);
+export const listT1DailyLifeTopics = (category) =>
+  backend.listT1DailyLifeTopics ? backend.listT1DailyLifeTopics(category) : Promise.resolve([]);
+export const getT1DailyLifeTopic = (id) =>
+  backend.getT1DailyLifeTopic ? backend.getT1DailyLifeTopic(id) : Promise.resolve(null);
+export const listT1Events = (limit) =>
+  backend.listT1Events ? backend.listT1Events(limit) : Promise.resolve([]);
 export const addMedicationMasterFull = (id, fields) => backend.addMedicationMasterFull(id, fields);
 export const enrollMedConsistency = (id) => backend.enrollMedConsistency(id);
 export const getMedConsistency = (id) => backend.getMedConsistency(id);
@@ -866,3 +1200,29 @@ export const dueReminders = (nowIso = new Date().toISOString()) =>
   backend.dueReminders ? backend.dueReminders(nowIso) : Promise.resolve([]);
 export const markReminderFired = (rid, nextFireAt) =>
   backend.markReminderFired ? backend.markReminderFired(rid, nextFireAt) : Promise.resolve();
+
+// More → My Account. `deactivated_at` / `closed_at` are stamped as we flip
+// so the timeline is auditable even if the user re-activates later.
+export async function setAccountStatus(userId, status) {
+  const patch = { account_status: status };
+  if (status === "inactive") patch.deactivated_at = new Date().toISOString();
+  if (status === "closed") patch.closed_at = new Date().toISOString();
+  if (status === "active") patch.deactivated_at = null;
+  return backend.updateUser(userId, patch);
+}
+
+// Also deactivate every active reminder for a user — used when closing an
+// account so the scheduler doesn't fire against a closed row after the fact.
+export async function deactivateAllReminders(userId) {
+  const items = await backend.listReminders(userId).catch(() => []);
+  await Promise.all(items.map((r) => backend.deactivateReminder(userId, r.id).catch(() => {})));
+}
+
+// --- My Goals (2026-07) ---
+export const listActiveGoals = (id) => backend.listActiveGoals(id);
+export const listAllGoals = (id) => backend.listAllGoals(id);
+export const getGoal = (id, gid) => backend.getGoal(id, gid);
+export const addGoal = (id, fields) => backend.addGoal(id, fields);
+export const updateGoal = (id, gid, patch) => backend.updateGoal(id, gid, patch);
+export const goalsDueForReview = (todayIso = new Date().toISOString().slice(0, 10)) =>
+  backend.goalsDueForReview ? backend.goalsDueForReview(todayIso) : Promise.resolve([]);

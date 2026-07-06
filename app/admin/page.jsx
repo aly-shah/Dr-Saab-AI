@@ -36,7 +36,69 @@ const NAV = [
   { key: "patients", label: "Patients", d: "M16 11a4 4 0 1 0-8 0M3 20a6 6 0 0 1 18 0" },
   { key: "doctors", label: "Doctors", d: "M9 3v4a3 3 0 0 0 6 0V3M6 21v-2a6 6 0 0 1 12 0v2" },
   { key: "leaderboard", label: "Leaderboard", d: "M8 21h8M12 17v4M5 4h14v4a7 7 0 0 1-14 0V4z" },
+  { key: "t1", label: "T1 Content", d: "M12 3v18M3 12h18" },
 ];
+
+// T1 Content editors — shape mirrors lib/adminT1.js. Keeping this in the
+// frontend as a plain array lets us render add/edit forms declaratively.
+const T1_KIND_CONFIG = {
+  organizations: {
+    label: "Organizations",
+    columns: [
+      { name: "name", label: "Name", required: true },
+      { name: "description", label: "Description", type: "textarea" },
+      { name: "logo_url", label: "Logo URL" },
+      { name: "website", label: "Website" },
+      { name: "contact", label: "Contact" },
+      { name: "facebook_url", label: "Facebook URL" },
+      { name: "instagram_url", label: "Instagram URL" },
+      { name: "twitter_url", label: "Twitter / X URL" },
+      { name: "youtube_url", label: "YouTube URL" },
+    ],
+  },
+  articles: {
+    label: "Blogs / Articles",
+    columns: [
+      { name: "title", label: "Title", required: true },
+      { name: "url", label: "URL", required: true },
+      { name: "summary", label: "Summary", type: "textarea" },
+      { name: "source", label: "Source" },
+      { name: "audience", label: "Audience", type: "select",
+        options: ["general", "newly_diagnosed", "parents", "exercise", "ramadan"] },
+      { name: "tags", label: "Tags (comma-separated)" },
+    ],
+  },
+  videos: {
+    label: "Videos",
+    columns: [
+      { name: "title", label: "Title", required: true },
+      { name: "url", label: "URL", required: true },
+      { name: "description", label: "Description", type: "textarea" },
+      { name: "source", label: "Source" },
+      { name: "audience", label: "Audience", type: "select",
+        options: ["general", "newly_diagnosed", "parents", "exercise", "ramadan"] },
+      { name: "tags", label: "Tags (comma-separated)" },
+    ],
+  },
+  topics: {
+    label: "Daily Life Topics",
+    columns: [
+      { name: "category", label: "Category", type: "select", required: true,
+        options: ["children_parents", "teens_young_adults", "adults"] },
+      { name: "title", label: "Topic title", required: true },
+      { name: "pdf_url", label: "PDF URL (paste a link to the guide PDF)" },
+    ],
+  },
+  events: {
+    label: "Events",
+    columns: [
+      { name: "description", label: "Event description (Name — City — Date)", required: true, type: "textarea" },
+      { name: "event_date", label: "Event date", type: "date" },
+      { name: "url", label: "Registration URL / contact" },
+    ],
+  },
+};
+const T1_KINDS = Object.keys(T1_KIND_CONFIG);
 
 function NavBtn({ item, active, onClick }) {
   return (
@@ -232,6 +294,193 @@ function Leaderboard({ rows }) {
   );
 }
 
+// ---- T1 Content management ----
+
+function emptyRow(kind) {
+  const row = { active: true, sort_order: 0 };
+  for (const col of T1_KIND_CONFIG[kind].columns) {
+    row[col.name] = col.type === "select" ? (col.options[0] ?? "") : "";
+  }
+  return row;
+}
+
+function T1RowForm({ kind, initial, onSave, onCancel, busy }) {
+  const cfg = T1_KIND_CONFIG[kind];
+  const [values, setValues] = useState(() => ({ ...emptyRow(kind), ...(initial || {}) }));
+  const set = (k, v) => setValues((prev) => ({ ...prev, [k]: v }));
+
+  const submit = (e) => {
+    e.preventDefault();
+    onSave(values);
+  };
+
+  return (
+    <form onSubmit={submit} className="space-y-3">
+      {cfg.columns.map((col) => {
+        const raw = values[col.name];
+        const val = Array.isArray(raw) ? raw.join(", ") : raw ?? "";
+        const commonProps = {
+          value: val,
+          onChange: (e) => set(col.name, e.target.value),
+          placeholder: col.label,
+          className:
+            "w-full rounded-xl bg-muted px-3.5 py-2.5 text-sm outline-none ring-1 ring-transparent focus:ring-primary",
+        };
+        return (
+          <div key={col.name}>
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-ink/40">
+              {col.label}{col.required && <span className="text-red-500"> *</span>}
+            </label>
+            {col.type === "textarea" ? (
+              <textarea rows={3} {...commonProps} />
+            ) : col.type === "select" ? (
+              <select {...commonProps}>
+                {col.options.map((o) => (
+                  <option key={o} value={o}>{o.replaceAll("_", " ")}</option>
+                ))}
+              </select>
+            ) : (
+              <input type={col.type === "date" ? "date" : "text"} {...commonProps} />
+            )}
+          </div>
+        );
+      })}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-ink/40">Sort order</label>
+          <input type="number" value={values.sort_order ?? 0}
+            onChange={(e) => set("sort_order", e.target.value)}
+            className="w-full rounded-xl bg-muted px-3.5 py-2.5 text-sm outline-none ring-1 ring-transparent focus:ring-primary" />
+        </div>
+        <label className="flex items-center gap-2 pt-6 text-sm text-ink/70">
+          <input type="checkbox" checked={!!values.active}
+            onChange={(e) => set("active", e.target.checked)} />
+          Active (shown in bot)
+        </label>
+      </div>
+      <div className="flex gap-2">
+        <button disabled={busy} className="btn-primary flex-1">{busy ? "Saving…" : (initial ? "Save changes" : "Add row")}</button>
+        {onCancel && (
+          <button type="button" onClick={onCancel}
+            className="rounded-xl px-4 py-2.5 text-sm font-medium text-ink/60 hover:bg-muted">Cancel</button>
+        )}
+      </div>
+    </form>
+  );
+}
+
+function T1RowList({ kind, rows, onEdit, onDelete }) {
+  const cfg = T1_KIND_CONFIG[kind];
+  const primary = cfg.columns.find((c) => c.name === "title" || c.name === "name" || c.name === "description");
+  const secondary = cfg.columns.find((c) => c.name === "url" || c.name === "website" || c.name === "pdf_url");
+  return (
+    <div className="space-y-1.5">
+      {rows.length === 0 && <p className="text-sm text-ink/45">No entries yet — add one on the left.</p>}
+      {rows.map((r) => (
+        <div key={r.id} className={`flex items-start gap-3 rounded-xl p-3 ring-1 ring-line/50 ${r.active ? "bg-white" : "bg-muted/40 opacity-70"}`}>
+          <div className="flex-1 min-w-0">
+            <p className="truncate font-medium text-ink">{r[primary?.name] || "—"}</p>
+            {secondary && r[secondary.name] && (
+              <p className="mt-0.5 truncate text-xs text-ink/50">{r[secondary.name]}</p>
+            )}
+            <div className="mt-1 flex flex-wrap gap-1 text-[10px] uppercase tracking-wider text-ink/40">
+              {r.category && <span className="rounded bg-muted px-1.5 py-0.5">{r.category.replaceAll("_", " ")}</span>}
+              {r.audience && <span className="rounded bg-muted px-1.5 py-0.5">{r.audience.replaceAll("_", " ")}</span>}
+              {r.source && <span className="rounded bg-muted px-1.5 py-0.5">{r.source}</span>}
+              {r.event_date && <span className="rounded bg-muted px-1.5 py-0.5">{r.event_date}</span>}
+              <span className="rounded bg-muted px-1.5 py-0.5">order {r.sort_order}</span>
+              {!r.active && <span className="rounded bg-red-100 px-1.5 py-0.5 text-red-600">hidden</span>}
+            </div>
+          </div>
+          <div className="flex flex-none flex-col gap-1">
+            <button onClick={() => onEdit(r)} className="rounded-lg bg-muted px-2.5 py-1 text-xs font-medium text-ink/70 hover:bg-muted/70">Edit</button>
+            <button onClick={() => onDelete(r)} className="rounded-lg bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-100">Delete</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function T1KindEditor({ kind }) {
+  const [rows, setRows] = useState(null);
+  const [editing, setEditing] = useState(null); // row object when editing
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const load = useCallback(async () => {
+    setMsg("");
+    const res = await fetch(`/api/admin/t1/${kind}`);
+    const d = await res.json();
+    if (res.ok) setRows(d.rows || []);
+    else setMsg(d.error || "Failed to load");
+  }, [kind]);
+
+  useEffect(() => { setRows(null); setEditing(null); load(); }, [kind, load]);
+
+  const save = async (values) => {
+    setBusy(true); setMsg("");
+    const method = editing ? "PATCH" : "POST";
+    const body = editing ? { ...values, id: editing.id } : values;
+    const res = await fetch(`/api/admin/t1/${kind}`, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    setBusy(false);
+    const d = await res.json();
+    if (!res.ok) { setMsg(d.error || "Save failed"); return; }
+    setEditing(null);
+    load();
+  };
+
+  const remove = async (row) => {
+    if (!confirm(`Delete "${row.title || row.name || row.description}"?`)) return;
+    const res = await fetch(`/api/admin/t1/${kind}?id=${row.id}`, { method: "DELETE" });
+    if (res.ok) load();
+    else {
+      const d = await res.json().catch(() => ({}));
+      setMsg(d.error || "Delete failed");
+    }
+  };
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
+      <Panel title={editing ? "Edit entry" : "Add new"}>
+        <T1RowForm
+          kind={kind}
+          initial={editing}
+          busy={busy}
+          onSave={save}
+          onCancel={editing ? () => setEditing(null) : null}
+        />
+        {msg && <p className="mt-3 text-sm text-red-500">{msg}</p>}
+      </Panel>
+      <Panel title={`${T1_KIND_CONFIG[kind].label}${rows ? ` (${rows.length})` : ""}`}>
+        {!rows && <p className="text-sm text-ink/45">Loading…</p>}
+        {rows && <T1RowList kind={kind} rows={rows} onEdit={setEditing} onDelete={remove} />}
+      </Panel>
+    </div>
+  );
+}
+
+function T1ContentView() {
+  const [kind, setKind] = useState(T1_KINDS[0]);
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2 overflow-x-auto">
+        {T1_KINDS.map((k) => (
+          <button key={k} onClick={() => setKind(k)}
+            className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium ${kind === k ? "bg-primary text-white" : "bg-white text-ink/70 ring-1 ring-line/60"}`}>
+            {T1_KIND_CONFIG[k].label}
+          </button>
+        ))}
+      </div>
+      <T1KindEditor kind={kind} />
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const [authed, setAuthed] = useState(null);
   const [data, setData] = useState(null);
@@ -354,6 +603,14 @@ export default function AdminPage() {
             <>
               <h2 className="text-xl font-bold text-ink">Leaderboard</h2>
               <Leaderboard rows={data.leaderboard} />
+            </>
+          )}
+
+          {view === "t1" && (
+            <>
+              <h2 className="text-xl font-bold text-ink">Type 1 Community — Content</h2>
+              <p className="-mt-3 text-sm text-ink/55">Manage the organisations, articles, videos, daily-life topics and events shown to Type 1 users in the bot.</p>
+              <T1ContentView />
             </>
           )}
         </div>
