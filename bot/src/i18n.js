@@ -137,18 +137,18 @@ const STR = {
     name_ack:
       "Nice to meet you, *{name}* 👋\nLet's build your profile so I can personalize my coaching for you.",
     ask_user_type: "Which best describes you?",
-    ut_diabetes: "I have diabetes",
-    ut_prediabetes: "I have prediabetes",
+    ut_type1: "I have Type 1 Diabetes",
+    ut_type2: "I have Type 2 Diabetes",
+    ut_prediabetes: "I have Prediabetes",
+    ut_gestational: "I have Gestational Diabetes",
     ut_healthier: "I want to live healthier",
-    ut_notsure: "Build healthier habits",
-    ut_parent: "I'm a parent/family member",
-    ut_exploring: "Just exploring",
 
     ask_age_v2: "Ok great. Let's begin. When is your birthday?\nPlease share day, month and year (e.g. 12 March 1985).",
     ask_dob_missing:
       "I just need a complete birthday — please send the missing *{missing}* (e.g. 12 March 1985).",
     btn_multi_done: "Done",
     multi_select_hint: "_Tap multiple options, then press Done._",
+    multi_select_selected: "*Selected so far:* {list}",
     g_prefer_not: "Prefer not to say",
     ask_city_v2: "Which city do you live in?",
 
@@ -237,6 +237,8 @@ const STR = {
 
     profile_complete_v2:
       "Perfect, *{name}* ✅\nYour profile is ready.\nI'll use this information to personalize your coaching, reminders, education and progress tracking.\n\nLet's start building healthier habits together.",
+    profile_complete_v2_noname:
+      "Perfect ✅\nYour profile is ready.\nI'll use this information to personalize your coaching, reminders, education and progress tracking.\n\nLet's start building healthier habits together.",
     disclaimer_v2:
       "*Before we continue:*\n\nDrSaab provides educational information and coaching support. It does not replace medical advice, diagnosis or treatment from a qualified healthcare professional.\n\nIf you experience severe symptoms such as chest pain, fainting, confusion, severe weakness, very high blood sugar, very low blood sugar, or any medical emergency, please seek immediate medical attention.",
     btn_understand: "I Understand",
@@ -411,7 +413,7 @@ const STR = {
     btn_p_type1: "🤝 Type 1 Community",
     btn_p_type2: "🩸 Type 2 Diabetes",
     btn_p_prediabetes: "🌱 Prediabetes",
-    btn_p_healthier: "🌟 I Want to Live Healthier",
+    btn_p_healthier: "🌟 Better Me",
     btn_p_gestational: "🤰 Gestational Diabetes",
     profile_menu_stub: "This section is being built — tell me what you'd like help with and I'll do my best.",
 
@@ -759,6 +761,287 @@ const STR = {
       "Thanks for being honest. I'll pay closer attention to the parts you find tricky and surface help sooner.",
     t1c_reply_help:
       "I hear you — living with Type 1 is hard some days. I'll bring you more guides and community support you can reach out to. You're not alone. ❤️",
+
+    // Prediabetes — Healthy Living menu (spec 2026-07)
+    pd_menu_not_pre:
+      "The Healthy Living section is currently tailored for people with prediabetes. You can update your profile if this changes.",
+    pd_menu_title: "💪 *Healthy Living*",
+    pd_menu_intro: "Small daily wins prevent big health problems later. Pick one to start:",
+    btn_pd_wins: "⚡ 10-Minute Wins",
+    btn_pd_gym: "🏋️ My Gym Plan",
+    btn_pd_cravings: "🍟 Beat the Cravings",
+
+    // 10-Minute Wins
+    pd_wins_title: "⚡ *10-Minute Wins*",
+    pd_wins_prompt: "Here's your quick win:\n\n➡️ *{activity}*\n\nReady to give it a try?",
+    btn_pd_wins_do: "✅ I'll Do It",
+    btn_pd_wins_another: "🔄 Give Me Another",
+    btn_pd_wins_done: "🎉 I Did It",
+    pd_wins_go: "Great — go get it done. I'll check back in about 15 minutes to see how it went. 👊",
+    pd_wins_check: "Welcome back! 😊\nDid you complete your 10-Minute Win?",
+    btn_pd_wins_yes: "🎉 Yes",
+    btn_pd_wins_notyet: "😔 Not Yet",
+    pd_wins_yes:
+      "Fantastic! Small wins like this build lifelong habits.\n\nWhen you're ready, try another Healthy Living activity from the menu.",
+    pd_wins_notyet:
+      "That's okay. There's always another opportunity later today. Every small step counts.\n\nWhen you're ready, try another Healthy Living activity from the menu.",
+    // Activities (random pool)
+    pd_win_walk_office: "Walk around your office building.",
+    pd_win_walk_block: "Walk around the block.",
+    pd_win_stairs: "Climb the stairs for 10 minutes.",
+    pd_win_stretch_tv: "Stretch while watching TV.",
+    pd_win_home_workout: "Do a simple home workout.",
+    pd_win_brisk_walk: "Take a brisk walk after your next meal.",
+    pd_win_park_further: "Park further away and walk.",
+    pd_win_phone_walk: "Walk while taking a phone call.",
+
+    // My Gym Plan
+    pd_gym_title: "🏋️ *My Gym Plan*",
+    pd_gym_intro:
+      "Let's build a simple beginner routine. Three quick questions and I'll create a plan for you.",
+    pd_gym_q1: "*1.* Have you been to a gym before?",
+    btn_pd_gym_exp_never: "Never",
+    btn_pd_gym_exp_beginner: "Beginner",
+    btn_pd_gym_exp_regular: "Regular",
+    pd_gym_q2: "*2.* How many days per week can you realistically exercise?",
+    pd_gym_q3: "*3.* What's your main goal?",
+    btn_pd_gym_goal_lose: "Lose weight",
+    btn_pd_gym_goal_build: "Build muscle",
+    btn_pd_gym_goal_fitness: "Improve fitness",
+    btn_pd_gym_goal_bloodsugar: "Improve blood sugar",
+    pd_gym_generating: "Great — building your plan now… 🏗",
+    pd_gym_saved:
+      "{plan}\n\n_Saved to your profile. Come back anytime to regenerate or update this plan._",
+    pd_gym_error:
+      "I couldn't generate a plan right now. Please try again in a moment.",
+    btn_pd_gym_regen: "🔁 Regenerate My Plan",
+
+    // Beat the Cravings
+    pd_crav_title: "🍟 *Beat the Cravings*",
+    pd_crav_intro:
+      "Understanding your habits is the first step. Let's take it one small change at a time.",
+    // Step 1
+    pd_crav_drink_q: "Which sugary drink do you have most often?",
+    btn_pd_drink_coke: "Coca-Cola",
+    btn_pd_drink_pepsi: "Pepsi",
+    btn_pd_drink_7up: "7Up",
+    btn_pd_drink_sprite: "Sprite",
+    btn_pd_drink_mtn: "Mountain Dew",
+    btn_pd_drink_energy: "Energy drinks",
+    btn_pd_drink_tea: "Sweet tea",
+    btn_pd_drink_other: "Other",
+    pd_crav_drink_other_q: "No problem — what sugary drink do you have most often?",
+    pd_crav_drink_servings_q:
+      "Got it — *{drink}*. How many servings do you usually drink each day or week?",
+    // Step 2
+    pd_crav_junk_q: "Which junk foods do you eat most often?",
+    btn_pd_junk_burgers: "Burgers",
+    btn_pd_junk_pizza: "Pizza",
+    btn_pd_junk_fries: "Fries",
+    btn_pd_junk_chips: "Chips",
+    btn_pd_junk_biscuits: "Biscuits",
+    btn_pd_junk_cakes: "Cakes",
+    btn_pd_junk_choco: "Chocolate",
+    btn_pd_junk_fast: "Fast food",
+    btn_pd_junk_other: "Other",
+    pd_crav_junk_other_q: "Which junk foods do you eat most often?",
+    pd_crav_junk_freq_q:
+      "Got it — *{junk}*. About how many times each week do you eat these foods?",
+    // Step 3 — video share
+    pd_crav_video:
+      "Thanks. I'd like you to watch this short video — it explains how sugary drinks and ultra-processed foods can affect your long-term health.\n\n▶️ https://www.youtube.com/watch?v=DHma9_xQgD8&t=45s",
+    // Step 4 — reflection
+    pd_crav_reflection_q:
+      "After watching the video, what changes do you think you could realistically make over the next few weeks?",
+    // Step 5 — one small change
+    pd_crav_commit_q: "If you had to make just one small change this week, what feels realistic?",
+    btn_pd_commit_less_soda: "One less soft drink each day",
+    btn_pd_commit_weekend_only: "Soft drinks only on weekends",
+    btn_pd_commit_water: "Replace one sugary drink with water",
+    btn_pd_commit_less_fast: "Fast food one less time each week",
+    btn_pd_commit_skip_chips: "Skip chips during the week",
+    btn_pd_commit_other: "Something else",
+    pd_crav_commit_other_q: "Great — what one small change feels realistic this week?",
+    // Step 6 — closing
+    pd_crav_done:
+      "That's a great commitment: *{commitment}*\n\nSmall changes repeated consistently can lead to big improvements over time. I'll remember your goal and encourage you along the way.\n\nWhen you're ready, try another Healthy Living activity from the menu to keep building healthy habits.",
+    pd_crav_saved_short: "Saved. ✅",
+
+    // ===== Better Me — for user_type=healthier (spec 2026-07) =====
+    bm_menu_not_healthier:
+      "The Better Me section is currently tailored for people who chose \"I want to live healthier\". You can update your profile if this changes.",
+    bm_menu_title: "🌟 *Better Me*",
+    bm_menu_intro: "Select one of the options below:",
+    btn_bm_habit: "🎯 Build a New Habit",
+    btn_bm_fitness: "🏋️ My Fitness Plan",
+    btn_bm_wins: "⚡ 10-Minute Wins",
+    btn_bm_journey: "❤️ My Health Journey",
+
+    // Build a New Habit
+    bm_habit_title: "🎯 *Build a New Habit*",
+    bm_habit_intro: "Small daily habits build lifelong health. Pick one habit to start with:",
+    bm_habit_water: "Drink more water",
+    bm_habit_sleep: "Sleep earlier",
+    bm_habit_walk: "Walk every day",
+    bm_habit_exercise: "Exercise regularly",
+    bm_habit_veggies: "Eat more vegetables",
+    bm_habit_less_sugar: "Reduce sugar",
+    bm_habit_quit_smoking: "Quit smoking",
+    bm_habit_stress: "Reduce stress",
+    bm_habit_read: "Read daily",
+    bm_habit_pray: "Pray consistently",
+    bm_habit_other: "Something else",
+    bm_habit_other_q: "Great — describe the habit you'd like to build (in your own words).",
+    bm_habit_why_q:
+      "You chose *{habit}*. Why does this habit matter to you?\n\n_A short reason keeps you motivated on tough days._",
+    bm_habit_days_q: "How many days each week can you realistically do this?",
+    bm_habit_done:
+      "✅ Habit set: *{habit}*\nTarget: *{days} day(s)/week*\n\nI'll cheer you on and use this in your future check-ins. Small, steady steps win the race.",
+
+    // My Fitness Plan
+    bm_fit_title: "🏋️ *My Fitness Plan*",
+    bm_fit_intro:
+      "Let's build a simple plan tailored to you. Three quick questions.",
+    bm_fit_q1: "*1.* Have you been to a gym before?",
+    btn_bm_fit_exp_never: "Never",
+    btn_bm_fit_exp_beginner: "Beginner",
+    btn_bm_fit_exp_regular: "Regular",
+    bm_fit_q2: "*2.* How many days per week can you realistically exercise?",
+    bm_fit_q3: "*3.* What's your main goal?",
+    btn_bm_fit_goal_lose: "Lose weight",
+    btn_bm_fit_goal_build: "Build muscle",
+    btn_bm_fit_goal_fitness: "Improve fitness",
+    btn_bm_fit_goal_overall: "Improve overall health",
+    bm_fit_generating: "Building your fitness plan… 🏗",
+    bm_fit_saved:
+      "{plan}\n\n_Saved to your profile. Come back anytime to update or regenerate it._",
+    bm_fit_error: "I couldn't generate a plan right now. Please try again in a moment.",
+    btn_bm_fit_regen: "🔁 Regenerate My Plan",
+
+    // 10-Minute Wins
+    bm_wins_title: "⚡ *10-Minute Win*",
+    bm_wins_prompt: "Here's your quick win:\n\n➡️ *{activity}*\n\nReady to give it a try?",
+    btn_bm_wins_do: "✅ I'll Do It",
+    btn_bm_wins_another: "🔄 Give Me Another",
+    btn_bm_wins_done: "🎉 I Did It",
+    bm_wins_go: "Great — go get it done. I'll check back in about 15 minutes to see how it went. 👊",
+    bm_wins_check: "Welcome back! 😊\nDid you complete your 10-Minute Win?",
+    btn_bm_wins_yes: "🎉 Yes",
+    btn_bm_wins_notyet: "😔 Not Yet",
+    bm_wins_yes:
+      "Fantastic! Small wins like this build lifelong habits.\n\nWhen you're ready, try another Better Me activity from the menu.",
+    bm_wins_notyet:
+      "That's okay. Every small step counts. Try another one when you're ready.\n\nWhen you're ready, try another Better Me activity from the menu.",
+    // Activity pool (reuses a broader mix for a general audience)
+    bm_win_walk_block: "Walk around the block.",
+    bm_win_stairs: "Climb the stairs for 10 minutes.",
+    bm_win_stretch_tv: "Stretch while watching TV.",
+    bm_win_home_workout: "Do a simple home workout.",
+    bm_win_brisk_walk: "Take a brisk walk after your next meal.",
+    bm_win_park_further: "Park further away and walk.",
+    bm_win_phone_walk: "Walk while taking a phone call.",
+
+    // My Health Journey
+    bm_journey_title: "❤️ *My Health Journey*",
+    bm_journey_conditions_have:
+      "Here are the health conditions I have on file for you:\n\n{list}\n\nWould you like to add or update any?",
+    bm_journey_conditions_none:
+      "I don't have any health conditions on file for you yet. Would you like to add any?\n\n_Examples: High blood pressure, High cholesterol, Asthma, Arthritis, Fatty liver, PCOS, Sleep apnea, Thyroid problems._",
+    bm_journey_conditions_prompt:
+      "Type the condition(s) you'd like on file (separated by commas), or send *skip* to leave them as-is.",
+    bm_journey_conditions_saved: "✅ Conditions updated.",
+    bm_journey_goal_q: "What's the biggest health goal you'd like to achieve over the next year?",
+    btn_bm_journey_lose: "Lose weight",
+    btn_bm_journey_fit: "Get fitter",
+    btn_bm_journey_sleep: "Sleep better",
+    btn_bm_journey_quit: "Quit smoking",
+    btn_bm_journey_stress: "Reduce stress",
+    btn_bm_journey_energy: "Feel more energetic",
+    btn_bm_journey_overall: "Improve my overall health",
+    btn_bm_journey_other: "Something else",
+    bm_journey_other_q: "Great — describe your one-year health goal in your own words.",
+    bm_journey_done:
+      "✅ Saved your one-year goal: *{goal}*\n\nI'll use this to personalise your coaching, reminders and progress reports. Consistency beats intensity — I'm with you every step. 💚",
+
+    // ===== Pregnancy Support — for gestational diabetes users (spec 2026-07) =====
+    pg_menu_not_gest:
+      "The Pregnancy Support section is currently tailored for people with gestational diabetes. You can update your profile if this changes.",
+    pg_menu_title: "🤰 *Pregnancy Support*",
+    pg_menu_intro: "Select one of the options below:",
+    btn_pg_progress: "🤰 Pregnancy Progress",
+    btn_pg_healthy:  "🌼 Healthy Pregnancy",
+    btn_pg_checklist: "👜 Pregnancy Checklist",
+
+    // Profile-menu button (Main menu row)
+    btn_p_pregnancy: "🤰 Pregnancy Support",
+
+    // ---- Pregnancy Progress — first-time setup ----
+    pg_prog_setup_intro:
+      "Let's set up your pregnancy progress. 🤰\n\nI'll ask a few short questions so I can support you better during your pregnancy.",
+    pg_prog_q_weeks: "*1.* How many weeks pregnant are you?\n_Examples: `24 weeks`, `28`, `I'm not sure`._",
+    pg_prog_weeks_notsure: "No problem — we can add that later.",
+    pg_prog_q_due: "*2.* What is your expected due date?\n_Examples: `15 October 2026`, `Not sure yet`._",
+    pg_prog_due_notsure: "No problem — we can add that later.",
+    pg_prog_q_first: "*3.* Is this your first pregnancy?",
+    pg_prog_q_prev: "*4.* Have you had gestational diabetes before?",
+    pg_prog_q_insulin: "*5.* Are you currently using insulin?",
+    pg_prog_q_doctor: "*6.* Who is your pregnancy doctor or clinic?\n_Optional — tap Skip if you'd rather not share._",
+    pg_prog_q_delivery: "*7.* Which hospital or clinic are you planning for delivery?\n_Optional — tap Skip._",
+
+    btn_pg_yes: "✅ Yes",
+    btn_pg_no: "❌ No",
+    btn_pg_notsure: "Not Sure",
+
+    pg_prog_saved:
+      "Pregnancy progress saved. 🌼\nI'll use this information to support you with more relevant reminders, tips and coaching during your pregnancy.",
+
+    // View screen
+    pg_prog_view_title: "🤰 *Your Pregnancy Progress*",
+    pg_prog_view_body:
+      "*Weeks pregnant:* {weeks}\n*Due date:* {due}\n*First pregnancy:* {first}\n*Previous gestational diabetes:* {prev}\n*Using insulin:* {insulin}\n*Doctor/Clinic:* {doctor}\n*Delivery hospital:* {delivery}",
+    pg_prog_field_empty: "—",
+    btn_pg_edit_all: "✏️ Edit Details",
+    btn_pg_update_week: "🔄 Update Pregnancy Week",
+    pg_prog_update_week_q: "How many weeks pregnant are you now?\n_e.g. `29 weeks` or `I'm not sure`._",
+    pg_prog_week_saved: "✅ Pregnancy week updated.",
+
+    // ---- Healthy Pregnancy Tips ----
+    pg_tip_header: "Today's Healthy Pregnancy Tip 🌼",
+    btn_pg_tip_helpful: "👍 Helpful",
+    btn_pg_tip_another: "🔄 Show Me Another",
+    pg_tip_thanks: "Glad it helped. 🌼",
+    pg_tip_placeholder:
+      "New tips are being prepared and will be shared here soon. Check back in a bit! 🌼",
+
+    // Built-in tip fallbacks (used when the admin content pool is empty)
+    pg_tip_fallback_1: "Try to include protein with breakfast, such as eggs, yogurt or lentils. It may help you feel full and support steadier blood sugar.",
+    pg_tip_fallback_2: "Sip water through the day. Staying well hydrated supports circulation, digestion and steadier blood sugar during pregnancy.",
+    pg_tip_fallback_3: "A short 10–15 minute walk after your main meal can gently help your body use the carbs you ate.",
+    pg_tip_fallback_4: "Choose whole-grain roti, brown rice or oats over refined white options — the fibre helps steady your sugar levels.",
+    pg_tip_fallback_5: "Aim for a small snack every 3–4 hours (fruit + nuts, yogurt, egg on toast) so your sugar doesn't dip too low.",
+    pg_tip_fallback_6: "Track how you feel after meals. Noticing patterns helps you and your doctor spot what works best for you.",
+    pg_tip_fallback_7: "Rest is medicine too. Try to prioritise 7–9 hours of sleep; poor sleep can push sugar levels up the next day.",
+    pg_tip_fallback_8: "Keep a small emergency snack in your bag (a fruit or a few nuts) in case a meal gets delayed.",
+
+    // ---- Pregnancy Checklist ----
+    pg_checklist_title: "👜 *Pregnancy Checklist*",
+    pg_checklist_intro: "Tap a topic to open its checklist PDF.",
+    pg_checklist_placeholder:
+      "Checklists are being finalised and will appear here soon. 👜",
+    pg_checklist_topic_missing: "This checklist isn't available anymore. Please choose another from the list.",
+    pg_checklist_topic_no_pdf:
+      "*{title}*\n\nThis checklist is being prepared and will be shared here soon.",
+    pg_checklist_topic_open: "*{title}*\n\nHere's your checklist: {url}",
+
+    // Fallback topic titles when the DB table is empty
+    pg_cl_hospital_bag: "Hospital Bag Checklist",
+    pg_cl_delivery_prep: "Preparing for Delivery",
+    pg_cl_questions_dr: "Questions to Ask Your Doctor",
+    pg_cl_glucose_testing: "Glucose Testing Checklist",
+    pg_cl_newborn: "Newborn Essentials",
+    pg_cl_breastfeeding: "Breastfeeding Basics",
+    pg_cl_snacks: "Healthy Snacks During Pregnancy",
+    pg_cl_activity: "Safe Activity During Pregnancy",
   },
 
   ur: {
@@ -879,18 +1162,18 @@ const STR = {
     name_ack:
       "آپ سے مل کر خوشی ہوئی، *{name}* 👋\nآئیے آپ کا پروفائل مکمل کرتے ہیں تاکہ میں آپ کے لیے بہتر رہنمائی فراہم کر سکوں۔",
     ask_user_type: "ان میں سے کون سی بات آپ پر سب سے بہتر لاگو ہوتی ہے؟",
-    ut_diabetes: "مجھے ذیابیطس ہے",
+    ut_type1: "مجھے ٹائپ 1 ذیابیطس ہے",
+    ut_type2: "مجھے ٹائپ 2 ذیابیطس ہے",
     ut_prediabetes: "مجھے پری ذیابیطس ہے",
+    ut_gestational: "مجھے حملاتی ذیابیطس ہے",
     ut_healthier: "میں صحت مند زندگی چاہتا/چاہتی ہوں",
-    ut_notsure: "صحت مند عادات بنانا",
-    ut_parent: "میں والدین/اہلِ خانہ ہوں",
-    ut_exploring: "بس دیکھ رہا ہوں",
 
     ask_age_v2: "بہت خوب۔ آئیے شروع کرتے ہیں۔ آپ کی تاریخِ پیدائش کیا ہے؟\nبراہِ کرم دن، مہینہ اور سال بتائیں (مثلاً 12 مارچ 1985)۔",
     ask_dob_missing:
       "پوری تاریخِ پیدائش درکار ہے — براہِ کرم *{missing}* بھیجیں (مثلاً 12 مارچ 1985)۔",
     btn_multi_done: "مکمل",
     multi_select_hint: "_ایک سے زیادہ آپشن منتخب کریں، پھر مکمل دبائیں۔_",
+    multi_select_selected: "*اب تک منتخب:* {list}",
     g_prefer_not: "بتانا نہیں چاہتا",
     ask_city_v2: "آپ کس شہر میں رہتے ہیں؟",
 
@@ -979,6 +1262,8 @@ const STR = {
 
     profile_complete_v2:
       "بہترین، *{name}* ✅\nآپ کا پروفائل مکمل ہو گیا ہے۔\nاب میں اس معلومات کی بنیاد پر آپ کو ذاتی نوعیت کی رہنمائی، یاد دہانیاں، تعلیمی مواد اور پیش رفت کی نگرانی فراہم کر سکوں گا۔\n\nآئیے مل کر صحت مند عادات بناتے ہیں۔",
+    profile_complete_v2_noname:
+      "بہترین ✅\nآپ کا پروفائل مکمل ہو گیا ہے۔\nاب میں اس معلومات کی بنیاد پر آپ کو ذاتی نوعیت کی رہنمائی، یاد دہانیاں، تعلیمی مواد اور پیش رفت کی نگرانی فراہم کر سکوں گا۔\n\nآئیے مل کر صحت مند عادات بناتے ہیں۔",
     disclaimer_v2:
       "*آگے بڑھنے سے پہلے:*\n\nڈاکٹر صاحب تعلیمی معلومات اور کوچنگ سپورٹ فراہم کرتا ہے۔ یہ کسی مستند ڈاکٹر کے طبی مشورے، تشخیص یا علاج کا متبادل نہیں ہے۔\n\nاگر آپ کو سینے میں درد، بے ہوشی، شدید کمزوری، الجھن، بہت زیادہ یا بہت کم شوگر، یا کسی بھی قسم کی طبی ایمرجنسی کا سامنا ہو تو فوراً اپنے ڈاکٹر یا قریبی ایمرجنسی سروس سے رابطہ کریں۔",
     btn_understand: "میں سمجھ گیا",
@@ -1194,6 +1479,265 @@ const STR = {
       "بتانے کا شکریہ۔ جو حصے آپ کو مشکل لگتے ہیں، میں ان پر زیادہ توجہ دوں گا اور جلد مدد پیش کروں گا۔",
     t1c_reply_help:
       "میں سمجھ سکتا ہوں — کچھ دن ٹائپ 1 کے ساتھ گزارنا مشکل ہوتا ہے۔ میں آپ کے لیے مزید رہنمائی اور کمیونٹی سپورٹ لاؤں گا۔ آپ اکیلے نہیں ہیں۔ ❤️",
+
+    // Prediabetes — Healthy Living menu (spec 2026-07)
+    pd_menu_not_pre:
+      "صحت مند زندگی کا سیکشن فی الحال پری ذیابیطس والے صارفین کے لیے ہے۔ اگر آپ کی صورتحال بدلی ہو تو پروفائل اپڈیٹ کر سکتے ہیں۔",
+    pd_menu_title: "💪 *صحت مند زندگی*",
+    pd_menu_intro: "روزانہ کی چھوٹی کامیابیاں بڑی بیماریوں کو روکتی ہیں۔ شروعات کے لیے ایک آپشن چنیں:",
+    btn_pd_wins: "⚡ 10 منٹ کی کامیابیاں",
+    btn_pd_gym: "🏋️ میرا جِم پلان",
+    btn_pd_cravings: "🍟 خواہشات پر قابو",
+
+    pd_wins_title: "⚡ *10 منٹ کی کامیابی*",
+    pd_wins_prompt: "یہ رہی آپ کی جلدی کامیابی:\n\n➡️ *{activity}*\n\nآزمانے کے لیے تیار؟",
+    btn_pd_wins_do: "✅ میں کروں گا/گی",
+    btn_pd_wins_another: "🔄 دوسری بتائیں",
+    btn_pd_wins_done: "🎉 مکمل کر لیا",
+    pd_wins_go: "بہترین — کر کے آئیں۔ میں تقریباً 15 منٹ بعد پوچھوں گا کہ کیسا رہا۔ 👊",
+    pd_wins_check: "خوش آمدید! 😊\nکیا آپ نے اپنی 10 منٹ کی کامیابی مکمل کی؟",
+    btn_pd_wins_yes: "🎉 ہاں",
+    btn_pd_wins_notyet: "😔 ابھی نہیں",
+    pd_wins_yes:
+      "شاندار! ایسی چھوٹی کامیابیاں زندگی بھر کی عادات بناتی ہیں۔\n\nجب تیار ہوں، مینو سے صحت مند زندگی کی کوئی اور سرگرمی آزمائیں۔",
+    pd_wins_notyet:
+      "کوئی بات نہیں۔ دن میں ایک اور موقع ضرور آئے گا۔ ہر چھوٹا قدم اہم ہے۔\n\nجب تیار ہوں، مینو سے صحت مند زندگی کی کوئی اور سرگرمی آزمائیں۔",
+    pd_win_walk_office: "اپنے دفتر کی عمارت کے گرد چہل قدمی کریں۔",
+    pd_win_walk_block: "بلاک کے گرد چہل قدمی کریں۔",
+    pd_win_stairs: "10 منٹ تک سیڑھیاں چڑھیں۔",
+    pd_win_stretch_tv: "ٹی وی دیکھتے ہوئے اسٹریچ کریں۔",
+    pd_win_home_workout: "گھر پر آسان ورزش کریں۔",
+    pd_win_brisk_walk: "اگلے کھانے کے بعد تیز چہل قدمی کریں۔",
+    pd_win_park_further: "دور پارک کریں اور چل کر جائیں۔",
+    pd_win_phone_walk: "فون پر بات کرتے ہوئے چہل قدمی کریں۔",
+
+    pd_gym_title: "🏋️ *میرا جِم پلان*",
+    pd_gym_intro:
+      "آئیے ایک آسان ابتدائی روٹین بناتے ہیں۔ تین مختصر سوالات اور آپ کا پلان تیار۔",
+    pd_gym_q1: "*1.* کیا آپ پہلے کبھی جِم گئے ہیں؟",
+    btn_pd_gym_exp_never: "کبھی نہیں",
+    btn_pd_gym_exp_beginner: "ابتدائی",
+    btn_pd_gym_exp_regular: "باقاعدہ",
+    pd_gym_q2: "*2.* ہفتے میں کتنے دن ورزش کر سکتے ہیں؟",
+    pd_gym_q3: "*3.* آپ کا اصل مقصد کیا ہے؟",
+    btn_pd_gym_goal_lose: "وزن کم کرنا",
+    btn_pd_gym_goal_build: "پٹھے بنانا",
+    btn_pd_gym_goal_fitness: "فٹنس بہتر کرنا",
+    btn_pd_gym_goal_bloodsugar: "شوگر بہتر کرنا",
+    pd_gym_generating: "بہترین — آپ کا پلان تیار کر رہا ہوں… 🏗",
+    pd_gym_saved:
+      "{plan}\n\n_آپ کی پروفائل میں محفوظ کر لیا گیا۔ کسی بھی وقت واپس آ کر یہ پلان دوبارہ بنا سکتے ہیں۔_",
+    pd_gym_error:
+      "ابھی پلان تیار نہیں ہو سکا۔ ذرا بعد میں دوبارہ کوشش کیجیے۔",
+    btn_pd_gym_regen: "🔁 پلان دوبارہ بنائیں",
+
+    pd_crav_title: "🍟 *خواہشات پر قابو*",
+    pd_crav_intro:
+      "اپنی عادات کو سمجھنا پہلا قدم ہے۔ ایک وقت میں ایک چھوٹی تبدیلی کرتے ہیں۔",
+    pd_crav_drink_q: "کون سا میٹھا مشروب آپ سب سے زیادہ پیتے ہیں؟",
+    btn_pd_drink_coke: "کوکا کولا",
+    btn_pd_drink_pepsi: "پیپسی",
+    btn_pd_drink_7up: "سیون اپ",
+    btn_pd_drink_sprite: "اسپرائٹ",
+    btn_pd_drink_mtn: "ماؤنٹین ڈیو",
+    btn_pd_drink_energy: "انرجی ڈرنکس",
+    btn_pd_drink_tea: "میٹھی چائے",
+    btn_pd_drink_other: "دیگر",
+    pd_crav_drink_other_q: "کوئی بات نہیں — کون سا میٹھا مشروب زیادہ پیتے ہیں؟",
+    pd_crav_drink_servings_q:
+      "سمجھ گیا — *{drink}*. آپ روزانہ یا ہفتے میں کتنی بار پیتے ہیں؟",
+    pd_crav_junk_q: "کون سا جنک فوڈ آپ سب سے زیادہ کھاتے ہیں؟",
+    btn_pd_junk_burgers: "برگر",
+    btn_pd_junk_pizza: "پیزا",
+    btn_pd_junk_fries: "فرائز",
+    btn_pd_junk_chips: "چپس",
+    btn_pd_junk_biscuits: "بسکٹ",
+    btn_pd_junk_cakes: "کیک",
+    btn_pd_junk_choco: "چاکلیٹ",
+    btn_pd_junk_fast: "فاسٹ فوڈ",
+    btn_pd_junk_other: "دیگر",
+    pd_crav_junk_other_q: "کون سا جنک فوڈ آپ سب سے زیادہ کھاتے ہیں؟",
+    pd_crav_junk_freq_q:
+      "سمجھ گیا — *{junk}*. ہفتے میں تقریباً کتنی بار کھاتے ہیں؟",
+    pd_crav_video:
+      "شکریہ۔ ایک مختصر ویڈیو دیکھیں — یہ بتاتی ہے کہ میٹھے مشروبات اور الٹرا پروسیسڈ فوڈز آپ کی طویل مدتی صحت پر کیسے اثر ڈالتے ہیں۔\n\n▶️ https://www.youtube.com/watch?v=DHma9_xQgD8&t=45s",
+    pd_crav_reflection_q:
+      "ویڈیو دیکھنے کے بعد آپ کے خیال میں آنے والے ہفتوں میں کون سی حقیقی تبدیلیاں کر سکتے ہیں؟",
+    pd_crav_commit_q: "اگر اِس ہفتے صرف ایک چھوٹی تبدیلی کرنی ہو، تو کیا حقیقت پسندانہ لگتا ہے؟",
+    btn_pd_commit_less_soda: "روز ایک میٹھا مشروب کم",
+    btn_pd_commit_weekend_only: "میٹھے مشروبات صرف ویک اینڈ پر",
+    btn_pd_commit_water: "ایک میٹھے مشروب کی جگہ پانی",
+    btn_pd_commit_less_fast: "ہفتے میں فاسٹ فوڈ ایک بار کم",
+    btn_pd_commit_skip_chips: "ہفتے میں چپس نہ کھانا",
+    btn_pd_commit_other: "کچھ اور",
+    pd_crav_commit_other_q: "بہت خوب — اِس ہفتے کیا چھوٹی تبدیلی حقیقی لگتی ہے؟",
+    pd_crav_done:
+      "یہ بہت اچھا وعدہ ہے: *{commitment}*\n\nچھوٹی تبدیلیاں مستقل مزاجی سے بڑی بہتری لاتی ہیں۔ میں آپ کا مقصد یاد رکھوں گا اور راستے میں حوصلہ افزائی کرتا رہوں گا۔\n\nجب تیار ہوں، صحت مند عادات جاری رکھنے کے لیے مینو سے کوئی اور سرگرمی آزمائیں۔",
+    pd_crav_saved_short: "محفوظ ہو گیا۔ ✅",
+
+    // ===== Better Me — for user_type=healthier (spec 2026-07) =====
+    bm_menu_not_healthier:
+      "Better Me سیکشن ان صارفین کے لیے ہے جنہوں نے \"صحت مند زندگی\" منتخب کی ہو۔ اگر آپ کی صورتحال بدلی ہو تو پروفائل اپڈیٹ کر سکتے ہیں۔",
+    bm_menu_title: "🌟 *Better Me*",
+    bm_menu_intro: "براہِ کرم درج ذیل میں سے ایک منتخب کریں:",
+    btn_bm_habit: "🎯 نئی عادت بنائیں",
+    btn_bm_fitness: "🏋️ میرا فٹنس پلان",
+    btn_bm_wins: "⚡ 10 منٹ کی کامیابیاں",
+    btn_bm_journey: "❤️ میرا صحت کا سفر",
+
+    bm_habit_title: "🎯 *نئی عادت بنائیں*",
+    bm_habit_intro: "روزانہ کی چھوٹی عادات زندگی بھر کی صحت بناتی ہیں۔ شروع کرنے کے لیے ایک عادت چنیں:",
+    bm_habit_water: "زیادہ پانی پیئں",
+    bm_habit_sleep: "جلدی سوئیں",
+    bm_habit_walk: "روزانہ چہل قدمی کریں",
+    bm_habit_exercise: "باقاعدہ ورزش کریں",
+    bm_habit_veggies: "زیادہ سبزیاں کھائیں",
+    bm_habit_less_sugar: "چینی کم کریں",
+    bm_habit_quit_smoking: "سگریٹ چھوڑیں",
+    bm_habit_stress: "ذہنی دباؤ کم کریں",
+    bm_habit_read: "روزانہ مطالعہ کریں",
+    bm_habit_pray: "پابندی سے نماز پڑھیں",
+    bm_habit_other: "کچھ اور",
+    bm_habit_other_q: "بہت خوب — وہ عادت اپنے الفاظ میں لکھیں جو آپ اپنانا چاہتے ہیں۔",
+    bm_habit_why_q:
+      "آپ نے *{habit}* چنی۔ یہ عادت آپ کے لیے کیوں اہم ہے؟\n\n_ایک مختصر وجہ مشکل دنوں میں حوصلہ برقرار رکھتی ہے۔_",
+    bm_habit_days_q: "ہفتے میں کتنے دن آپ حقیقت پسندانہ طور پر یہ کر سکتے ہیں؟",
+    bm_habit_done:
+      "✅ عادت طے: *{habit}*\nہدف: *ہفتے میں {days} دن*\n\nمیں آپ کا ساتھ دوں گا اور آنے والے چیک اِن میں یہ استعمال کروں گا۔ چھوٹے ثابت قدم قدم کامیاب ہوتے ہیں۔",
+
+    bm_fit_title: "🏋️ *میرا فٹنس پلان*",
+    bm_fit_intro:
+      "آئیے آپ کے لیے ایک آسان پلان بناتے ہیں۔ تین مختصر سوالات۔",
+    bm_fit_q1: "*1.* کیا آپ پہلے کبھی جِم گئے ہیں؟",
+    btn_bm_fit_exp_never: "کبھی نہیں",
+    btn_bm_fit_exp_beginner: "ابتدائی",
+    btn_bm_fit_exp_regular: "باقاعدہ",
+    bm_fit_q2: "*2.* ہفتے میں کتنے دن ورزش کر سکتے ہیں؟",
+    bm_fit_q3: "*3.* آپ کا اصل مقصد کیا ہے؟",
+    btn_bm_fit_goal_lose: "وزن کم کرنا",
+    btn_bm_fit_goal_build: "پٹھے بنانا",
+    btn_bm_fit_goal_fitness: "فٹنس بہتر کرنا",
+    btn_bm_fit_goal_overall: "مجموعی صحت بہتر کرنا",
+    bm_fit_generating: "آپ کا فٹنس پلان تیار کر رہا ہوں… 🏗",
+    bm_fit_saved:
+      "{plan}\n\n_آپ کی پروفائل میں محفوظ کر لیا گیا۔ کسی بھی وقت واپس آ کر اپڈیٹ یا دوبارہ بنا سکتے ہیں۔_",
+    bm_fit_error: "ابھی پلان تیار نہیں ہو سکا۔ ذرا بعد میں دوبارہ کوشش کیجیے۔",
+    btn_bm_fit_regen: "🔁 پلان دوبارہ بنائیں",
+
+    bm_wins_title: "⚡ *10 منٹ کی کامیابی*",
+    bm_wins_prompt: "یہ رہی آپ کی جلدی کامیابی:\n\n➡️ *{activity}*\n\nآزمانے کے لیے تیار؟",
+    btn_bm_wins_do: "✅ میں کروں گا/گی",
+    btn_bm_wins_another: "🔄 دوسری بتائیں",
+    btn_bm_wins_done: "🎉 مکمل کر لیا",
+    bm_wins_go: "بہترین — کر کے آئیں۔ میں تقریباً 15 منٹ بعد پوچھوں گا کہ کیسا رہا۔ 👊",
+    bm_wins_check: "خوش آمدید! 😊\nکیا آپ نے اپنی 10 منٹ کی کامیابی مکمل کی؟",
+    btn_bm_wins_yes: "🎉 ہاں",
+    btn_bm_wins_notyet: "😔 ابھی نہیں",
+    bm_wins_yes:
+      "شاندار! ایسی چھوٹی کامیابیاں زندگی بھر کی عادات بناتی ہیں۔\n\nجب تیار ہوں، مینو سے Better Me کی کوئی اور سرگرمی آزمائیں۔",
+    bm_wins_notyet:
+      "کوئی بات نہیں۔ ہر چھوٹا قدم اہم ہے۔ جب تیار ہوں، دوبارہ کوشش کریں۔\n\nجب تیار ہوں، مینو سے Better Me کی کوئی اور سرگرمی آزمائیں۔",
+    bm_win_walk_block: "بلاک کے گرد چہل قدمی کریں۔",
+    bm_win_stairs: "10 منٹ تک سیڑھیاں چڑھیں۔",
+    bm_win_stretch_tv: "ٹی وی دیکھتے ہوئے اسٹریچ کریں۔",
+    bm_win_home_workout: "گھر پر آسان ورزش کریں۔",
+    bm_win_brisk_walk: "اگلے کھانے کے بعد تیز چہل قدمی کریں۔",
+    bm_win_park_further: "دور پارک کریں اور چل کر جائیں۔",
+    bm_win_phone_walk: "فون پر بات کرتے ہوئے چہل قدمی کریں۔",
+
+    bm_journey_title: "❤️ *میرا صحت کا سفر*",
+    bm_journey_conditions_have:
+      "آپ کے پروفائل میں یہ صحت کے مسائل درج ہیں:\n\n{list}\n\nکیا آپ کوئی چیز شامل یا اپڈیٹ کرنا چاہیں گے؟",
+    bm_journey_conditions_none:
+      "ابھی آپ کے پروفائل میں کوئی صحت کا مسئلہ درج نہیں۔ کیا آپ کوئی شامل کرنا چاہیں گے؟\n\n_مثالیں: ہائی بلڈ پریشر، ہائی کولیسٹرول، دمہ، جوڑوں کا درد، فیٹی لیور، PCOS، سلیپ ایپنیا، تھائیرائیڈ۔_",
+    bm_journey_conditions_prompt:
+      "جو مسائل درج کرنا چاہتے ہیں لکھیں (کاما سے الگ کریں)، یا *skip* لکھ دیں۔",
+    bm_journey_conditions_saved: "✅ صحت کے مسائل اپڈیٹ ہو گئے۔",
+    bm_journey_goal_q: "اگلے ایک سال میں آپ کا سب سے بڑا صحت کا ہدف کیا ہے؟",
+    btn_bm_journey_lose: "وزن کم کرنا",
+    btn_bm_journey_fit: "فٹ ہونا",
+    btn_bm_journey_sleep: "بہتر نیند",
+    btn_bm_journey_quit: "سگریٹ چھوڑنا",
+    btn_bm_journey_stress: "دباؤ کم کرنا",
+    btn_bm_journey_energy: "زیادہ توانا محسوس کرنا",
+    btn_bm_journey_overall: "مجموعی صحت بہتر کرنا",
+    btn_bm_journey_other: "کچھ اور",
+    bm_journey_other_q: "بہت خوب — اپنا ایک سالہ صحت کا ہدف اپنے الفاظ میں لکھیں۔",
+    bm_journey_done:
+      "✅ ایک سالہ ہدف محفوظ ہو گیا: *{goal}*\n\nمیں یہ آپ کی کوچنگ، یاد دہانیوں اور رپورٹس میں شامل کروں گا۔ مستقل مزاجی شدت پر بھاری ہے — میں ہر قدم پر آپ کے ساتھ ہوں۔ 💚",
+
+    // ===== Pregnancy Support — for gestational diabetes users (spec 2026-07) =====
+    pg_menu_not_gest:
+      "Pregnancy Support سیکشن حملاتی ذیابیطس کی حامل صارفین کے لیے ہے۔ اگر آپ کی صورتحال بدلی ہو تو پروفائل اپڈیٹ کر سکتے ہیں۔",
+    pg_menu_title: "🤰 *حمل کی سپورٹ*",
+    pg_menu_intro: "براہِ کرم درج ذیل میں سے ایک منتخب کریں:",
+    btn_pg_progress: "🤰 حمل کی پیش رفت",
+    btn_pg_healthy:  "🌼 صحت مند حمل",
+    btn_pg_checklist: "👜 حمل کی چیک لسٹ",
+
+    btn_p_pregnancy: "🤰 حمل کی سپورٹ",
+
+    pg_prog_setup_intro:
+      "آئیے آپ کی حمل کی پیش رفت درج کرتے ہیں۔ 🤰\n\nمیں چند مختصر سوالات کروں گا تاکہ حمل کے دوران آپ کی بہتر مدد کر سکوں۔",
+    pg_prog_q_weeks: "*1.* آپ کو حمل کتنے ہفتوں کا ہے؟\n_مثال: `24 ہفتے`, `28`, `مجھے یقین نہیں`._",
+    pg_prog_weeks_notsure: "کوئی بات نہیں — یہ بعد میں بھی درج ہو سکتا ہے۔",
+    pg_prog_q_due: "*2.* آپ کی متوقع تاریخِ پیدائش کیا ہے؟\n_مثال: `15 اکتوبر 2026`, `ابھی یاد نہیں`._",
+    pg_prog_due_notsure: "کوئی بات نہیں — بعد میں درج ہو سکتی ہے۔",
+    pg_prog_q_first: "*3.* کیا یہ آپ کا پہلا حمل ہے؟",
+    pg_prog_q_prev: "*4.* کیا آپ کو پہلے کبھی حملاتی ذیابیطس ہوئی ہے؟",
+    pg_prog_q_insulin: "*5.* کیا آپ اِس وقت انسولین لے رہی ہیں؟",
+    pg_prog_q_doctor: "*6.* آپ کے ماہرِ حمل ڈاکٹر یا کلینک کا نام؟\n_اختیاری — Skip دبا سکتی ہیں۔_",
+    pg_prog_q_delivery: "*7.* ڈیلیوری کے لیے کون سا ہسپتال یا کلینک منتخب کیا ہے؟\n_اختیاری — Skip دبا سکتی ہیں۔_",
+
+    btn_pg_yes: "✅ ہاں",
+    btn_pg_no: "❌ نہیں",
+    btn_pg_notsure: "یقین نہیں",
+
+    pg_prog_saved:
+      "حمل کی پیش رفت محفوظ ہو گئی۔ 🌼\nمیں یہ معلومات آپ کی حملیاتی یاد دہانیوں، مشوروں اور کوچنگ میں استعمال کروں گا۔",
+
+    pg_prog_view_title: "🤰 *آپ کی حمل کی پیش رفت*",
+    pg_prog_view_body:
+      "*حمل کے ہفتے:* {weeks}\n*متوقع تاریخ:* {due}\n*پہلا حمل:* {first}\n*گزشتہ حملاتی ذیابیطس:* {prev}\n*انسولین:* {insulin}\n*ڈاکٹر/کلینک:* {doctor}\n*ڈیلیوری ہسپتال:* {delivery}",
+    pg_prog_field_empty: "—",
+    btn_pg_edit_all: "✏️ تفصیلات میں ترمیم",
+    btn_pg_update_week: "🔄 حمل کا ہفتہ اپڈیٹ",
+    pg_prog_update_week_q: "اِس وقت آپ کو حمل کتنے ہفتوں کا ہے؟\n_مثال: `29 ہفتے` یا `یقین نہیں`._",
+    pg_prog_week_saved: "✅ حمل کا ہفتہ اپڈیٹ ہو گیا۔",
+
+    pg_tip_header: "آج کا صحت مند حمل مشورہ 🌼",
+    btn_pg_tip_helpful: "👍 مفید",
+    btn_pg_tip_another: "🔄 ایک اور دکھائیں",
+    pg_tip_thanks: "خوشی ہوئی کہ مددگار رہا۔ 🌼",
+    pg_tip_placeholder:
+      "نئے مشورے تیار ہو رہے ہیں اور جلد یہاں شیئر کیے جائیں گے۔ 🌼",
+
+    pg_tip_fallback_1: "ناشتے میں پروٹین شامل کریں — انڈے، دہی یا دال۔ اس سے آپ زیادہ بھری ہوئی محسوس کریں گی اور شوگر مستحکم رہے گی۔",
+    pg_tip_fallback_2: "دن بھر پانی پیتی رہیں۔ حمل کے دوران مناسب پانی گردش، ہاضمے اور شوگر کے استحکام میں مدد دیتا ہے۔",
+    pg_tip_fallback_3: "کھانے کے بعد 10–15 منٹ کی چہل قدمی جسم کو کاربز استعمال کرنے میں مدد دیتی ہے۔",
+    pg_tip_fallback_4: "سفید روٹی/چاول کی بجائے پورا اناج (براؤن رائس، آٹا، اوٹس) چنیں — فائبر شوگر کو مستحکم رکھتا ہے۔",
+    pg_tip_fallback_5: "ہر 3–4 گھنٹے میں چھوٹا صحت مند سنیک لیں (پھل + میوہ، دہی، انڈا) تاکہ شوگر بہت کم نہ ہو جائے۔",
+    pg_tip_fallback_6: "کھانوں کے بعد اپنی حالت کا جائزہ لیں۔ پیٹرن سمجھنے سے آپ اور ڈاکٹر آپ کے لیے بہترین طریقہ چن سکتے ہیں۔",
+    pg_tip_fallback_7: "نیند بھی دوا ہے۔ 7–9 گھنٹے کی نیند کو ترجیح دیں؛ کم نیند اگلے دن شوگر بڑھا سکتی ہے۔",
+    pg_tip_fallback_8: "بیگ میں ایک چھوٹا ہنگامی سنیک (پھل یا میوہ) رکھیں تاکہ کھانا لیٹ ہو جائے تو کام آئے۔",
+
+    pg_checklist_title: "👜 *حمل کی چیک لسٹ*",
+    pg_checklist_intro: "چیک لسٹ PDF کھولنے کے لیے موضوع منتخب کریں۔",
+    pg_checklist_placeholder:
+      "چیک لسٹس تیار ہو رہی ہیں اور جلد یہاں دستیاب ہوں گی۔ 👜",
+    pg_checklist_topic_missing: "یہ چیک لسٹ اب دستیاب نہیں۔ فہرست سے کوئی اور منتخب کریں۔",
+    pg_checklist_topic_no_pdf:
+      "*{title}*\n\nیہ چیک لسٹ تیار ہو رہی ہے اور جلد یہاں شیئر کر دی جائے گی۔",
+    pg_checklist_topic_open: "*{title}*\n\nیہ رہی چیک لسٹ: {url}",
+
+    pg_cl_hospital_bag: "ہسپتال بیگ چیک لسٹ",
+    pg_cl_delivery_prep: "ڈیلیوری کی تیاری",
+    pg_cl_questions_dr: "ڈاکٹر سے پوچھنے کے سوالات",
+    pg_cl_glucose_testing: "گلوکوز ٹیسٹنگ چیک لسٹ",
+    pg_cl_newborn: "نومولود کی ضروریات",
+    pg_cl_breastfeeding: "بریسٹ فیڈنگ کی بنیادی معلومات",
+    pg_cl_snacks: "حمل کے دوران صحت مند سنیکس",
+    pg_cl_activity: "حمل کے دوران محفوظ سرگرمی",
   },
 
   roman_ur: {
@@ -1314,18 +1858,18 @@ const STR = {
     name_ack:
       "Aap se mil kar khushi hui, *{name}* 👋\nAaiye aap ka profile mukammal karte hain taake main aap ke liye behtar rehnumai faraham kar sakoon.",
     ask_user_type: "In mein se kaunsi baat aap par sab se zyada lagu hoti hai?",
-    ut_diabetes: "Mujhe diabetes hai",
+    ut_type1: "Mujhe Type 1 diabetes hai",
+    ut_type2: "Mujhe Type 2 diabetes hai",
     ut_prediabetes: "Mujhe prediabetes hai",
+    ut_gestational: "Mujhe Gestational diabetes hai",
     ut_healthier: "Main sehatmand zindagi chahta/chahti hoon",
-    ut_notsure: "Sehatmand aadatein banana",
-    ut_parent: "Main parent/ahl-e-khana hoon",
-    ut_exploring: "Bas dekh raha hoon",
 
     ask_age_v2: "Bohat khoob. Aaiye shuru karte hain. Aap ki date of birth kya hai?\nDay, month aur year zaroori hain (misaal: 12 March 1985).",
     ask_dob_missing:
       "Mujhe poori date of birth chahiye — barah-e-karam *{missing}* bhejein (misaal: 12 March 1985).",
     btn_multi_done: "Done",
     multi_select_hint: "_Ek se zyada option chunein, phir Done dabayein._",
+    multi_select_selected: "*Ab tak chuna:* {list}",
     g_prefer_not: "Batana nahi chahta",
     ask_city_v2: "Aap kis shehar mein rehte hain?",
 
@@ -1414,6 +1958,8 @@ const STR = {
 
     profile_complete_v2:
       "Behtareen, *{name}* ✅\nAap ka profile mukammal ho gaya hai.\nAb main is maloomat ki bunyaad par aap ko zaati rehnumai, reminders, taleemi maloomat aur progress tracking faraham kar sakta hoon.\n\nAaiye mil kar sehatmand aadatein banatay hain.",
+    profile_complete_v2_noname:
+      "Behtareen ✅\nAap ka profile mukammal ho gaya hai.\nAb main is maloomat ki bunyaad par aap ko zaati rehnumai, reminders, taleemi maloomat aur progress tracking faraham kar sakta hoon.\n\nAaiye mil kar sehatmand aadatein banatay hain.",
     disclaimer_v2:
       "*Aagay barhnay se pehlay:*\n\nDrSaab taleemi maloomat aur coaching support faraham karta hai. Yeh kisi qualified doctor ke medical mashwaray, tashkhees ya ilaaj ka mutabadil nahin hai.\n\nAgar aap ko seenay mein dard, behoshi, shadeed kamzori, uljhan, bohat zyada ya bohat kam sugar, ya kisi bhi qisam ki medical emergency ka samna ho to foran apne doctor ya qareebi emergency service se rabta karein.",
     btn_understand: "Main samajh gaya",
@@ -1629,6 +2175,265 @@ const STR = {
       "Batanay ka shukriya. Jo hissay aap ko mushkil lagtay hain, main un par zyada dhyaan doonga aur jaldi help offer karoonga.",
     t1c_reply_help:
       "Main samajh sakta hoon — kuch din Type 1 ke saath guzaarna mushkil hota hai. Main aap ke liye zyada guides aur community support laoonga. Aap akele nahi hain. ❤️",
+
+    // Prediabetes — Healthy Living menu (spec 2026-07)
+    pd_menu_not_pre:
+      "Healthy Living section abhi prediabetes wale users ke liye tayaar hai. Aap apni profile update kar sakte hain agar yeh badla ho.",
+    pd_menu_title: "💪 *Healthy Living*",
+    pd_menu_intro: "Chhoti roz ki wins baray masail rok deti hain. Shuru karnay ke liye ek chunein:",
+    btn_pd_wins: "⚡ 10-Minute Wins",
+    btn_pd_gym: "🏋️ Mera Gym Plan",
+    btn_pd_cravings: "🍟 Cravings pe Qaboo",
+
+    pd_wins_title: "⚡ *10-Minute Win*",
+    pd_wins_prompt: "Aap ki jaldi win:\n\n➡️ *{activity}*\n\nAzmanay ke liye tayaar?",
+    btn_pd_wins_do: "✅ Main karoonga/karoongi",
+    btn_pd_wins_another: "🔄 Doosri batayein",
+    btn_pd_wins_done: "🎉 Mukammal kar liya",
+    pd_wins_go: "Bohot khoob — jaa ke kar aayein. Main 15 minute baad puchhoonga kaisa raha. 👊",
+    pd_wins_check: "Wapas aa gaye! 😊\nKya aap ne apni 10-Minute Win mukammal ki?",
+    btn_pd_wins_yes: "🎉 Haan",
+    btn_pd_wins_notyet: "😔 Abhi nahi",
+    pd_wins_yes:
+      "Shaandaar! Aisi chhoti wins zindagi bhar ki aadatein banati hain.\n\nJab tayaar hon, menu se Healthy Living ki koi aur activity azmayein.",
+    pd_wins_notyet:
+      "Koi baat nahi. Din mein aik aur mauka aayega. Har chhota qadam ahem hai.\n\nJab tayaar hon, menu se Healthy Living ki koi aur activity azmayein.",
+    pd_win_walk_office: "Apne office ki building ke ird gird chalein.",
+    pd_win_walk_block: "Block ke ird gird chalein.",
+    pd_win_stairs: "10 minute seerhiyan charhein.",
+    pd_win_stretch_tv: "TV dekhtay hue stretch karein.",
+    pd_win_home_workout: "Ghar par asaan workout karein.",
+    pd_win_brisk_walk: "Agla khana khanay ke baad brisk walk karein.",
+    pd_win_park_further: "Door park karein aur chal ke jaayein.",
+    pd_win_phone_walk: "Phone call kartay hue chalein.",
+
+    pd_gym_title: "🏋️ *Mera Gym Plan*",
+    pd_gym_intro:
+      "Aiye ek asaan beginner routine banate hain. Teen chhotay sawaal aur plan tayaar.",
+    pd_gym_q1: "*1.* Kya aap pehle kabhi gym gaye hain?",
+    btn_pd_gym_exp_never: "Kabhi nahi",
+    btn_pd_gym_exp_beginner: "Beginner",
+    btn_pd_gym_exp_regular: "Regular",
+    pd_gym_q2: "*2.* Haftay mein kitne din exercise realistically kar saktay hain?",
+    pd_gym_q3: "*3.* Aap ka main goal kya hai?",
+    btn_pd_gym_goal_lose: "Wazan kam karna",
+    btn_pd_gym_goal_build: "Muscle banana",
+    btn_pd_gym_goal_fitness: "Fitness behter karna",
+    btn_pd_gym_goal_bloodsugar: "Blood sugar behter karna",
+    pd_gym_generating: "Bohot khoob — aap ka plan tayaar kar raha hoon… 🏗",
+    pd_gym_saved:
+      "{plan}\n\n_Aap ki profile mein save ho gaya. Kisi bhi waqt wapas aa kar regenerate ya update kar saktay hain._",
+    pd_gym_error:
+      "Abhi plan tayaar nahi ho saka. Thora waqt ke baad dobara try karein.",
+    btn_pd_gym_regen: "🔁 Plan Dobara Banayein",
+
+    pd_crav_title: "🍟 *Cravings pe Qaboo*",
+    pd_crav_intro:
+      "Apni aadatein samajhna pehla qadam hai. Aik waqt mein aik chhoti tabdeeli kartay hain.",
+    pd_crav_drink_q: "Kaun sa meetha drink aap sab se zyada peetay hain?",
+    btn_pd_drink_coke: "Coca-Cola",
+    btn_pd_drink_pepsi: "Pepsi",
+    btn_pd_drink_7up: "7Up",
+    btn_pd_drink_sprite: "Sprite",
+    btn_pd_drink_mtn: "Mountain Dew",
+    btn_pd_drink_energy: "Energy drinks",
+    btn_pd_drink_tea: "Meethi chai",
+    btn_pd_drink_other: "Doosra",
+    pd_crav_drink_other_q: "Koi baat nahi — kaun sa meetha drink zyada peetay hain?",
+    pd_crav_drink_servings_q:
+      "Samajh gaya — *{drink}*. Rozana ya haftay mein kitni bar peetay hain?",
+    pd_crav_junk_q: "Kaun sa junk food aap sab se zyada khaatay hain?",
+    btn_pd_junk_burgers: "Burgers",
+    btn_pd_junk_pizza: "Pizza",
+    btn_pd_junk_fries: "Fries",
+    btn_pd_junk_chips: "Chips",
+    btn_pd_junk_biscuits: "Biscuits",
+    btn_pd_junk_cakes: "Cakes",
+    btn_pd_junk_choco: "Chocolate",
+    btn_pd_junk_fast: "Fast food",
+    btn_pd_junk_other: "Doosra",
+    pd_crav_junk_other_q: "Kaun sa junk food aap sab se zyada khaatay hain?",
+    pd_crav_junk_freq_q:
+      "Samajh gaya — *{junk}*. Haftay mein taqreeban kitni bar khaatay hain?",
+    pd_crav_video:
+      "Shukriya. Zara yeh short video dekhein — batati hai ke meethay drinks aur ultra-processed foods long-term health par kaisa asar daaltay hain.\n\n▶️ https://www.youtube.com/watch?v=DHma9_xQgD8&t=45s",
+    pd_crav_reflection_q:
+      "Video dekhne ke baad aap ke khayal se aane wale haftoun mein kaunsi realistic tabdeeliyan kar saktay hain?",
+    pd_crav_commit_q: "Agar iss haftay sirf aik chhoti tabdeeli karni ho, kya realistic lagta hai?",
+    btn_pd_commit_less_soda: "Roz aik meetha drink kam",
+    btn_pd_commit_weekend_only: "Meethay drinks sirf weekend par",
+    btn_pd_commit_water: "Aik meethay drink ki jagah paani",
+    btn_pd_commit_less_fast: "Haftay mein fast food aik bar kam",
+    btn_pd_commit_skip_chips: "Haftay mein chips na khana",
+    btn_pd_commit_other: "Kuch aur",
+    pd_crav_commit_other_q: "Bohot khoob — iss haftay kya chhoti tabdeeli realistic lagti hai?",
+    pd_crav_done:
+      "Yeh acha commitment hai: *{commitment}*\n\nChhoti tabdeeliyan consistently repeat karnay se baray sudhar aatay hain. Main aap ka goal yaad rakhoonga aur raste mein encourage karta rahoonga.\n\nJab tayaar hon, menu se koi aur Healthy Living activity azmayein.",
+    pd_crav_saved_short: "Save ho gaya. ✅",
+
+    // ===== Better Me — for user_type=healthier (spec 2026-07) =====
+    bm_menu_not_healthier:
+      "Better Me section un users ke liye hai jinho ne \"Main sehatmand zindagi chahta/chahti hoon\" chuna hai. Agar aap ki halat badli ho to profile update karein.",
+    bm_menu_title: "🌟 *Better Me*",
+    bm_menu_intro: "Neechay diye options mein se ek chunein:",
+    btn_bm_habit: "🎯 Nayi Aadat Banayein",
+    btn_bm_fitness: "🏋️ Mera Fitness Plan",
+    btn_bm_wins: "⚡ 10-Minute Wins",
+    btn_bm_journey: "❤️ Mera Sehat ka Safar",
+
+    bm_habit_title: "🎯 *Nayi Aadat Banayein*",
+    bm_habit_intro: "Rozana ki chhoti aadatein zindagi bhar ki sehat banati hain. Shuru karnay ke liye aik aadat chunein:",
+    bm_habit_water: "Zyada paani peein",
+    bm_habit_sleep: "Jaldi soyein",
+    bm_habit_walk: "Rozana walk karein",
+    bm_habit_exercise: "Regularly exercise karein",
+    bm_habit_veggies: "Zyada sabziyan khaayein",
+    bm_habit_less_sugar: "Sugar kam karein",
+    bm_habit_quit_smoking: "Cigarette chhorein",
+    bm_habit_stress: "Stress kam karein",
+    bm_habit_read: "Rozana mutala karein",
+    bm_habit_pray: "Pabandi se namaz parhein",
+    bm_habit_other: "Kuch aur",
+    bm_habit_other_q: "Bohat khoob — jo aadat aap banana chahtay hain apne alfaaz mein likhein.",
+    bm_habit_why_q:
+      "Aap ne *{habit}* chuni. Yeh aadat aap ke liye kyun ahem hai?\n\n_Aik chhoti wajah mushkil dinon mein himmat qaim rakhti hai._",
+    bm_habit_days_q: "Haftay mein kitne din aap realistically yeh kar saktay hain?",
+    bm_habit_done:
+      "✅ Aadat set: *{habit}*\nTarget: *{days} din/haftay*\n\nMain aap ka saath doonga aur aane wale check-ins mein yeh use karoonga. Chhotay saabit qadam kaamyaab hote hain.",
+
+    bm_fit_title: "🏋️ *Mera Fitness Plan*",
+    bm_fit_intro:
+      "Aiye aap ke liye ek asaan plan banate hain. Teen chhotay sawaal.",
+    bm_fit_q1: "*1.* Kya aap pehle kabhi gym gaye hain?",
+    btn_bm_fit_exp_never: "Kabhi nahi",
+    btn_bm_fit_exp_beginner: "Beginner",
+    btn_bm_fit_exp_regular: "Regular",
+    bm_fit_q2: "*2.* Haftay mein kitne din exercise realistically kar saktay hain?",
+    bm_fit_q3: "*3.* Aap ka main goal kya hai?",
+    btn_bm_fit_goal_lose: "Wazan kam karna",
+    btn_bm_fit_goal_build: "Muscle banana",
+    btn_bm_fit_goal_fitness: "Fitness behter karna",
+    btn_bm_fit_goal_overall: "Mujmoi sehat behter karna",
+    bm_fit_generating: "Aap ka fitness plan tayaar kar raha hoon… 🏗",
+    bm_fit_saved:
+      "{plan}\n\n_Aap ki profile mein save ho gaya. Kisi bhi waqt wapas aa kar update ya regenerate kar saktay hain._",
+    bm_fit_error: "Abhi plan tayaar nahi ho saka. Thora waqt ke baad dobara try karein.",
+    btn_bm_fit_regen: "🔁 Plan Dobara Banayein",
+
+    bm_wins_title: "⚡ *10-Minute Win*",
+    bm_wins_prompt: "Aap ki jaldi win:\n\n➡️ *{activity}*\n\nAzmanay ke liye tayaar?",
+    btn_bm_wins_do: "✅ Main karoonga/karoongi",
+    btn_bm_wins_another: "🔄 Doosri batayein",
+    btn_bm_wins_done: "🎉 Mukammal kar liya",
+    bm_wins_go: "Bohot khoob — jaa ke kar aayein. Main 15 minute baad puchhoonga kaisa raha. 👊",
+    bm_wins_check: "Wapas aa gaye! 😊\nKya aap ne apni 10-Minute Win mukammal ki?",
+    btn_bm_wins_yes: "🎉 Haan",
+    btn_bm_wins_notyet: "😔 Abhi nahi",
+    bm_wins_yes:
+      "Shaandaar! Aisi chhoti wins zindagi bhar ki aadatein banati hain.\n\nJab tayaar hon, menu se koi aur Better Me activity azmayein.",
+    bm_wins_notyet:
+      "Koi baat nahi. Har chhota qadam ahem hai. Jab tayaar hon, dobara try karein.\n\nJab tayaar hon, menu se koi aur Better Me activity azmayein.",
+    bm_win_walk_block: "Block ke ird gird chalein.",
+    bm_win_stairs: "10 minute seerhiyan charhein.",
+    bm_win_stretch_tv: "TV dekhtay hue stretch karein.",
+    bm_win_home_workout: "Ghar par asaan workout karein.",
+    bm_win_brisk_walk: "Agla khana khanay ke baad brisk walk karein.",
+    bm_win_park_further: "Door park karein aur chal ke jaayein.",
+    bm_win_phone_walk: "Phone call kartay hue chalein.",
+
+    bm_journey_title: "❤️ *Mera Sehat ka Safar*",
+    bm_journey_conditions_have:
+      "Aap ki profile mein yeh health conditions record hain:\n\n{list}\n\nKya aap koi cheez add ya update karna chahenge?",
+    bm_journey_conditions_none:
+      "Abhi aap ki profile mein koi health condition record nahi hai. Kya aap koi add karna chahenge?\n\n_Misaalein: High blood pressure, High cholesterol, Asthma, Arthritis, Fatty liver, PCOS, Sleep apnea, Thyroid._",
+    bm_journey_conditions_prompt:
+      "Jo conditions record karna chahtay hain likhein (comma se alag karein), ya *skip* likh dein.",
+    bm_journey_conditions_saved: "✅ Health conditions update ho gayi.",
+    bm_journey_goal_q: "Aane wale saal mein aap ka sab se bara sehat ka goal kya hai?",
+    btn_bm_journey_lose: "Wazan kam karna",
+    btn_bm_journey_fit: "Fit hona",
+    btn_bm_journey_sleep: "Behtar neend",
+    btn_bm_journey_quit: "Cigarette chhorna",
+    btn_bm_journey_stress: "Stress kam karna",
+    btn_bm_journey_energy: "Zyada energetic mehsoos karna",
+    btn_bm_journey_overall: "Mujmoi sehat behter karna",
+    btn_bm_journey_other: "Kuch aur",
+    bm_journey_other_q: "Bohat khoob — apna 1-saal ka sehat goal apne alfaaz mein likhein.",
+    bm_journey_done:
+      "✅ Aik-saal ka goal save ho gaya: *{goal}*\n\nMain isay aap ki coaching, reminders aur reports mein use karoonga. Mustaqil mizaji shiddat par bhaari hai — main har qadam par aap ke saath hoon. 💚",
+
+    // ===== Pregnancy Support — for gestational diabetes users (spec 2026-07) =====
+    pg_menu_not_gest:
+      "Pregnancy Support section gestational diabetes wali users ke liye hai. Agar aap ki halat badli ho to profile update karein.",
+    pg_menu_title: "🤰 *Pregnancy Support*",
+    pg_menu_intro: "Neechay diye options mein se ek chunein:",
+    btn_pg_progress: "🤰 Pregnancy Progress",
+    btn_pg_healthy:  "🌼 Healthy Pregnancy",
+    btn_pg_checklist: "👜 Pregnancy Checklist",
+
+    btn_p_pregnancy: "🤰 Pregnancy Support",
+
+    pg_prog_setup_intro:
+      "Aiye aap ki pregnancy progress set karte hain. 🤰\n\nMain kuch chhotay sawaal karoonga taake pregnancy ke doran aap ki behtar support kar sakoon.",
+    pg_prog_q_weeks: "*1.* Aap ko kitne haftay pregnant hain?\n_Misaal: `24 hafte`, `28`, `Mujhe yaqeen nahi`._",
+    pg_prog_weeks_notsure: "Koi baat nahi — baad mein bhi add ho sakta hai.",
+    pg_prog_q_due: "*2.* Aap ki expected due date kya hai?\n_Misaal: `15 October 2026`, `Abhi yaad nahi`._",
+    pg_prog_due_notsure: "Koi baat nahi — baad mein add ho sakti hai.",
+    pg_prog_q_first: "*3.* Kya yeh aap ka pehla pregnancy hai?",
+    pg_prog_q_prev: "*4.* Kya aap ko pehle kabhi gestational diabetes hui hai?",
+    pg_prog_q_insulin: "*5.* Kya aap is waqt insulin le rahi hain?",
+    pg_prog_q_doctor: "*6.* Aap ki pregnancy doctor ya clinic ka naam?\n_Optional — Skip dabayein._",
+    pg_prog_q_delivery: "*7.* Delivery ke liye kaunsa hospital ya clinic sochcha hai?\n_Optional — Skip dabayein._",
+
+    btn_pg_yes: "✅ Haan",
+    btn_pg_no: "❌ Nahi",
+    btn_pg_notsure: "Yaqeen nahi",
+
+    pg_prog_saved:
+      "Pregnancy progress save ho gayi. 🌼\nMain yeh maloomat aap ki pregnancy ki reminders, tips aur coaching mein use karoonga.",
+
+    pg_prog_view_title: "🤰 *Aap ki Pregnancy Progress*",
+    pg_prog_view_body:
+      "*Hafte:* {weeks}\n*Due date:* {due}\n*Pehla pregnancy:* {first}\n*Pehle gestational diabetes:* {prev}\n*Insulin:* {insulin}\n*Doctor/Clinic:* {doctor}\n*Delivery hospital:* {delivery}",
+    pg_prog_field_empty: "—",
+    btn_pg_edit_all: "✏️ Details Edit karein",
+    btn_pg_update_week: "🔄 Pregnancy Week Update",
+    pg_prog_update_week_q: "Is waqt aap ko kitne haftay pregnant hain?\n_Misaal: `29 hafte` ya `Yaqeen nahi`._",
+    pg_prog_week_saved: "✅ Pregnancy week update ho gaya.",
+
+    pg_tip_header: "Aaj ka Healthy Pregnancy Tip 🌼",
+    btn_pg_tip_helpful: "👍 Mufeed",
+    btn_pg_tip_another: "🔄 Ek aur dikhayein",
+    pg_tip_thanks: "Khushi hui ke madad mili. 🌼",
+    pg_tip_placeholder:
+      "Naye tips tayaar ho rahe hain aur jald yahan share kiye jayenge. 🌼",
+
+    pg_tip_fallback_1: "Nashtay mein protein shamil karein — anday, dahi ya daal. Isse aap zyada bhari mehsoos karengi aur sugar mustahkam rahegi.",
+    pg_tip_fallback_2: "Din bhar paani peeti rahein. Pregnancy mein hydration circulation, hazma aur sugar ko stable rakhne mein madad deta hai.",
+    pg_tip_fallback_3: "Khanay ke baad 10–15 minute ki chehl qadmi body ko carbs use karne mein madad deti hai.",
+    pg_tip_fallback_4: "Safed roti/chawal ki jagah whole grain (brown rice, atta, oats) chunein — fibre sugar ko stable rakhta hai.",
+    pg_tip_fallback_5: "Har 3–4 ghantay mein chhota healthy snack lein (phal + meva, dahi, anda) taake sugar bohot kam na ho jaye.",
+    pg_tip_fallback_6: "Khanon ke baad apni halat ka jaiza lein. Patterns samajh kar aap aur doctor aap ke liye behtareen tareeqa chun sakte hain.",
+    pg_tip_fallback_7: "Neend bhi ilaaj hai. 7–9 ghantay ki neend ko priority dein; kam neend agli subah sugar barha sakti hai.",
+    pg_tip_fallback_8: "Bag mein aik chhota emergency snack (phal ya meva) rakhein agar khana late ho jaye.",
+
+    pg_checklist_title: "👜 *Pregnancy Checklist*",
+    pg_checklist_intro: "Checklist PDF kholnay ke liye topic chunein.",
+    pg_checklist_placeholder:
+      "Checklists tayaar ho rahi hain aur jald yahan available hongi. 👜",
+    pg_checklist_topic_missing: "Yeh checklist ab available nahi. List se koi aur chunein.",
+    pg_checklist_topic_no_pdf:
+      "*{title}*\n\nYeh checklist tayaar ho rahi hai aur jald yahan share ki jayegi.",
+    pg_checklist_topic_open: "*{title}*\n\nYeh rahi checklist: {url}",
+
+    pg_cl_hospital_bag: "Hospital Bag Checklist",
+    pg_cl_delivery_prep: "Preparing for Delivery",
+    pg_cl_questions_dr: "Questions to Ask Your Doctor",
+    pg_cl_glucose_testing: "Glucose Testing Checklist",
+    pg_cl_newborn: "Newborn Essentials",
+    pg_cl_breastfeeding: "Breastfeeding Basics",
+    pg_cl_snacks: "Healthy Snacks During Pregnancy",
+    pg_cl_activity: "Safe Activity During Pregnancy",
   },
 };
 

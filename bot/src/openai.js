@@ -387,3 +387,53 @@ export async function weeklySummary(user, stats) {
     { maxTokens: 500 }
   );
 }
+
+/** Simple beginner-friendly fitness plan for a "live healthier" user (no
+ *  diabetes context needed). Same shape as generateGymPlan but tuned for a
+ *  general prevention/wellness audience — accepts a broader goal set incl.
+ *  "improve overall health" and doesn't assume prediabetes. */
+export async function generateFitnessPlan(user, answers = {}) {
+  const lang = user?.language || "en";
+  const system = [
+    SAFETY,
+    "You are a friendly beginner FITNESS COACH designing a simple, safe routine for a user who wants to live healthier. Focus on gradual progression, low-injury moves, and a mix of cardio + light resistance + mobility. Give the plan in this exact shape:\n\n*Your Fitness Plan*\n\n*Weekly schedule:* one line describing which days do what.\n\n*Each session:* bullet list of 5-8 exercises with sets x reps (or minutes). Group them: warm-up, main workout, cool-down.\n\n*Tips:* 2-3 short bullets on form, safety, and how to progress in the next 2-4 weeks.\n\nKeep the whole plan under 250 words. No medical advice; no prescriptions.",
+    profileContext(user),
+    languageInstruction(lang),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  const payload = `Gym experience: ${answers.experience || "unknown"}\nDays per week available: ${answers.days || "unknown"}\nMain goal: ${answers.goal || "unknown"}`;
+
+  return complete(
+    [
+      { role: "system", content: system },
+      { role: "user", content: payload },
+    ],
+    { maxTokens: 600 }
+  );
+}
+
+/** Beginner gym plan for a prediabetes user. Uses the three onboarding
+ *  answers plus their profile so the routine matches age, weight and goal. */
+export async function generateGymPlan(user, answers = {}) {
+  const lang = user?.language || "en";
+  const system = [
+    SAFETY,
+    "You are a friendly beginner FITNESS COACH designing a simple, safe gym routine for a user with prediabetes. Focus on gradual progression, low-injury moves, and blood-sugar friendly cardio + light resistance. Give the plan in this exact shape:\n\n*Your Gym Plan*\n\n*Weekly schedule:* one line describing which days do what.\n\n*Each session:* bullet list of 5-8 exercises with sets x reps (or minutes). Group them: warm-up, main workout, cool-down.\n\n*Tips:* 2-3 short bullets on form, safety, and how to progress in the next 2-4 weeks.\n\nKeep the whole plan under 250 words. No medical advice; no prescriptions.",
+    profileContext(user),
+    languageInstruction(lang),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  const payload = `Gym experience: ${answers.experience || "unknown"}\nDays per week available: ${answers.days || "unknown"}\nMain goal: ${answers.goal || "unknown"}`;
+
+  return complete(
+    [
+      { role: "system", content: system },
+      { role: "user", content: payload },
+    ],
+    { maxTokens: 600 }
+  );
+}

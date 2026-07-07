@@ -306,13 +306,14 @@ function stack(rows) {
 }
 
 export function userTypeKeyboard(lang) {
+  // Five-option question that also carries the diabetes-type selection — the
+  // onboarding callback handler maps each value onto user_type + diabetes_status.
   return stack([
-    { text: t(lang, "ut_diabetes"), callback_data: "ut:diabetes" },
+    { text: t(lang, "ut_type1"),       callback_data: "ut:type1" },
+    { text: t(lang, "ut_type2"),       callback_data: "ut:type2" },
     { text: t(lang, "ut_prediabetes"), callback_data: "ut:prediabetes" },
-    { text: t(lang, "ut_healthier"), callback_data: "ut:healthier" },
-    { text: t(lang, "ut_notsure"), callback_data: "ut:notsure" },
-    { text: t(lang, "ut_parent"), callback_data: "ut:parent" },
-    { text: t(lang, "ut_exploring"), callback_data: "ut:exploring" },
+    { text: t(lang, "ut_gestational"), callback_data: "ut:gestational" },
+    { text: t(lang, "ut_healthier"),   callback_data: "ut:healthier" },
   ]);
 }
 
@@ -516,7 +517,7 @@ function profileMenuButton(lang, user) {
   const dt = user?.diabetes_status;
   if (ut === "diabetes" && dt === "type1") return b("btn_p_type1", "type1");
   if (ut === "diabetes" && dt === "type2") return b("btn_p_type2", "type2");
-  if (ut === "diabetes" && dt === "gestational") return b("btn_p_gestational", "gestational");
+  if (ut === "diabetes" && dt === "gestational") return b("btn_p_pregnancy", "gestational");
   if (ut === "prediabetes") return b("btn_p_prediabetes", "prediabetes");
   if (ut === "healthier") return b("btn_p_healthier", "healthier");
   return null;
@@ -724,6 +725,363 @@ export function t1DailyLifeTopicsKeyboard(lang, topics) {
   ]);
   rows.push([{ text: t(lang, "btn_back"), callback_data: "t1:dailylife" }]);
   return { inline_keyboard: rows };
+}
+
+// Prediabetes — top-level Healthy Living menu (spec 2026-07).
+export function prediabetesMenuKeyboard(lang) {
+  const b = (key, action) => ({ text: t(lang, key), callback_data: `pd:${action}` });
+  return stack([
+    b("btn_pd_wins",     "wins"),
+    b("btn_pd_gym",      "gym"),
+    b("btn_pd_cravings", "cravings"),
+    { text: t(lang, "btn_main_menu"), callback_data: "menu" },
+  ]);
+}
+
+// 10-Minute Wins: after showing a suggestion, offer to do it or reroll.
+// Back returns to the Healthy Living menu.
+export function pdWinsChoiceKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "btn_pd_wins_do"),      callback_data: "pd:wins_do" },
+        { text: t(lang, "btn_pd_wins_another"), callback_data: "pd:wins_again" },
+      ],
+      [{ text: t(lang, "btn_back"), callback_data: "feat:prediabetes" }],
+    ],
+  };
+}
+
+// The delayed "did you complete it?" follow-up.
+export function pdWinsFollowupKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "btn_pd_wins_yes"),   callback_data: "pd:wins_yes" },
+        { text: t(lang, "btn_pd_wins_notyet"), callback_data: "pd:wins_notyet" },
+      ],
+    ],
+  };
+}
+
+// Shown alongside the "go get it done" nudge so the user can mark the
+// activity done immediately instead of waiting for the 15-minute check-in.
+export function pdWinsGoKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [{ text: t(lang, "btn_pd_wins_done"), callback_data: "pd:wins_yes" }],
+      [{ text: t(lang, "btn_back"), callback_data: "feat:prediabetes" }],
+    ],
+  };
+}
+
+// Gym Plan questions.
+export function pdGymExperienceKeyboard(lang) {
+  const b = (key, val) => ({ text: t(lang, key), callback_data: `pd:gymexp:${val}` });
+  return stack([[b("btn_pd_gym_exp_never", "never"), b("btn_pd_gym_exp_beginner", "beginner"), b("btn_pd_gym_exp_regular", "regular")]]);
+}
+
+export function pdGymDaysKeyboard(lang) {
+  const b = (n) => ({ text: String(n === 5 ? "5+" : n), callback_data: `pd:gymdays:${n}` });
+  return { inline_keyboard: [[b(2), b(3), b(4), b(5)]] };
+}
+
+export function pdGymGoalKeyboard(lang) {
+  const b = (key, val) => ({ text: t(lang, key), callback_data: `pd:gymgoal:${val}` });
+  return stack([
+    b("btn_pd_gym_goal_lose",     "lose_weight"),
+    b("btn_pd_gym_goal_build",    "build_muscle"),
+    b("btn_pd_gym_goal_fitness",  "improve_fitness"),
+    b("btn_pd_gym_goal_bloodsugar", "improve_bloodsugar"),
+  ]);
+}
+
+// Regenerate / back after a gym plan is delivered.
+export function pdGymDoneKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [{ text: t(lang, "btn_pd_gym_regen"), callback_data: "pd:gym" }],
+      [{ text: t(lang, "btn_back"), callback_data: "feat:prediabetes" }],
+    ],
+  };
+}
+
+// Beat the Cravings: sugary drink picker.
+export function pdCravingsDrinkKeyboard(lang) {
+  const b = (key, val) => ({ text: t(lang, key), callback_data: `pd:drink:${val}` });
+  return stack([
+    [b("btn_pd_drink_coke", "coke"),       b("btn_pd_drink_pepsi", "pepsi")],
+    [b("btn_pd_drink_7up", "7up"),         b("btn_pd_drink_sprite", "sprite")],
+    [b("btn_pd_drink_mtn", "mountain_dew"), b("btn_pd_drink_energy", "energy")],
+    [b("btn_pd_drink_tea", "sweet_tea"),   b("btn_pd_drink_other", "other")],
+  ]);
+}
+
+// Beat the Cravings: junk food picker.
+export function pdCravingsJunkKeyboard(lang) {
+  const b = (key, val) => ({ text: t(lang, key), callback_data: `pd:junk:${val}` });
+  return stack([
+    [b("btn_pd_junk_burgers", "burgers"), b("btn_pd_junk_pizza", "pizza")],
+    [b("btn_pd_junk_fries", "fries"),     b("btn_pd_junk_chips", "chips")],
+    [b("btn_pd_junk_biscuits", "biscuits"), b("btn_pd_junk_cakes", "cakes")],
+    [b("btn_pd_junk_choco", "chocolate"), b("btn_pd_junk_fast", "fast_food")],
+    [b("btn_pd_junk_other", "other")],
+  ]);
+}
+
+// Beat the Cravings: one-change commitment picker.
+export function pdCravingsCommitKeyboard(lang) {
+  const b = (key, val) => ({ text: t(lang, key), callback_data: `pd:commit:${val}` });
+  return stack([
+    b("btn_pd_commit_less_soda",     "less_soda"),
+    b("btn_pd_commit_weekend_only",  "weekend_only"),
+    b("btn_pd_commit_water",         "water"),
+    b("btn_pd_commit_less_fast",     "less_fast"),
+    b("btn_pd_commit_skip_chips",    "skip_chips"),
+    b("btn_pd_commit_other",         "other"),
+  ]);
+}
+
+// Return-to-menu after a cravings step or a final message.
+export function pdBackKeyboard(lang) {
+  return {
+    inline_keyboard: [[{ text: t(lang, "btn_back"), callback_data: "feat:prediabetes" }]],
+  };
+}
+
+// Better Me — top-level menu for user_type=healthier (spec 2026-07).
+export function betterMeMenuKeyboard(lang) {
+  const b = (key, action) => ({ text: t(lang, key), callback_data: `bm:${action}` });
+  return stack([
+    b("btn_bm_habit",   "habit"),
+    b("btn_bm_fitness", "fitness"),
+    b("btn_bm_wins",    "wins"),
+    b("btn_bm_journey", "journey"),
+    { text: t(lang, "btn_main_menu"), callback_data: "menu" },
+  ]);
+}
+
+// Build a New Habit — habit picker.
+export function bmHabitPickerKeyboard(lang) {
+  const b = (key, val) => ({ text: t(lang, key), callback_data: `bm:habit:${val}` });
+  return stack([
+    [b("bm_habit_water", "water"),         b("bm_habit_sleep", "sleep")],
+    [b("bm_habit_walk", "walk"),           b("bm_habit_exercise", "exercise")],
+    [b("bm_habit_veggies", "veggies"),     b("bm_habit_less_sugar", "less_sugar")],
+    [b("bm_habit_quit_smoking", "quit_smoking"), b("bm_habit_stress", "stress")],
+    [b("bm_habit_read", "read"),           b("bm_habit_pray", "pray")],
+    [b("bm_habit_other", "other")],
+    [{ text: t(lang, "btn_back"), callback_data: "feat:betterme" }],
+  ]);
+}
+
+// Habit days-per-week (1..7).
+export function bmHabitDaysKeyboard(lang) {
+  const b = (n) => ({ text: String(n), callback_data: `bm:habitdays:${n}` });
+  return {
+    inline_keyboard: [
+      [b(1), b(2), b(3), b(4)],
+      [b(5), b(6), b(7)],
+    ],
+  };
+}
+
+// Fitness plan Q1 (gym experience).
+export function bmFitExperienceKeyboard(lang) {
+  const b = (key, val) => ({ text: t(lang, key), callback_data: `bm:fitexp:${val}` });
+  return stack([[
+    b("btn_bm_fit_exp_never", "never"),
+    b("btn_bm_fit_exp_beginner", "beginner"),
+    b("btn_bm_fit_exp_regular", "regular"),
+  ]]);
+}
+
+// Fitness plan Q2 (days per week).
+export function bmFitDaysKeyboard(lang) {
+  const b = (n) => ({ text: String(n === 5 ? "5+" : n), callback_data: `bm:fitdays:${n}` });
+  return { inline_keyboard: [[b(2), b(3), b(4), b(5)]] };
+}
+
+// Fitness plan Q3 (main goal).
+export function bmFitGoalKeyboard(lang) {
+  const b = (key, val) => ({ text: t(lang, key), callback_data: `bm:fitgoal:${val}` });
+  return stack([
+    b("btn_bm_fit_goal_lose",     "lose_weight"),
+    b("btn_bm_fit_goal_build",    "build_muscle"),
+    b("btn_bm_fit_goal_fitness",  "improve_fitness"),
+    b("btn_bm_fit_goal_overall",  "improve_overall"),
+  ]);
+}
+
+// After a plan is delivered — regenerate or back.
+export function bmFitDoneKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [{ text: t(lang, "btn_bm_fit_regen"), callback_data: "bm:fitness" }],
+      [{ text: t(lang, "btn_back"), callback_data: "feat:betterme" }],
+    ],
+  };
+}
+
+// 10-Minute Wins choice keyboard (do it / another).
+export function bmWinsChoiceKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "btn_bm_wins_do"),      callback_data: "bm:wins_do" },
+        { text: t(lang, "btn_bm_wins_another"), callback_data: "bm:wins_again" },
+      ],
+      [{ text: t(lang, "btn_back"), callback_data: "feat:betterme" }],
+    ],
+  };
+}
+
+// 15-minute follow-up.
+export function bmWinsFollowupKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "btn_bm_wins_yes"),    callback_data: "bm:wins_yes" },
+        { text: t(lang, "btn_bm_wins_notyet"), callback_data: "bm:wins_notyet" },
+      ],
+    ],
+  };
+}
+
+// Immediate "Done" button shown alongside the go-do-it nudge.
+export function bmWinsGoKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [{ text: t(lang, "btn_bm_wins_done"), callback_data: "bm:wins_yes" }],
+      [{ text: t(lang, "btn_back"), callback_data: "feat:betterme" }],
+    ],
+  };
+}
+
+// Health Journey — yes/no on updating conditions.
+export function bmJourneyConditionsKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "btn_yes"), callback_data: "bm:condyes" },
+        { text: t(lang, "btn_no"),  callback_data: "bm:condno" },
+      ],
+    ],
+  };
+}
+
+// Health Journey — 1-year goal picker.
+export function bmJourneyGoalKeyboard(lang) {
+  const b = (key, val) => ({ text: t(lang, key), callback_data: `bm:jgoal:${val}` });
+  return stack([
+    [b("btn_bm_journey_lose", "lose_weight"),   b("btn_bm_journey_fit", "get_fitter")],
+    [b("btn_bm_journey_sleep", "sleep_better"), b("btn_bm_journey_quit", "quit_smoking")],
+    [b("btn_bm_journey_stress", "reduce_stress"), b("btn_bm_journey_energy", "energetic")],
+    [b("btn_bm_journey_overall", "overall_health")],
+    [b("btn_bm_journey_other", "other")],
+  ]);
+}
+
+// Simple Back-to-Better-Me button used at flow end-points.
+export function bmBackKeyboard(lang) {
+  return {
+    inline_keyboard: [[{ text: t(lang, "btn_back"), callback_data: "feat:betterme" }]],
+  };
+}
+
+// Pregnancy Support — top-level menu for gestational-diabetes users (spec 2026-07).
+export function pregnancyMenuKeyboard(lang) {
+  const b = (key, action) => ({ text: t(lang, key), callback_data: `pg:${action}` });
+  return stack([
+    b("btn_pg_progress",  "progress"),
+    b("btn_pg_healthy",   "tips"),
+    b("btn_pg_checklist", "checklist"),
+    { text: t(lang, "btn_main_menu"), callback_data: "menu" },
+  ]);
+}
+
+// Yes / No / Not Sure — used for the "previous GDM?" question.
+export function pgYesNoNotSureKeyboard(lang, key) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "btn_pg_yes"),     callback_data: `pg:${key}:yes` },
+        { text: t(lang, "btn_pg_no"),      callback_data: `pg:${key}:no` },
+      ],
+      [
+        { text: t(lang, "btn_pg_notsure"), callback_data: `pg:${key}:notsure` },
+      ],
+    ],
+  };
+}
+
+// Yes / No — used for first-pregnancy and insulin questions.
+export function pgYesNoKeyboard(lang, key) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "btn_pg_yes"), callback_data: `pg:${key}:yes` },
+        { text: t(lang, "btn_pg_no"),  callback_data: `pg:${key}:no` },
+      ],
+    ],
+  };
+}
+
+// Skip button for optional text steps (doctor, delivery hospital).
+export function pgSkipKeyboard(lang, key) {
+  return {
+    inline_keyboard: [
+      [{ text: t(lang, "btn_skip"), callback_data: `pg:skip:${key}` }],
+    ],
+  };
+}
+
+// Progress view — Edit Details / Update Week / Back.
+export function pgProgressViewKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [{ text: t(lang, "btn_pg_edit_all"),    callback_data: "pg:edit" }],
+      [{ text: t(lang, "btn_pg_update_week"), callback_data: "pg:updateweek" }],
+      [{ text: t(lang, "btn_back"),           callback_data: "feat:pregnancy" }],
+    ],
+  };
+}
+
+// Healthy Pregnancy tip — Helpful / Show Me Another.
+export function pgTipFeedbackKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "btn_pg_tip_helpful"), callback_data: "pg:tiphelp" },
+        { text: t(lang, "btn_pg_tip_another"), callback_data: "pg:tipagain" },
+      ],
+      [{ text: t(lang, "btn_back"), callback_data: "feat:pregnancy" }],
+    ],
+  };
+}
+
+// Pregnancy Checklist — one topic per row.
+export function pgChecklistTopicsKeyboard(lang, topics) {
+  const rows = topics.map((tp) => [
+    { text: truncate(tp.title, 60), callback_data: `pg:cl:${tp.id}` },
+  ]);
+  rows.push([{ text: t(lang, "btn_back"), callback_data: "feat:pregnancy" }]);
+  return { inline_keyboard: rows };
+}
+
+// Simple Back-to-Pregnancy button used at flow end-points.
+export function pgBackKeyboard(lang) {
+  return {
+    inline_keyboard: [[{ text: t(lang, "btn_back"), callback_data: "feat:pregnancy" }]],
+  };
+}
+
+// Back-to-checklist-list button, used when the user is one level deeper
+// (viewing a single topic's PDF or placeholder).
+export function pgBackToChecklistKeyboard(lang) {
+  return {
+    inline_keyboard: [[{ text: t(lang, "btn_back"), callback_data: "pg:checklist" }]],
+  };
 }
 
 // T1-only periodic confidence check (spec 2026-07).

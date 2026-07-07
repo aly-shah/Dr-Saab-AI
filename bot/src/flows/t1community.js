@@ -40,6 +40,14 @@ function backToT1(lang) {
   return backKeyboard(lang, "feat:t1community");
 }
 
+function backToDailyLife(lang) {
+  return backKeyboard(lang, "t1:dailylife");
+}
+
+function backToDailyLifeCategory(lang, category) {
+  return backKeyboard(lang, `t1:dl:${category}`);
+}
+
 function emptyBody(lang) {
   return t(lang, "t1c_placeholder_body");
 }
@@ -130,7 +138,7 @@ async function showDailyLifeCategory(bot, chatId, session, category) {
   const topics = await listT1DailyLifeTopics(category).catch(() => []);
   if (!topics.length) {
     return send(bot, chatId, `${t(lang, titleKey)}\n\n${emptyBody(lang)}`, {
-      keyboard: backToT1(lang),
+      keyboard: backToDailyLife(lang),
       markdown: true,
     });
   }
@@ -147,19 +155,20 @@ async function sendDailyLifeTopic(bot, chatId, session, idStr) {
   const topic = await getT1DailyLifeTopic(id).catch(() => null);
   if (!topic) {
     return send(bot, chatId, t(lang, "t1c_dl_topic_missing"), {
-      keyboard: backToT1(lang),
+      keyboard: backToDailyLife(lang),
       markdown: true,
     });
   }
+  const back = backToDailyLifeCategory(lang, topic.category);
   const title = sanitizeMd(topic.title);
   if (!topic.pdf_url) {
     return send(bot, chatId, t(lang, "t1c_dl_topic_no_pdf", { title }), {
-      keyboard: backToT1(lang),
+      keyboard: back,
       markdown: true,
     });
   }
   await send(bot, chatId, t(lang, "t1c_dl_topic_open", { title, url: topic.pdf_url }), {
-    keyboard: backToT1(lang),
+    keyboard: back,
     markdown: true,
   });
 }

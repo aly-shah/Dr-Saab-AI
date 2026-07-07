@@ -1188,6 +1188,15 @@ export const getT1DailyLifeTopic = (id) =>
   backend.getT1DailyLifeTopic ? backend.getT1DailyLifeTopic(id) : Promise.resolve(null);
 export const listT1Events = (limit) =>
   backend.listT1Events ? backend.listT1Events(limit) : Promise.resolve([]);
+// Pregnancy Support (2026-07): admin-curated tips + checklist PDFs. Backends
+// may not implement these yet; the flow keeps a built-in fallback so the
+// section is usable before the admin portal ships.
+export const listPregnancyTips = () =>
+  backend.listPregnancyTips ? backend.listPregnancyTips() : Promise.resolve([]);
+export const listPregnancyChecklist = () =>
+  backend.listPregnancyChecklist ? backend.listPregnancyChecklist() : Promise.resolve([]);
+export const getPregnancyChecklistTopic = (id) =>
+  backend.getPregnancyChecklistTopic ? backend.getPregnancyChecklistTopic(id) : Promise.resolve(null);
 export const addMedicationMasterFull = (id, fields) => backend.addMedicationMasterFull(id, fields);
 export const enrollMedConsistency = (id) => backend.enrollMedConsistency(id);
 export const getMedConsistency = (id) => backend.getMedConsistency(id);

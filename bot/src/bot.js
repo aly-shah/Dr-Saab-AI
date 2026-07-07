@@ -53,6 +53,21 @@ import { showProgress, showSummary, showRecentActivity } from "./flows/progress.
 import { showEducation } from "./flows/education.js";
 import { showT1Community, dispatchT1Community } from "./flows/t1community.js";
 import {
+  showPrediabetes,
+  dispatchPrediabetes,
+  prediabetesText,
+} from "./flows/prediabetes.js";
+import {
+  showBetterMe,
+  dispatchBetterMe,
+  bettermeText,
+} from "./flows/betterme.js";
+import {
+  showPregnancy,
+  dispatchPregnancy,
+  pregnancyText,
+} from "./flows/pregnancy.js";
+import {
   showGoals,
   startAddGoal,
   pickGoalSuggestion,
@@ -228,6 +243,12 @@ async function dispatchFeature(bot, chatId, session, action) {
       return showEducation(bot, chatId, session);
     case "t1community":
       return showT1Community(bot, chatId, session);
+    case "prediabetes":
+      return showPrediabetes(bot, chatId, session);
+    case "betterme":
+      return showBetterMe(bot, chatId, session);
+    case "pregnancy":
+      return showPregnancy(bot, chatId, session);
     case "goals":
       return showGoals(bot, chatId, session);
     case "challenges":
@@ -327,7 +348,7 @@ export async function handleMessage(bot, msg) {
   const inFlow = [
     "onboarding", "glucose", "medication", "health",
     "coach", "food", "fitness", "askdrsaab", "lab", "goals", "challenge_code", "profileq",
-    "weight", "activity", "symptoms",
+    "weight", "activity", "symptoms", "prediabetes", "betterme", "pregnancy",
   ].includes(session.state);
   if (session.user.onboarded) {
     if (cmd === "/home" || (!inFlow && (word === "home" || word === "menu"))) {
@@ -391,6 +412,12 @@ export async function handleMessage(bot, msg) {
       return challengeCodeText(bot, chatId, session, text);
     case "profileq":
       return profileqText(bot, chatId, session, text);
+    case "prediabetes":
+      return prediabetesText(bot, chatId, session, text);
+    case "betterme":
+      return bettermeText(bot, chatId, session, text);
+    case "pregnancy":
+      return pregnancyText(bot, chatId, session, text);
     default:
       return showMenu(bot, chatId, session);
   }
@@ -625,16 +652,35 @@ export async function handleCallback(bot, query) {
   if (data.startsWith("feat:")) return dispatchFeature(bot, chatId, session, data.split(":")[1]);
 
   // T1 Community sub-menu (spec 2026-07): support / blogs / videos / dailylife / events.
+  // Pass the full remainder so nested actions like `dl:<cat>` and `dt:<id>` reach the dispatcher intact.
   if (data.startsWith("t1:")) {
-    return dispatchT1Community(bot, chatId, session, data.split(":")[1]);
+    return dispatchT1Community(bot, chatId, session, data.slice(3));
+  }
+
+  // Prediabetes Healthy Living sub-menu (spec 2026-07): wins / gym / cravings.
+  if (data.startsWith("pd:")) {
+    return dispatchPrediabetes(bot, chatId, session, data.slice(3));
+  }
+
+  // Better Me sub-menu (spec 2026-07): habit / fitness / wins / journey.
+  if (data.startsWith("bm:")) {
+    return dispatchBetterMe(bot, chatId, session, data.slice(3));
+  }
+
+  // Pregnancy Support sub-menu (spec 2026-07): progress / tips / checklist.
+  if (data.startsWith("pg:")) {
+    return dispatchPregnancy(bot, chatId, session, data.slice(3));
   }
 
   // Profile-based main-menu item. Type 1 users land on the T1 Community
-  // section; other profiles fall through to the Ask DrSaab stub until their
-  // own section is built.
+  // section, prediabetes users on the Healthy Living menu; other profiles
+  // fall through to the Ask DrSaab stub until their own section is built.
   if (data.startsWith("pfl:")) {
     const profile = data.split(":")[1];
     if (profile === "type1") return showT1Community(bot, chatId, session);
+    if (profile === "prediabetes") return showPrediabetes(bot, chatId, session);
+    if (profile === "healthier") return showBetterMe(bot, chatId, session);
+    if (profile === "gestational") return showPregnancy(bot, chatId, session);
     const lang = langOf(session);
     await send(bot, chatId, t(lang, "profile_menu_stub"), { markdown: true });
     return startAskDrsaab(bot, chatId, session);
