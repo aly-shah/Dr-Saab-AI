@@ -184,13 +184,23 @@ export function whatsappBot() {
   };
 }
 
+// Canonical form for a WhatsApp sender's number: digits only, no '+', no
+// spaces, no leading zeros. Meta's Cloud API already sends this shape, but
+// 360dialog has been observed to occasionally include a '+' prefix. We
+// normalise here so the same physical user always maps to the same identity
+// (and the same in-memory session key) regardless of formatting.
+function normalizePhone(raw) {
+  const digits = String(raw ?? "").replace(/\D/g, "");
+  return digits.replace(/^0+/, "");
+}
+
 async function onInbound(value) {
   const messages = value?.messages;
   if (!messages || !messages.length) return; // status callbacks etc.
   const bot = whatsappBot();
 
   for (const m of messages) {
-    const from = m.from; // sender phone number (digits) — fits a bigint key
+    const from = normalizePhone(m.from); // canonical E.164 digits
     if (m.type === "interactive") {
       const reply = m.interactive?.button_reply || m.interactive?.list_reply;
       if (!reply) continue;

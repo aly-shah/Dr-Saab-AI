@@ -514,3 +514,186 @@ select * from (values
   ('adults', 'Sick Day Guidance',                                    50)
 ) as v(category, title, sort_order)
 where not exists (select 1 from public.t1_daily_life_topics);
+
+-- ============================================================
+-- WhatsApp identity (2026-07)
+-- ------------------------------------------------------------
+-- Historically `telegram_id` (bigint) was used as the single identity column
+-- for both Telegram user IDs and WhatsApp phone numbers. That worked but was
+-- confusing (misnamed) and left a theoretical collision risk between a
+-- Telegram numeric ID and a WhatsApp E.164 number that happen to be equal.
+--
+-- We now keep two orthogonal identity columns:
+--   • telegram_id  — Telegram numeric user id  (nullable for WhatsApp users)
+--   • phone_number — E.164 digits-only string  (nullable for Telegram users)
+-- Exactly one of the two is set per row. A unique constraint on phone_number
+-- keeps repeat-contacts from creating duplicate rows.
+-- ============================================================
+
+alter table public.users add column if not exists phone_number text;
+
+-- Backfill: for existing WhatsApp users we previously stored their number in
+-- `telegram_id`. Copy it into the new column so the app can find them by
+-- phone_number going forward. Idempotent — only fills rows that are still empty.
+update public.users
+   set phone_number = telegram_id::text
+ where coalesce(source, 'telegram') = 'whatsapp'
+   and phone_number is null
+   and telegram_id is not null;
+
+-- Telegram ID becomes optional (WhatsApp-only rows won't have one).
+alter table public.users alter column telegram_id drop not null;
+
+-- Unique-per-non-null phone number, so lookups + upserts by phone are safe.
+create unique index if not exists users_phone_number_key
+  on public.users (phone_number) where phone_number is not null;
+
+-- ============================================================
+-- Engagement Engine — Build 1 (2026-07)
+-- ------------------------------------------------------------
+-- Rules-based Daily Message Composer. Content lives in `message_blocks`
+-- (admin-editable), tuning knobs in `engagement_config`, and every sent
+-- message is audited to `daily_message_log` — the composer reads this
+-- log to enforce per-block cooldown and the "one system message per user
+-- per day" cap (unique on user_id, date).
+-- ============================================================
+
+create table if not exists public.message_blocks (
+  id             text primary key,           -- spec id, e.g. G-EN-001
+  kind           text not null,              -- greeting|reminder_summary|coaching|milestone|inactivity|cta
+  language       text not null,              -- english | roman_urdu
+  age_brackets   text[] default '{any}',     -- {'50-64','65+'} or {'any'}
+  window         text,                       -- morning|afternoon|evening|any  (greeting)
+  engagement     text,                       -- HE|E|LOW|RISK                  (coaching)
+  milestone      text,                       -- T7|T21|T40|T66|T90             (milestone)
+  trigger_days   int,                        -- 2|4|7|14                       (inactivity)
+  reminder_type  text,                       -- generic|medication|glucose|walk (reminder_summary)
+  text           text not null,
+  cooldown_days  int default 7,              -- per-block-id cooldown
+  active         boolean default true,
+  sort_order     int default 0,
+  created_at     timestamptz default now(),
+  updated_at     timestamptz default now()
+);
+create index if not exists message_blocks_lookup_idx
+  on public.message_blocks (kind, language, active);
+drop trigger if exists message_blocks_touch on public.message_blocks;
+create trigger message_blocks_touch before update on public.message_blocks
+  for each row execute function public.touch_updated_at();
+
+-- Key/value tuning for weights + thresholds. Env vars in config.js act as
+-- boot-time defaults; rows here override at read time inside engagement.js.
+create table if not exists public.engagement_config (
+  key         text primary key,
+  value_num   numeric not null,
+  updated_at  timestamptz default now()
+);
+
+-- Audit + cooldown + idempotency for the daily composer. The unique
+-- (user_id, date) constraint IS the "max one system message per user per
+-- day" rule — a duplicate insert on the same day fails with 23505 and the
+-- composer treats that as "already sent, skip".
+create table if not exists public.daily_message_log (
+  id                uuid primary key default gen_random_uuid(),
+  user_id           uuid references public.users(id) on delete cascade,
+  date              date not null,
+  engagement_score  int,
+  engagement_level  text,                    -- HE|E|LOW|RISK|INACTIVE
+  block_ids         text[] default '{}',
+  message           text,
+  channel           text,                    -- whatsapp | telegram
+  sent_at           timestamptz default now()
+);
+create unique index if not exists daily_message_log_user_date_key
+  on public.daily_message_log (user_id, date);
+create index if not exists daily_message_log_user_recent_idx
+  on public.daily_message_log (user_id, sent_at desc);
+
+-- ---------- Seed default engagement_config ----------
+insert into public.engagement_config (key, value_num) values
+  ('w_glucose',              3),
+  ('w_medication',           2),
+  ('w_checkin',              4),
+  ('w_coach',                2),
+  ('w_in_range',             1),
+  ('w_last_seen_recent',     5),
+  ('level_he_min',          75),
+  ('level_e_min',           55),
+  ('level_low_min',         35),
+  ('inactivity_exit_days',  14),
+  ('block_cooldown_days',    7)
+on conflict (key) do nothing;
+
+-- ---------- Seed message_blocks (spec §15.1–15.7) ----------
+-- Runs only on first migration; once populated the Admin Portal owns edits.
+insert into public.message_blocks
+  (id, kind, language, age_brackets, window, engagement, milestone, trigger_days, reminder_type, text, cooldown_days, sort_order)
+select * from (values
+  -- 15.1 Greeting — English
+  ('G-EN-001','greeting','english',array['any'],'morning'  ,null,null,null,null,'Good morning{first_name_optional}, quick health check-in for today.',3,10),
+  ('G-EN-002','greeting','english',array['any'],'afternoon',null,null,null,null,'Quick afternoon check-in{first_name_optional}.',3,20),
+  ('G-EN-003','greeting','english',array['any'],'evening'  ,null,null,null,null,'Evening check-in{first_name_optional}.',3,30),
+  ('G-EN-004','greeting','english',array['50-64','65+'],'morning',null,null,null,null,'Assalam o Alaikum{first_name_optional}. Hope your day has started well.',3,40),
+  ('G-EN-005','greeting','english',array['16-19','20-34'],'any',null,null,null,null,'Salaam{first_name_optional}, tiny health update time.',3,50),
+  -- 15.2 Greeting — Roman Urdu
+  ('G-RU-001','greeting','roman_urdu',array['any'],'morning'  ,null,null,null,null,'Good morning{first_name_optional}, aaj ka quick health check-in.',3,10),
+  ('G-RU-002','greeting','roman_urdu',array['any'],'afternoon',null,null,null,null,'Salaam{first_name_optional}, afternoon ka chota sa check-in.',3,20),
+  ('G-RU-003','greeting','roman_urdu',array['any'],'evening'  ,null,null,null,null,'Shaam ka check-in{first_name_optional}.',3,30),
+  ('G-RU-004','greeting','roman_urdu',array['50-64','65+'],'morning',null,null,null,null,'Assalam o Alaikum{first_name_optional}. Umeed hai aap theek hain.',3,40),
+  ('G-RU-005','greeting','roman_urdu',array['16-19','20-34'],'any',null,null,null,null,'Salaam{first_name_optional}, 1 min ka health scene kar lein.',3,50),
+  -- 15.3 Reminder summary — English
+  ('R-EN-001','reminder_summary','english',array['any'],null,null,null,null,'generic'   ,'For today: {due_reminders}.',3,10),
+  ('R-EN-002','reminder_summary','english',array['any'],null,null,null,null,'medication','Please remember your {medication_name} at {reminder_time}.',3,20),
+  ('R-EN-003','reminder_summary','english',array['any'],null,null,null,null,'glucose'   ,'If today is a sugar-check day, send me your reading when convenient.',3,30),
+  ('R-EN-004','reminder_summary','english',array['any'],null,null,null,null,'walk'      ,'Try to fit in your walk today, even if it is short.',3,40),
+  -- 15.3 Reminder summary — Roman Urdu
+  ('R-RU-001','reminder_summary','roman_urdu',array['any'],null,null,null,null,'generic'   ,'Aaj ke liye: {due_reminders}.',3,10),
+  ('R-RU-002','reminder_summary','roman_urdu',array['any'],null,null,null,null,'medication','Apni {medication_name} {reminder_time} par yaad se lein.',3,20),
+  ('R-RU-003','reminder_summary','roman_urdu',array['any'],null,null,null,null,'glucose'   ,'Agar aaj sugar check ka din hai, reading bhej dein jab easy ho.',3,30),
+  ('R-RU-004','reminder_summary','roman_urdu',array['any'],null,null,null,null,'walk'      ,'Aaj walk fit karne ki koshish karein, choti walk bhi chalegi.',3,40),
+  -- 15.4 Coaching — English
+  ('C-EN-HE-001'  ,'coaching','english',array['any']         ,null,'HE'  ,null,null,null,'You are already showing consistency. Today, just keep the rhythm going.',7,10),
+  ('C-EN-E-001'   ,'coaching','english',array['any']         ,null,'E'   ,null,null,null,'You are building the right routine. Small daily actions matter more than perfect days.',7,20),
+  ('C-EN-LOW-001' ,'coaching','english',array['any']         ,null,'LOW' ,null,null,null,'A quick update today will help me understand where you are and guide you better.',7,30),
+  ('C-EN-RISK-001','coaching','english',array['16-19','20-34'],null,'RISK',null,null,null,'You have not disappeared, right? Send one small update and we are back on track.',7,40),
+  ('C-EN-RISK-002','coaching','english',array['50-64','65+'] ,null,'RISK',null,null,null,'Whenever you feel ready, send me one small update. We can restart gently.',7,50),
+  -- 15.4 Coaching — Roman Urdu
+  ('C-RU-HE-001'  ,'coaching','roman_urdu',array['any']         ,null,'HE'  ,null,null,null,'Aap consistency dikha rahe hain. Aaj bas rhythm maintain rakhni hai.',7,10),
+  ('C-RU-E-001'   ,'coaching','roman_urdu',array['any']         ,null,'E'   ,null,null,null,'Routine ban rahi hai. Perfect din zaroori nahi, consistency zaroori hai.',7,20),
+  ('C-RU-LOW-001' ,'coaching','roman_urdu',array['any']         ,null,'LOW' ,null,null,null,'Aaj ek quick update bhej dein, mujhe aapki progress samajhne mein help milegi.',7,30),
+  ('C-RU-RISK-001','coaching','roman_urdu',array['16-19','20-34'],null,'RISK',null,null,null,'Ghost to nahi kar diya DrSaab ko? Ek choti update bhej dein, phir track pe.',7,40),
+  ('C-RU-RISK-002','coaching','roman_urdu',array['50-64','65+'] ,null,'RISK',null,null,null,'Jab aap araam se ready hon, ek choti update bhej dein. Hum gently restart kar lenge.',7,50),
+  -- 15.5 Milestone — English
+  ('M-EN-T7' ,'milestone','english',array['any'],null,null,'T7' ,null,null,'One week complete. The win is not perfection; the win is staying connected to your health.',9999,10),
+  ('M-EN-T21','milestone','english',array['any'],null,null,'T21',null,null,'21 days in. This is your first real consistency checkpoint. You have taken {days_active_21d} active steps so far.',9999,20),
+  ('M-EN-T40','milestone','english',array['any'],null,null,'T40',null,null,'40 days in. This is where effort starts becoming identity: someone who takes diabetes seriously.',9999,30),
+  ('M-EN-T66','milestone','english',array['any'],null,null,'T66',null,null,'66 days today. For many people, routines begin feeling more natural around this stage. Keep it steady.',9999,40),
+  ('M-EN-T90','milestone','english',array['any'],null,null,'T90',null,null,'90 days complete. You have finished your first DrSaab coaching cycle. Next step: keep the habits, sharpen the plan.',9999,50),
+  -- 15.5 Milestone — Roman Urdu
+  ('M-RU-T7' ,'milestone','roman_urdu',array['any'],null,null,'T7' ,null,null,'1 hafta complete. Perfection nahi chahiye, health se connected rehna hi win hai.',9999,10),
+  ('M-RU-T21','milestone','roman_urdu',array['any'],null,null,'T21',null,null,'21 din ho gaye. Yeh aapka first real consistency checkpoint hai.',9999,20),
+  ('M-RU-T40','milestone','roman_urdu',array['any'],null,null,'T40',null,null,'40 din ho gaye. Ab effort identity ban sakti hai: woh banda jo diabetes ko seriously manage karta hai.',9999,30),
+  ('M-RU-T66','milestone','roman_urdu',array['any'],null,null,'T66',null,null,'Aaj 66 din. Bohat logon ke liye is stage par routine natural feel hona start hota hai. Steady rakhte hain.',9999,40),
+  ('M-RU-T90','milestone','roman_urdu',array['any'],null,null,'T90',null,null,'90 din complete. Pehla DrSaab coaching cycle done. Ab habits ko maintain aur plan ko sharpen karna hai.',9999,50),
+  -- 15.6 Inactivity — English
+  ('I-EN-D2' ,'inactivity','english',array['any']         ,null,null,null, 2,null,'Just checking in. One small update is enough.',5,10),
+  ('I-EN-D4' ,'inactivity','english',array['any']         ,null,null,null, 4,null,'Haven''t heard from you in a few days. Send me a quick update when you can.',5,20),
+  ('I-EN-D7' ,'inactivity','english',array['16-19','20-34'],null,null,null, 7,null,'A full week? DrSaab is starting to feel ignored. Come back with one update.',5,30),
+  ('I-EN-D7B','inactivity','english',array['50-64','65+'] ,null,null,null, 7,null,'It has been a few days. Whenever convenient, send me one update so we can continue.',5,40),
+  ('I-EN-D14','inactivity','english',array['any']         ,null,null,null,14,null,'Last gentle reminder for now. Your health journey is still here whenever you are ready.',30,50),
+  -- 15.6 Inactivity — Roman Urdu
+  ('I-RU-D2' ,'inactivity','roman_urdu',array['any']         ,null,null,null, 2,null,'Bas check-in kar raha hoon. Ek choti update bhi enough hai.',5,10),
+  ('I-RU-D4' ,'inactivity','roman_urdu',array['any']         ,null,null,null, 4,null,'Kuch din se update nahi aayi. Jab ho sake quick update bhej dein.',5,20),
+  ('I-RU-D7' ,'inactivity','roman_urdu',array['16-19','20-34'],null,null,null, 7,null,'Pura hafta? DrSaab ko ignore karna allowed hai kya? Ek update bhej dein.',5,30),
+  ('I-RU-D7B','inactivity','roman_urdu',array['50-64','65+'] ,null,null,null, 7,null,'Kuch din ho gaye. Jab convenient ho, ek update bhej dein taake hum continue kar saken.',5,40),
+  ('I-RU-D14','inactivity','roman_urdu',array['any']         ,null,null,null,14,null,'Filhal last gentle reminder. Aapki health journey yahin hai jab aap ready hon.',30,50),
+  -- 15.7 CTA — English
+  ('CTA-EN-001','cta','english',array['any'],null,null,null,null,null,'Reply with your update when ready.',3,10),
+  ('CTA-EN-002','cta','english',array['any'],null,null,null,null,null,'Send me one reading, meal, medicine update, or question.',3,20),
+  ('CTA-EN-003','cta','english',array['any'],null,null,null,null,null,'Small update. Big difference over time.',3,30),
+  -- 15.7 CTA — Roman Urdu
+  ('CTA-RU-001','cta','roman_urdu',array['any'],null,null,null,null,null,'Ready hon to update bhej dein.',3,10),
+  ('CTA-RU-002','cta','roman_urdu',array['any'],null,null,null,null,null,'Ek reading, meal, medicine update, ya question bhej dein.',3,20),
+  ('CTA-RU-003','cta','roman_urdu',array['any'],null,null,null,null,null,'Choti update. Time ke sath bara farq.',3,30)
+) as v(id, kind, language, age_brackets, window, engagement, milestone, trigger_days, reminder_type, text, cooldown_days, sort_order)
+where not exists (select 1 from public.message_blocks);

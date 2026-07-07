@@ -56,6 +56,18 @@ export const config = {
   webhookUrl: process.env.WEBHOOK_URL?.trim() || "",
   port: parseInt(process.env.PORT || "8080", 10),
 
+  // Engagement Engine — Build 1. The daily composer runs once per user per
+  // day at MSG_COMPOSER_HOUR (PKT). INACTIVITY_EXIT_DAYS is the threshold
+  // above which a user is considered Inactive and receives no system nudges.
+  // MSG_BLOCK_COOLDOWN_DAYS is the default cooldown when a block row has no
+  // explicit `cooldown_days`. Any of these are overridden at read time by
+  // matching rows in the `engagement_config` table (see engagement.js).
+  composer: {
+    hour: parseInt(process.env.MSG_COMPOSER_HOUR || "8", 10),
+    inactivityExitDays: parseInt(process.env.INACTIVITY_EXIT_DAYS || "14", 10),
+    blockCooldownDays: parseInt(process.env.MSG_BLOCK_COOLDOWN_DAYS || "7", 10),
+  },
+
   // WhatsApp adapter (the contracted delivery channel). Supports two providers
   // that speak the SAME Cloud API payloads/webhooks:
   //   • "meta"      — Meta Graph API directly (needs a token + phone number id)

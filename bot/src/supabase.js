@@ -3,7 +3,7 @@
 // NOTE: in-memory data resets when the process restarts.
 
 import { config } from "./config.js";
-import { logError } from "./log.js";
+import { logError, logWarn } from "./log.js";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const yesterdayISO = () => new Date(Date.now() - 86400000).toISOString().slice(0, 10);
@@ -29,6 +29,11 @@ async function makeSupabaseBackend() {
       if (error) throw error;
       return data;
     },
+    async getUserByPhoneNumber(phone) {
+      const { data, error } = await db.from("users").select("*").eq("phone_number", phone).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
     async createUser(telegramId, source = "telegram") {
       const { data, error } = await db
         .from("users")
@@ -37,6 +42,24 @@ async function makeSupabaseBackend() {
         .single();
       if (error) throw error;
       return data;
+    },
+    // Insert-or-return for WhatsApp. Postgres error code 23505 = unique_violation.
+    // When two webhooks from the same user arrive concurrently, one INSERT wins
+    // and the loser reads the winning row back — both callers end up with the
+    // same user row, so no duplicate profile.
+    async createUserByPhone(phone, source = "whatsapp") {
+      const { data, error } = await db
+        .from("users")
+        .insert({ phone_number: phone, tier: config.defaultTier, source })
+        .select("*")
+        .single();
+      if (!error) return data;
+      const isDup = error?.code === "23505" || /duplicate key|unique constraint/i.test(error?.message || "");
+      if (isDup) {
+        const existing = await this.getUserByPhoneNumber(phone);
+        if (existing) return existing;
+      }
+      throw error;
     },
     async updateUser(userId, patch) {
       const { data, error } = await db.from("users").update(patch).eq("id", userId).select("*").single();
@@ -295,6 +318,83 @@ async function makeSupabaseBackend() {
         .limit(200);
       return data || [];
     },
+    // --- Engagement Engine (Build 1) ---
+    async listMessageBlocks({ kind, language, active = true } = {}) {
+      let q = db.from("message_blocks").select("*");
+      if (kind) q = q.eq("kind", kind);
+      if (language) q = q.eq("language", language);
+      if (active !== undefined) q = q.eq("active", active);
+      const { data } = await q.order("sort_order").order("id");
+      return data || [];
+    },
+    async getEngagementConfig() {
+      const { data } = await db.from("engagement_config").select("key, value_num");
+      const out = {};
+      for (const r of data || []) out[r.key] = Number(r.value_num);
+      return out;
+    },
+    async recentBlockIdsForUser(userId, sinceIso) {
+      const { data } = await db
+        .from("daily_message_log")
+        .select("block_ids, sent_at")
+        .eq("user_id", userId)
+        .gte("sent_at", sinceIso)
+        .order("sent_at", { ascending: false });
+      const out = new Map();
+      for (const r of data || []) for (const id of r.block_ids || []) if (!out.has(id)) out.set(id, r.sent_at);
+      return out;
+    },
+    async logDailyMessage(row) {
+      const { error } = await db.from("daily_message_log").insert(row);
+      if (error && error.code !== "23505") throw error;
+      return !error;
+    },
+    async alreadySentToday(userId, date) {
+      const { data } = await db
+        .from("daily_message_log")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("date", date)
+        .maybeSingle();
+      return !!data;
+    },
+    async daysActiveInWindow(userId, days) {
+      const since = daysAgoISO(days);
+      const tables = ["glucose_logs", "medication_logs", "health_logs", "wellbeing_logs"];
+      const set = new Set();
+      for (const tbl of tables) {
+        const { data } = await db.from(tbl).select("created_at").eq("user_id", userId).gte("created_at", since);
+        for (const r of data || []) set.add(String(r.created_at).slice(0, 10));
+      }
+      return set.size;
+    },
+    async lastInteractionAt(userId) {
+      // Take the max of patient_kb.last_seen and every log table's latest row.
+      const tables = ["glucose_logs", "medication_logs", "health_logs", "wellbeing_logs", "coach_messages"];
+      let best = null;
+      const { data: k } = await db.from("patient_kb").select("last_seen").eq("user_id", userId).maybeSingle();
+      if (k?.last_seen) best = k.last_seen;
+      for (const tbl of tables) {
+        const { data } = await db
+          .from(tbl)
+          .select("created_at")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        const ts = data?.[0]?.created_at;
+        if (ts && (!best || ts > best)) best = ts;
+      }
+      return best;
+    },
+    async userDueReminders(userId, nowIso) {
+      const { data } = await db
+        .from("reminder_schedules")
+        .select("*")
+        .eq("active", true)
+        .eq("user_id", userId)
+        .lte("next_fire_at", nowIso);
+      return data || [];
+    },
   };
 }
 
@@ -339,6 +439,10 @@ async function makePostgresBackend() {
       const { rows } = await pool.query("select * from users where telegram_id = $1", [telegramId]);
       return rows[0] || null;
     },
+    async getUserByPhoneNumber(phone) {
+      const { rows } = await pool.query("select * from users where phone_number = $1", [phone]);
+      return rows[0] || null;
+    },
     async createUser(telegramId, source = "telegram") {
       const { rows } = await pool.query(
         "insert into users (telegram_id, tier, source) values ($1, $2, $3) returning *",
@@ -346,13 +450,36 @@ async function makePostgresBackend() {
       );
       return rows[0];
     },
+    // Insert-or-return for WhatsApp. If two webhooks race, one INSERT wins and
+    // the loser catches the 23505 and re-reads the winning row. Both callers
+    // end up with the same user row — no duplicates, no lost profile.
+    async createUserByPhone(phone, source = "whatsapp") {
+      try {
+        const { rows } = await pool.query(
+          "insert into users (phone_number, tier, source) values ($1, $2, $3) returning *",
+          [phone, config.defaultTier, source]
+        );
+        return rows[0];
+      } catch (e) {
+        if (e?.code === "23505") {
+          const existing = await this.getUserByPhoneNumber(phone);
+          if (existing) return existing;
+        }
+        throw e;
+      }
+    },
     async allActiveUsers() {
       const { rows } = await pool.query(
-        `select u.id, u.telegram_id, u.source, u.language, u.streak, u.last_log_date,
-                u.last_reminder_date, u.last_streak_date, u.last_winback_date, u.last_summary_date,
+        `select u.id, u.telegram_id, u.phone_number, u.source, u.language, u.streak,
+                u.last_log_date, u.last_reminder_date, u.last_streak_date,
+                u.last_winback_date, u.last_summary_date,
+                u.name, u.age, u.date_of_birth, u.created_at, u.onboarded,
+                coalesce(u.account_status, 'active') as account_status,
                 kb.last_seen
          from users u left join patient_kb kb on kb.user_id = u.id
-         where u.onboarded and coalesce(u.source,'telegram') in ('telegram','whatsapp')`
+         where u.onboarded
+           and coalesce(u.account_status, 'active') = 'active'
+           and coalesce(u.source,'telegram') in ('telegram','whatsapp')`
       );
       return rows;
     },
@@ -774,6 +901,116 @@ async function makePostgresBackend() {
       );
       return rows;
     },
+
+    // --- Engagement Engine (Build 1) ---
+    async listMessageBlocks({ kind, language, active = true } = {}) {
+      const clauses = [];
+      const vals = [];
+      if (kind) { vals.push(kind); clauses.push(`kind = $${vals.length}`); }
+      if (language) { vals.push(language); clauses.push(`language = $${vals.length}`); }
+      if (active !== undefined) { vals.push(active); clauses.push(`active = $${vals.length}`); }
+      const where = clauses.length ? `where ${clauses.join(" and ")}` : "";
+      const { rows } = await pool.query(
+        `select * from message_blocks ${where} order by sort_order, id`, vals
+      );
+      return rows;
+    },
+    async getEngagementConfig() {
+      const { rows } = await pool.query("select key, value_num from engagement_config");
+      const out = {};
+      for (const r of rows) out[r.key] = Number(r.value_num);
+      return out;
+    },
+    async recentBlockIdsForUser(userId, sinceIso) {
+      // Map: block_id -> most recent sent_at. Callers filter by cooldown window.
+      const { rows } = await pool.query(
+        `select block_ids, sent_at from daily_message_log
+         where user_id = $1 and sent_at >= $2
+         order by sent_at desc`,
+        [userId, sinceIso]
+      );
+      const out = new Map();
+      for (const r of rows) for (const id of r.block_ids || []) if (!out.has(id)) out.set(id, r.sent_at);
+      return out;
+    },
+    async logDailyMessage(row) {
+      // Unique (user_id, date) makes this the idempotency point. A duplicate
+      // insert on the same day is rejected with 23505 — caller reads that as
+      // "someone else already sent, don't send again".
+      try {
+        await insertDynamic("daily_message_log", row);
+        return true;
+      } catch (e) {
+        if (e?.code === "23505") return false;
+        throw e;
+      }
+    },
+    async alreadySentToday(userId, date) {
+      const { rows } = await pool.query(
+        "select 1 from daily_message_log where user_id=$1 and date=$2::date limit 1",
+        [userId, date]
+      );
+      return rows.length > 0;
+    },
+    async daysActiveInWindow(userId, days) {
+      // Distinct calendar days touched by any of the four log tables. UNION
+      // ALL + outer distinct so Postgres can plan each source with the user
+      // index; count(distinct date_trunc) at the end folds duplicates.
+      const { rows } = await pool.query(
+        `select count(distinct d)::int as n from (
+           select date_trunc('day', created_at) d from glucose_logs   where user_id=$1 and created_at >= now() - ($2 || ' days')::interval
+           union all
+           select date_trunc('day', created_at) d from medication_logs where user_id=$1 and created_at >= now() - ($2 || ' days')::interval
+           union all
+           select date_trunc('day', created_at) d from health_logs     where user_id=$1 and created_at >= now() - ($2 || ' days')::interval
+           union all
+           select date_trunc('day', created_at) d from wellbeing_logs  where user_id=$1 and created_at >= now() - ($2 || ' days')::interval
+         ) t`,
+        [userId, String(days)]
+      );
+      return rows[0]?.n || 0;
+    },
+    async lastInteractionAt(userId) {
+      // Greatest of patient_kb.last_seen and the max(created_at) across the
+      // user's log tables. Returned as an ISO string (or null).
+      const { rows } = await pool.query(
+        `select greatest(
+           (select last_seen from patient_kb where user_id=$1),
+           (select max(created_at) from glucose_logs   where user_id=$1),
+           (select max(created_at) from medication_logs where user_id=$1),
+           (select max(created_at) from health_logs     where user_id=$1),
+           (select max(created_at) from wellbeing_logs  where user_id=$1),
+           (select max(created_at) from coach_messages  where user_id=$1)
+         ) as last_at`,
+        [userId]
+      );
+      return rows[0]?.last_at || null;
+    },
+    async userDueReminders(userId, nowIso) {
+      const { rows } = await pool.query(
+        `select * from reminder_schedules
+         where active and user_id = $1 and next_fire_at <= $2
+         order by next_fire_at`,
+        [userId, nowIso]
+      );
+      return rows;
+    },
+    async activityCountsSince(userId, sinceIso) {
+      // Cheap counts feeding the engagement score. One query, one round-trip.
+      const { rows } = await pool.query(
+        `select
+           (select count(*)::int from glucose_logs   where user_id=$1 and created_at >= $2) as glucose,
+           (select count(*)::int from medication_logs where user_id=$1 and created_at >= $2) as medication,
+           (select count(*)::int from health_logs     where user_id=$1 and created_at >= $2) as checkin,
+           (select count(*)::int from wellbeing_logs  where user_id=$1 and created_at >= $2) as wellbeing,
+           (select count(*)::int from coach_messages  where user_id=$1 and role='user' and created_at >= $2) as coach,
+           (select count(*)::int from glucose_logs   where user_id=$1 and created_at >= $2
+              and ((context='fasting' and value_mgdl between 70 and 130)
+                or (context<>'fasting' and value_mgdl between 70 and 180))) as in_range`,
+        [userId, sinceIso]
+      );
+      return rows[0] || { glucose: 0, medication: 0, checkin: 0, wellbeing: 0, coach: 0, in_range: 0 };
+    },
   };
 }
 
@@ -783,6 +1020,7 @@ async function makePostgresBackend() {
 function makeMemoryBackend() {
   const usersById = new Map();
   const usersByTg = new Map();
+  const usersByPhone = new Map();
   const glucose = [];
   const meds = [];
   const health = [];
@@ -800,34 +1038,50 @@ function makeMemoryBackend() {
   let remSeq = 1;
   let goalSeq = 1;
 
+  const blankUser = (overrides) => ({
+    id: "u" + seq++,
+    telegram_id: null,
+    phone_number: null,
+    name: null, age: null, gender: null, city: null, language: "en",
+    height_cm: null, weight_kg: null, diabetes_status: null, goals: null, medications: null,
+    doctor_code: null, challenge_code: null, team_code: null,
+    tier: config.defaultTier, streak: 0, last_log_date: null, onboarded: false,
+    source: "telegram", created_at: nowISO(),
+    user_type: null, date_of_birth: null, diagnosis_duration: null,
+    latest_hba1c: null, hba1c_date_bucket: null,
+    latest_fasting_sugar: null, fasting_reading_date: null,
+    latest_random_sugar: null, random_reading_date: null,
+    diabetes_meds: null, other_conditions: null, non_diabetes_meds: null,
+    monitoring_habit: null, monitoring_device: null,
+    primary_goal: null, primary_challenge: null, motivation_driver: null,
+    disclaimer_accepted: false,
+    consistency_score: 50, motivation_score: 50, risk_score: 50, engagement_score: 50,
+    total_checkins: 0,
+    ...overrides,
+  });
+
   return {
     async getUserByTelegramId(telegramId) {
       const id = usersByTg.get(telegramId);
       return id ? usersById.get(id) : null;
     },
+    async getUserByPhoneNumber(phone) {
+      const id = usersByPhone.get(phone);
+      return id ? usersById.get(id) : null;
+    },
     async createUser(telegramId, source = "telegram") {
-      const user = {
-        id: "u" + seq++,
-        telegram_id: telegramId,
-        name: null, age: null, gender: null, city: null, language: "en",
-        height_cm: null, weight_kg: null, diabetes_status: null, goals: null, medications: null,
-        doctor_code: null, challenge_code: null, team_code: null,
-        tier: config.defaultTier, streak: 0, last_log_date: null, onboarded: false,
-        source, created_at: nowISO(),
-        // v2 journey fields
-        user_type: null, date_of_birth: null, diagnosis_duration: null,
-        latest_hba1c: null, hba1c_date_bucket: null,
-        latest_fasting_sugar: null, fasting_reading_date: null,
-        latest_random_sugar: null, random_reading_date: null,
-        diabetes_meds: null, other_conditions: null, non_diabetes_meds: null,
-        monitoring_habit: null, monitoring_device: null,
-        primary_goal: null, primary_challenge: null, motivation_driver: null,
-        disclaimer_accepted: false,
-        consistency_score: 50, motivation_score: 50, risk_score: 50, engagement_score: 50,
-        total_checkins: 0,
-      };
+      const user = blankUser({ telegram_id: telegramId, source });
       usersById.set(user.id, user);
       usersByTg.set(telegramId, user.id);
+      return user;
+    },
+    async createUserByPhone(phone, source = "whatsapp") {
+      // Same-tick race protection for the in-memory backend.
+      const existingId = usersByPhone.get(phone);
+      if (existingId) return usersById.get(existingId);
+      const user = blankUser({ phone_number: phone, source });
+      usersById.set(user.id, user);
+      usersByPhone.set(phone, user.id);
       return user;
     },
     async allActiveUsers() {
@@ -840,7 +1094,10 @@ function makeMemoryBackend() {
     },
     async deleteUser(userId) {
       const user = usersById.get(userId);
-      if (user) usersByTg.delete(user.telegram_id);
+      if (user) {
+        if (user.telegram_id != null) usersByTg.delete(user.telegram_id);
+        if (user.phone_number != null) usersByPhone.delete(user.phone_number);
+      }
       usersById.delete(userId);
       kb.delete(userId);
       const purge = (arr) => {
@@ -1065,6 +1322,19 @@ function makeMemoryBackend() {
         (g) => g.status === "active" && g.target_date && g.target_date <= today && !g.review_sent_at
       );
     },
+    // --- Engagement Engine stubs (memory backend: composer only runs
+    //     against a durable DB, so these return empty/no-op) ---
+    async listMessageBlocks() { return []; },
+    async getEngagementConfig() { return {}; },
+    async recentBlockIdsForUser() { return new Map(); },
+    async logDailyMessage() { return true; },
+    async alreadySentToday() { return false; },
+    async daysActiveInWindow() { return 0; },
+    async lastInteractionAt() { return null; },
+    async userDueReminders() { return []; },
+    async activityCountsSince() {
+      return { glucose: 0, medication: 0, checkin: 0, wellbeing: 0, coach: 0, in_range: 0 };
+    },
   };
 }
 
@@ -1078,6 +1348,21 @@ if (config.hasPostgres) {
 } else {
   backend = makeMemoryBackend();
   storeName = "in-memory (data resets on restart)";
+  // Silent fallback to in-memory would make users appear "new" after every
+  // restart and lose their profile mid-conversation. Shout about it, especially
+  // when WhatsApp is enabled — that's the production channel and it MUST have
+  // durable storage. This is only a warning (not fatal) so local demos still
+  // work with just an LLM + a channel key.
+  logWarn(
+    "Store",
+    "no DATABASE_URL or SUPABASE_* env vars set — using in-memory storage. Profiles will reset every process restart."
+  );
+  if (config.whatsapp?.enabled) {
+    logWarn(
+      "Store",
+      "WhatsApp is enabled but the store is in-memory. Set DATABASE_URL (recommended) or SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY so returning users are remembered."
+    );
+  }
 }
 console.log(`   Store: ${storeName}`);
 
@@ -1086,13 +1371,24 @@ console.log(`   Store: ${storeName}`);
 // ----------------------------------------------------------------
 
 export const getUserByTelegramId = (tg) => backend.getUserByTelegramId(tg);
+export const getUserByPhoneNumber = (phone) => backend.getUserByPhoneNumber(phone);
 export const createUser = (tg, source) => backend.createUser(tg, source);
 export const updateUser = (id, patch) => backend.updateUser(id, patch);
 export const deleteUser = (id) => backend.deleteUser(id);
 export const allActiveUsers = () => backend.allActiveUsers();
 
-export async function getOrCreateUser(telegramId, source = "telegram") {
-  return (await backend.getUserByTelegramId(telegramId)) || (await backend.createUser(telegramId, source));
+// Fetch-or-create the user row for whichever channel is contacting us.
+// WhatsApp users are keyed by their phone number (E.164 digits, normalised in
+// whatsapp.js); Telegram users are keyed by their numeric user id. Keeping the
+// two identity columns orthogonal means the same phone number cannot collide
+// with a Telegram id, and every future contact from that phone maps to the
+// same row — profile + logs stay intact across sessions and restarts.
+export async function getOrCreateUser(identifier, source = "telegram") {
+  if (source === "whatsapp") {
+    const phone = String(identifier);
+    return (await backend.getUserByPhoneNumber(phone)) || (await backend.createUserByPhone(phone, "whatsapp"));
+  }
+  return (await backend.getUserByTelegramId(identifier)) || (await backend.createUser(identifier, source));
 }
 
 // Consistency / streak engine
@@ -1235,3 +1531,17 @@ export const addGoal = (id, fields) => backend.addGoal(id, fields);
 export const updateGoal = (id, gid, patch) => backend.updateGoal(id, gid, patch);
 export const goalsDueForReview = (todayIso = new Date().toISOString().slice(0, 10)) =>
   backend.goalsDueForReview ? backend.goalsDueForReview(todayIso) : Promise.resolve([]);
+
+// --- Engagement Engine (Build 1) ---
+export const listMessageBlocks = (filter) => backend.listMessageBlocks(filter);
+export const getEngagementConfig = () => backend.getEngagementConfig();
+export const recentBlockIdsForUser = (userId, sinceIso) =>
+  backend.recentBlockIdsForUser(userId, sinceIso);
+export const logDailyMessage = (row) => backend.logDailyMessage(row);
+export const alreadySentToday = (userId, date) => backend.alreadySentToday(userId, date);
+export const daysActiveInWindow = (userId, days) => backend.daysActiveInWindow(userId, days);
+export const lastInteractionAt = (userId) => backend.lastInteractionAt(userId);
+export const userDueReminders = (userId, nowIso = new Date().toISOString()) =>
+  backend.userDueReminders(userId, nowIso);
+export const activityCountsSince = (userId, sinceIso) =>
+  backend.activityCountsSince(userId, sinceIso);

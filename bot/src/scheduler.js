@@ -1,34 +1,47 @@
-// Proactive, TEMPLATE-ONLY messages (no AI cost): daily log reminders,
-// streak protection, inactivity win-backs, a weekly summary, and any
-// user-created reminder schedules (Build 1).
-// Runs inside the bot process. Each user is messaged on their OWN channel
-// (WhatsApp or Telegram) by picking the matching virtual bot from `bots`.
+// Proactive template messages — no live LLM cost. Two paths run inside
+// the bot process:
+//
+//   1. The Engagement Engine's Daily Message Composer (Build 1). Once per
+//      active user per day, at MSG_COMPOSER_HOUR (PKT), it composes a
+//      single system message from admin-editable blocks and sends it on
+//      the user's own channel (WhatsApp or Telegram). At most one row per
+//      (user_id, date) lands in daily_message_log — the DB unique index
+//      is the source of truth for "already sent today".
+//
+//   2. Legacy per-user reminder schedules and goal-target reviews. These
+//      are transactional (the user themselves created the reminder or
+//      goal), so they run independently of the composer and are not
+//      constrained by the 1/day system-message cap.
+//
+// The pre-Build-1 morning-reminder / streak / weekly-summary / winback
+// branches have been removed — the composer replaces all four with
+// per-user personalised blocks. Their i18n keys stay in the translation
+// file for now; other code may still reference them.
+//
+// Each user is messaged on their OWN channel by picking the matching
+// virtual bot from `bots`.
 
 import {
   allActiveUsers,
-  updateUser,
-  weeklyStats,
+  alreadySentToday,
   dueReminders,
-  markReminderFired,
   goalsDueForReview,
+  logDailyMessage,
+  markReminderFired,
   updateGoal,
 } from "./supabase.js";
 import { send, sanitizeMd } from "./utils.js";
 import { t } from "./i18n.js";
-import { estHbA1c } from "./clinic.js";
 import { goalReviewKeyboard } from "./keyboards.js";
+import { composeDailyMessage } from "./composer.js";
+import { config } from "./config.js";
 
 const TZ_OFFSET = parseInt(process.env.REMINDER_TZ_OFFSET || "5", 10); // PKT default
-const HOUR_REMINDER = parseInt(process.env.HOUR_REMINDER || "8", 10);
-const HOUR_WINBACK = parseInt(process.env.HOUR_WINBACK || "18", 10);
-const HOUR_STREAK = parseInt(process.env.HOUR_STREAK || "20", 10);
-const HOUR_SUMMARY = parseInt(process.env.HOUR_SUMMARY || "9", 10); // Sundays
 
 function nowParts() {
   const d = new Date(Date.now() + TZ_OFFSET * 3600 * 1000);
-  return { hour: d.getUTCHours(), dow: d.getUTCDay(), date: d.toISOString().slice(0, 10) };
+  return { hour: d.getUTCHours(), date: d.toISOString().slice(0, 10) };
 }
-const daysSince = (ts) => (ts ? (Date.now() - new Date(ts).getTime()) / 86400000 : 9999);
 
 // Pick the virtual bot for a user's channel. Falls back to whichever channel is
 // configured so a user is never silently skipped if `source` is missing.
@@ -37,9 +50,19 @@ function botFor(bots, user) {
   return bots[src] || bots.whatsapp || bots.telegram || null;
 }
 
-// Build 1: user-created reminder schedules — fire any that are due, then bump
-// next_fire_at by frequency_days. Uses the same users list the rest of the
-// tick already loaded, so we don't add an extra round-trip.
+// Resolve the transport-level "chat id" for a user. Telegram uses the
+// numeric id; WhatsApp uses the E.164 phone number. Handles legacy rows
+// where a WhatsApp user's phone lived in telegram_id before the identity
+// split.
+function chatIdFor(user) {
+  if ((user.source || "telegram") === "whatsapp") {
+    return user.phone_number || user.telegram_id;
+  }
+  return user.telegram_id;
+}
+
+// Build 1: user-created reminder schedules — fire any that are due, then
+// bump next_fire_at by frequency_days. Independent of the composer cap.
 async function fireDueReminders(bots, usersById) {
   let due;
   try {
@@ -52,12 +75,13 @@ async function fireDueReminders(bots, usersById) {
     const u = usersById.get(r.user_id);
     if (!u) continue;
     const bot = botFor(bots, u);
-    if (!bot) continue;
+    const chat = chatIdFor(u);
+    if (!bot || !chat) continue;
     const lang = u.language || "en";
     const templateKey = `reminder_template_${r.category}`;
     const body = t(lang, templateKey, { name: r.label || "" });
     try {
-      await send(bot, u.telegram_id, body, { markdown: true });
+      await send(bot, chat, body, { markdown: true });
       const nextIso = bumpNextFire(r);
       await markReminderFired(r.id, nextIso);
     } catch (e) {
@@ -78,12 +102,13 @@ async function fireGoalReviews(bots, usersById) {
     const u = usersById.get(g.user_id);
     if (!u) continue;
     const bot = botFor(bots, u);
-    if (!bot) continue;
+    const chat = chatIdFor(u);
+    if (!bot || !chat) continue;
     const lang = u.language || "en";
     try {
       await send(
         bot,
-        u.telegram_id,
+        chat,
         t(lang, "goal_review_prompt", { goal: sanitizeMd(g.title || "") }),
         { keyboard: goalReviewKeyboard(lang, g.id), markdown: true },
       );
@@ -103,8 +128,47 @@ function bumpNextFire(r) {
   return new Date(next).toISOString();
 }
 
+// Fire the daily composer for every eligible user once per day. Guards:
+//   • only at the configured composer hour (a 15-minute tick may see the
+//     hour twice, but the DB unique constraint stops a duplicate send);
+//   • skip users with a row for today already (fast path — avoids the
+//     compose work when we know we're going to fail the unique insert);
+//   • composeDailyMessage returns null for Inactive users → skip;
+//   • log first, then send. On successful log-insert send; if the log
+//     insert lost the race with another instance, skip the send — the
+//     other instance's message has already gone.
+async function fireDailyComposer(bots, users, todayDate) {
+  for (const u of users) {
+    const bot = botFor(bots, u);
+    const chat = chatIdFor(u);
+    if (!bot || !chat) continue;
+    try {
+      if (await alreadySentToday(u.id, todayDate)) continue;
+      const composed = await composeDailyMessage(u);
+      if (!composed) continue;
+      const inserted = await logDailyMessage({
+        user_id: u.id,
+        date: todayDate,
+        engagement_score: composed.engagement_score,
+        engagement_level: composed.engagement_level,
+        block_ids: composed.block_ids,
+        message: composed.text,
+        channel: u.source || "telegram",
+      });
+      if (!inserted) continue; // another instance already sent — skip
+      console.log(
+        `composer: sent ${composed.block_ids.join("+")} to ${u.id} (${composed.engagement_level}/${composed.engagement_score})`
+      );
+      await send(bot, chat, composed.text, { markdown: false });
+    } catch (e) {
+      // A broken chat (blocked bot, invalid number) shouldn't stop the tick.
+      console.error("composer tick:", u.id, e?.message);
+    }
+  }
+}
+
 async function runTick(bots) {
-  const { hour, dow, date } = nowParts();
+  const { hour, date } = nowParts();
   let users;
   try {
     users = await allActiveUsers();
@@ -113,64 +177,17 @@ async function runTick(bots) {
   }
   if (!users?.length) return;
 
-  // Fire user-created reminders (Build 1). Independent of the daily-template
-  // logic below — both can run on the same tick.
   const usersById = new Map(users.map((u) => [u.id, u]));
-  await fireDueReminders(bots, usersById);
 
-  // Goal target-date reviews (2026-07 spec). Fires once per goal whose
-  // target_date is on or before today. We stamp review_sent_at so a goal
-  // never gets asked twice — the user's answer resets it if they update
-  // the target from the review flow.
+  // Independent, user-opted-in paths — run every tick.
+  await fireDueReminders(bots, usersById);
   await fireGoalReviews(bots, usersById);
 
-  for (const u of users) {
-    const bot = botFor(bots, u);
-    if (!bot) continue; // no configured channel for this user
-    const lang = u.language || "en";
-    const chat = u.telegram_id;
-    try {
-      // 1) Morning reminder to log fasting sugar
-      if (hour === HOUR_REMINDER && u.last_reminder_date !== date && u.last_log_date !== date) {
-        await send(bot, chat, t(lang, "reminder_daily"), { markdown: true });
-        await updateUser(u.id, { last_reminder_date: date });
-        continue;
-      }
-      // 2) Weekly summary (Sunday)
-      if (dow === 0 && hour === HOUR_SUMMARY && u.last_summary_date !== date) {
-        const s = await weeklyStats(u.id);
-        if (s.glucoseCount > 0 || s.medicationCount > 0 || s.healthCount > 0) {
-          await send(
-            bot,
-            chat,
-            t(lang, "summary_push", {
-              count: s.glucoseCount,
-              avg: s.glucoseAvg ?? "-",
-              min: s.glucoseMin ?? "-",
-              max: s.glucoseMax ?? "-",
-              hba1c: estHbA1c(s.glucoseAvg) ?? "-",
-              streak: u.streak || 0,
-            }),
-            { markdown: true }
-          );
-        }
-        await updateUser(u.id, { last_summary_date: date });
-        continue;
-      }
-      // 3) Streak protection (evening)
-      if (hour === HOUR_STREAK && (u.streak || 0) > 0 && u.last_log_date !== date && u.last_streak_date !== date) {
-        await send(bot, chat, t(lang, "reminder_streak", { streak: u.streak }), { markdown: true });
-        await updateUser(u.id, { last_streak_date: date });
-        continue;
-      }
-      // 4) Inactivity win-back (>= 3 days idle, at most once every 4 days)
-      if (hour === HOUR_WINBACK && daysSince(u.last_seen) >= 3 && daysSince(u.last_winback_date) >= 4) {
-        await send(bot, chat, t(lang, "reminder_winback"), { markdown: true });
-        await updateUser(u.id, { last_winback_date: date });
-      }
-    } catch (e) {
-      // invalid chat (e.g. user blocked the bot) — skip quietly
-    }
+  // Composer path — runs once per day at the configured hour. The DB
+  // unique constraint (user_id, date) is the ultimate idempotency guard,
+  // so a late tick that catches the hour a second time won't double-send.
+  if (hour === config.composer.hour) {
+    await fireDailyComposer(bots, users, date);
   }
 }
 
@@ -184,5 +201,7 @@ export function startScheduler(bots = {}) {
   const tick = () => runTick(bots).catch((e) => console.error("scheduler:", e?.message));
   setInterval(tick, 15 * 60 * 1000); // every 15 minutes
   setTimeout(tick, 30 * 1000); // and shortly after boot
-  console.log("   Scheduler on (reminders/streak/summary/inactivity, template-only).");
+  console.log(
+    `   Scheduler on (composer at ${config.composer.hour}:00 PKT, plus reminders/goal reviews).`
+  );
 }
