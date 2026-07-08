@@ -1,5 +1,10 @@
+import dns from "node:dns";
 import TelegramBot from "node-telegram-bot-api";
 import { config } from "./config.js";
+
+// Some VPS networks have broken/partial IPv6 to api.groq.com, which shows up
+// as "Premature close" mid-response. Prefer IPv4 to avoid that path entirely.
+dns.setDefaultResultOrder("ipv4first");
 import { registerHandlers } from "./bot.js";
 import { startWebServer } from "./web.js";
 import { startScheduler } from "./scheduler.js";

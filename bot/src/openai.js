@@ -4,17 +4,29 @@ import { logError } from "./log.js";
 import { describeLlmError } from "./errors.js";
 
 // OpenAI-compatible client. Points at Groq when GROQ_API_KEY is set.
+// maxRetries + timeout make us resilient to the sporadic "Premature close"
+// socket drops we see on some VPS networks (Groq responses are large enough
+// that a flaky path fails partway through the body).
 const client = new OpenAI({
   apiKey: config.llm.apiKey,
   baseURL: config.llm.baseURL,
+  maxRetries: 4,
+  timeout: 60_000,
 });
 
 // Optional second client used only for paid Ask DrSaab (spec: paid tier hits
 // OpenAI directly for richer reasoning/memory). Only exists when both a Groq
 // key and an OpenAI key are configured — otherwise paid users share `client`.
 const paidClient = config.llm.paidApiKey
-  ? new OpenAI({ apiKey: config.llm.paidApiKey })
+  ? new OpenAI({ apiKey: config.llm.paidApiKey, maxRetries: 4, timeout: 60_000 })
   : null;
+
+// Undici surfaces mid-response socket drops as this exact string. The OpenAI
+// SDK's built-in retry does not always cover it, so we wrap the call ourselves.
+function isPrematureClose(e) {
+  const msg = e?.message || e?.cause?.message || "";
+  return /Premature close|socket hang up|ECONNRESET|UND_ERR_SOCKET/i.test(msg);
+}
 
 const LANG_NAME = {
   en: "English",
@@ -103,7 +115,19 @@ async function complete(messages, { maxTokens = 600, model, jsonMode = false, pa
       temperature: 0.6,
     };
     if (jsonMode) req.response_format = { type: "json_object" };
-    const res = await chosenClient.chat.completions.create(req);
+    let res;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        res = await chosenClient.chat.completions.create(req);
+        break;
+      } catch (err) {
+        if (attempt < 2 && isPrematureClose(err)) {
+          await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+          continue;
+        }
+        throw err;
+      }
+    }
     return res.choices[0]?.message?.content?.trim() || "";
   } catch (e) {
     // Explain the real cause in red (e.g. "GROQ rate limit hit (429)…") so it's
