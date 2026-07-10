@@ -1,24 +1,35 @@
 import OpenAI from "openai";
+import https from "node:https";
+import nodeFetch from "node-fetch";
 import { config } from "./config.js";
 import { logError } from "./log.js";
 import { describeLlmError } from "./errors.js";
 
+// Node's built-in fetch (undici) intermittently — and on some VPS networks
+// consistently — aborts Groq responses mid-body as "Premature close" (Groq
+// sits behind Cloudflare, and undici's pooled/keep-alive handling of that
+// connection is the trigger). Routing the OpenAI SDK through node-fetch on
+// Node's core HTTPS stack, with keep-alive OFF so every call gets a fresh
+// connection, avoids the failing code path entirely.
+const keepAliveOffAgent = new https.Agent({ keepAlive: false });
+const resilientFetch = (url, init = {}) => nodeFetch(url, { agent: keepAliveOffAgent, ...init });
+
 // OpenAI-compatible client. Points at Groq when GROQ_API_KEY is set.
-// maxRetries + timeout make us resilient to the sporadic "Premature close"
-// socket drops we see on some VPS networks (Groq responses are large enough
-// that a flaky path fails partway through the body).
+// maxRetries + timeout add a second layer of resilience on top of the
+// fresh-connection fetch above.
 const client = new OpenAI({
   apiKey: config.llm.apiKey,
   baseURL: config.llm.baseURL,
   maxRetries: 4,
   timeout: 60_000,
+  fetch: resilientFetch,
 });
 
 // Optional second client used only for paid Ask DrSaab (spec: paid tier hits
 // OpenAI directly for richer reasoning/memory). Only exists when both a Groq
 // key and an OpenAI key are configured — otherwise paid users share `client`.
 const paidClient = config.llm.paidApiKey
-  ? new OpenAI({ apiKey: config.llm.paidApiKey, maxRetries: 4, timeout: 60_000 })
+  ? new OpenAI({ apiKey: config.llm.paidApiKey, maxRetries: 4, timeout: 60_000, fetch: resilientFetch })
   : null;
 
 // Undici surfaces mid-response socket drops as this exact string. The OpenAI
