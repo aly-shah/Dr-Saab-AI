@@ -18,6 +18,7 @@ import { config } from "./config.js";
 import { handleMessage, handleCallback } from "./bot.js";
 import { logError } from "./log.js";
 import { describeWhatsAppError } from "./errors.js";
+import { getOrCreateUser, saveVoiceNote } from "./supabase.js";
 import { t } from "./i18n.js";
 import { getSession } from "./session.js";
 import { langOf } from "./utils.js";
@@ -212,6 +213,21 @@ async function onInbound(value) {
         __source: "whatsapp",
       }).catch((e) => {
         logError("WhatsApp inbound (button)", e?.message);
+        return replyOnError(bot, from, e);
+      });
+    } else if (m.type === "audio" || m.type === "voice") {
+      // Voice notes / audio: we don't transcribe them, but we download and
+      // store the clip inline (as a data URL on a coach_messages row) so it
+      // shows up in the admin Conversation view, then acknowledge the user.
+      await (async () => {
+        const audio = m.audio || m.voice;
+        const dataUrl = audio?.id ? await fetchMediaDataUrl(audio.id) : null;
+        const user = await getOrCreateUser(from, "whatsapp");
+        if (dataUrl) await saveVoiceNote(user.id, dataUrl);
+        else logError("WhatsApp voice note", "could not download audio media");
+        await bot.sendMessage(from, t(user?.language || "en", "voice_note_saved")).catch(() => {});
+      })().catch((e) => {
+        logError("WhatsApp inbound (audio)", e?.message);
         return replyOnError(bot, from, e);
       });
     } else {

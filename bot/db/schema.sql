@@ -95,6 +95,11 @@ create table if not exists public.coach_messages (
   created_at  timestamptz default now()
 );
 create index if not exists coach_messages_user_idx on public.coach_messages(user_id, created_at desc);
+-- Inbound media (e.g. WhatsApp voice notes) stored inline so it shows in the
+-- admin Conversation view. media_data is a self-contained data: URL (base64),
+-- so no external file storage is required.
+alter table public.coach_messages add column if not exists media_type text;   -- 'audio' | null
+alter table public.coach_messages add column if not exists media_data text;   -- data:<mime>;base64,... | null
 
 -- ---------- Per-patient knowledge base (built from structured data, no AI) ----------
 create table if not exists public.patient_kb (

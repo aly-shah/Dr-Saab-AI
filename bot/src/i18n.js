@@ -133,6 +133,7 @@ const STR = {
     btn_lang_urdu: "اردو",
     btn_lang_whatsapp_urdu: "WhatsApp Urdu",
 
+    voice_note_saved: "Thanks — I've received your voice note and saved it. For the fastest help, you can also type your question.",
     ask_name_v2: "Before we begin, what's your name?",
     name_ack:
       "Nice to meet you, *{name}* 👋\nLet's build your profile so I can personalize my coaching for you.",

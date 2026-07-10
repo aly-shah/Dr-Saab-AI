@@ -122,6 +122,16 @@ async function makeSupabaseBackend() {
         /* best-effort */
       }
     },
+    async saveVoiceNote(userId, dataUrl, content = "[voice note]") {
+      try {
+        await db.from("coach_messages").insert({
+          user_id: userId, kind: "voice", role: "user", content,
+          media_type: "audio", media_data: dataUrl,
+        });
+      } catch (e) {
+        logError("saveVoiceNote", e?.message);
+      }
+    },
     async recentGlucose(userId, limit) {
       const { data, error } = await db
         .from("glucose_logs")
@@ -539,6 +549,19 @@ async function makePostgresBackend() {
         await insertDynamic("coach_messages", { user_id: userId, kind, role, content });
       } catch {
         /* best-effort */
+      }
+    },
+    // Persist an inbound media message (e.g. a WhatsApp voice note) as a
+    // coach_messages row so it appears in the admin Conversation view.
+    // `dataUrl` is a self-contained data: URL (base64) — no file storage needed.
+    async saveVoiceNote(userId, dataUrl, content = "[voice note]") {
+      try {
+        await insertDynamic("coach_messages", {
+          user_id: userId, kind: "voice", role: "user", content,
+          media_type: "audio", media_data: dataUrl,
+        });
+      } catch (e) {
+        logError("saveVoiceNote", e?.message);
       }
     },
     async recentGlucose(userId, limit) {
@@ -1137,6 +1160,9 @@ function makeMemoryBackend() {
     async saveCoachMessage() {
       /* not persisted in memory mode */
     },
+    async saveVoiceNote() {
+      /* not persisted in memory mode */
+    },
     async recentGlucose(userId, limit) {
       return glucose
         .filter((r) => r.user_id === userId)
@@ -1416,6 +1442,7 @@ export const addLabReport = (id, raw, analysis, extras) => backend.addLabReport(
 export const countLabReportsSince = (id, sinceIso) => backend.countLabReportsSince(id, sinceIso);
 export const recentLabReports = (id, limit = 3) => backend.recentLabReports(id, limit);
 export const saveCoachMessage = (id, kind, role, content) => backend.saveCoachMessage(id, kind, role, content);
+export const saveVoiceNote = (id, dataUrl, content) => backend.saveVoiceNote(id, dataUrl, content);
 export const recentGlucose = (id, limit = 5) => backend.recentGlucose(id, limit);
 export const latestWeight = (id) => backend.latestWeight(id);
 export const recordMessage = (id) => backend.recordMessage(id);
