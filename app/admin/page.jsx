@@ -199,7 +199,11 @@ function PatientDrawer({ id, onClose }) {
                   <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-[13px] ${m.role === "user" ? "bg-primary text-white" : "bg-white text-ink ring-1 ring-line/60"}`}>
                       <span className="mb-0.5 block text-[9px] uppercase tracking-wide opacity-60">{m.kind}</span>
-                      {m.content}
+                      {m.media_type === "audio" && m.media_data ? (
+                        <audio controls src={m.media_data} className="mt-0.5 max-w-full" />
+                      ) : (
+                        m.content
+                      )}
                     </div>
                   </div>
                 ))}

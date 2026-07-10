@@ -405,6 +405,103 @@ async function makeSupabaseBackend() {
         .lte("next_fire_at", nowIso);
       return data || [];
     },
+    // ===== My Health (2026-07) =====
+    async addConditions(userId, names, source, originalMessage) {
+      const rows = (names || [])
+        .map((n) => String(n).trim())
+        .filter(Boolean)
+        .map((condition_name) => ({
+          user_id: userId, condition_name, status: "active",
+          source: source || null, original_message: originalMessage || null,
+        }));
+      if (!rows.length) return [];
+      const { data, error } = await db.from("user_conditions").insert(rows).select("*");
+      if (error) throw error;
+      return data || [];
+    },
+    async listConditions(userId) {
+      const { data } = await db
+        .from("user_conditions").select("*")
+        .eq("user_id", userId).eq("status", "active").order("created_at");
+      return data || [];
+    },
+    async setConditionStatus(userId, name, status) {
+      await db.from("user_conditions").update({ status })
+        .eq("user_id", userId).eq("status", "active").ilike("condition_name", name);
+    },
+    async clearConditions(userId) {
+      await db.from("user_conditions").update({ status: "resolved" })
+        .eq("user_id", userId).eq("status", "active");
+    },
+    async addHealthMedication(userId, f) {
+      const { data, error } = await db.from("medications").insert({
+        user_id: userId, name: f.name, generic_name: f.generic_name || null,
+        dose: f.dose || null, frequency: f.frequency || null,
+        source: f.source || null, original_message: f.original_message || null, active: true,
+      }).select("*").single();
+      if (error) throw error;
+      return data;
+    },
+    async deactivateMedicationByName(userId, name) {
+      const { data } = await db.from("medications").update({ active: false })
+        .eq("user_id", userId).eq("active", true).ilike("name", `%${name}%`).select("*");
+      return data || [];
+    },
+    async addHealthMetric(userId, f) {
+      const { data, error } = await db.from("health_metrics").insert({
+        user_id: userId, metric_type: f.metric_type, value: f.value ?? null,
+        secondary_value: f.secondary_value ?? null, unit: f.unit || null,
+        reading_context: f.reading_context || null, measurement_date: f.measurement_date || null,
+        source: f.source || null, original_message: f.original_message || null,
+      }).select("*").single();
+      if (error) throw error;
+      return data;
+    },
+    async latestMetrics(userId) {
+      // supabase-js has no DISTINCT ON — pull recent rows and reduce client-side.
+      const { data } = await db.from("health_metrics").select("*")
+        .eq("user_id", userId)
+        .order("measurement_date", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false })
+        .limit(200);
+      const seen = new Map();
+      for (const r of data || []) if (!seen.has(r.metric_type)) seen.set(r.metric_type, r);
+      return [...seen.values()];
+    },
+    async upsertLifestyle(userId, f) {
+      const existing = await this.getLifestyle(userId);
+      const merged = {
+        user_id: userId,
+        smoking_status: f.smoking_status ?? existing?.smoking_status ?? null,
+        smoking_quantity: f.smoking_quantity ?? existing?.smoking_quantity ?? null,
+        activity_level: f.activity_level ?? existing?.activity_level ?? null,
+        activity_type: f.activity_type ?? existing?.activity_type ?? null,
+        original_message: f.original_message ?? existing?.original_message ?? null,
+        last_updated_at: new Date().toISOString(),
+      };
+      const { data, error } = await db.from("user_lifestyle").upsert(merged, { onConflict: "user_id" }).select("*").single();
+      if (error) throw error;
+      return data;
+    },
+    async getLifestyle(userId) {
+      const { data } = await db.from("user_lifestyle").select("*").eq("user_id", userId).maybeSingle();
+      return data || null;
+    },
+    async addHealthGoal(userId, f) {
+      await db.from("user_health_goal").update({ status: "replaced" })
+        .eq("user_id", userId).eq("status", "active");
+      const { data, error } = await db.from("user_health_goal").insert({
+        user_id: userId, goal: f.goal, target_value: f.target_value || null, target_date: f.target_date || null,
+      }).select("*").single();
+      if (error) throw error;
+      return data;
+    },
+    async getLatestHealthGoal(userId) {
+      const { data } = await db.from("user_health_goal").select("*")
+        .eq("user_id", userId).eq("status", "active")
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
+      return data || null;
+    },
   };
 }
 
@@ -1034,6 +1131,116 @@ async function makePostgresBackend() {
       );
       return rows[0] || { glucose: 0, medication: 0, checkin: 0, wellbeing: 0, coach: 0, in_range: 0 };
     },
+    // ===== My Health (2026-07) =====
+    async addConditions(userId, names, source, originalMessage) {
+      const list = (names || []).map((n) => String(n).trim()).filter(Boolean);
+      if (!list.length) return [];
+      const values = list
+        .map((_, i) => `($1, $${i + 2}, 'active', $${list.length + 2}, $${list.length + 3})`)
+        .join(", ");
+      const { rows } = await pool.query(
+        `insert into user_conditions (user_id, condition_name, status, source, original_message)
+         values ${values} returning *`,
+        [userId, ...list, source || null, originalMessage || null]
+      );
+      return rows;
+    },
+    async listConditions(userId) {
+      const { rows } = await pool.query(
+        "select * from user_conditions where user_id=$1 and status='active' order by created_at",
+        [userId]
+      );
+      return rows;
+    },
+    async setConditionStatus(userId, name, status) {
+      await pool.query(
+        "update user_conditions set status=$3 where user_id=$1 and lower(condition_name)=lower($2) and status='active'",
+        [userId, name, status]
+      );
+    },
+    async clearConditions(userId) {
+      await pool.query(
+        "update user_conditions set status='resolved' where user_id=$1 and status='active'",
+        [userId]
+      );
+    },
+    async addHealthMedication(userId, f) {
+      const { rows } = await pool.query(
+        `insert into medications (user_id, name, generic_name, dose, frequency, source, original_message, active)
+         values ($1,$2,$3,$4,$5,$6,$7,true) returning *`,
+        [userId, f.name, f.generic_name || null, f.dose || null, f.frequency || null, f.source || null, f.original_message || null]
+      );
+      return rows[0];
+    },
+    async deactivateMedicationByName(userId, name) {
+      const { rows } = await pool.query(
+        "update medications set active=false where user_id=$1 and active and lower(name) like lower($2) returning *",
+        [userId, `%${name}%`]
+      );
+      return rows;
+    },
+    async addHealthMetric(userId, f) {
+      const { rows } = await pool.query(
+        `insert into health_metrics
+           (user_id, metric_type, value, secondary_value, unit, reading_context, measurement_date, source, original_message)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning *`,
+        [
+          userId, f.metric_type, f.value ?? null, f.secondary_value ?? null,
+          f.unit || null, f.reading_context || null, f.measurement_date || null,
+          f.source || null, f.original_message || null,
+        ]
+      );
+      return rows[0];
+    },
+    async latestMetrics(userId) {
+      const { rows } = await pool.query(
+        `select distinct on (metric_type) *
+           from health_metrics where user_id=$1
+          order by metric_type, measurement_date desc nulls last, created_at desc`,
+        [userId]
+      );
+      return rows;
+    },
+    async upsertLifestyle(userId, f) {
+      const { rows } = await pool.query(
+        `insert into user_lifestyle
+           (user_id, smoking_status, smoking_quantity, activity_level, activity_type, original_message, last_updated_at)
+         values ($1,$2,$3,$4,$5,$6, now())
+         on conflict (user_id) do update set
+           smoking_status   = coalesce(excluded.smoking_status,   user_lifestyle.smoking_status),
+           smoking_quantity = coalesce(excluded.smoking_quantity, user_lifestyle.smoking_quantity),
+           activity_level   = coalesce(excluded.activity_level,   user_lifestyle.activity_level),
+           activity_type    = coalesce(excluded.activity_type,    user_lifestyle.activity_type),
+           original_message = coalesce(excluded.original_message, user_lifestyle.original_message),
+           last_updated_at  = now()
+         returning *`,
+        [userId, f.smoking_status || null, f.smoking_quantity || null, f.activity_level || null, f.activity_type || null, f.original_message || null]
+      );
+      return rows[0];
+    },
+    async getLifestyle(userId) {
+      const { rows } = await pool.query("select * from user_lifestyle where user_id=$1", [userId]);
+      return rows[0] || null;
+    },
+    async addHealthGoal(userId, f) {
+      await pool.query(
+        "update user_health_goal set status='replaced' where user_id=$1 and status='active'",
+        [userId]
+      );
+      const { rows } = await pool.query(
+        `insert into user_health_goal (user_id, goal, target_value, target_date)
+         values ($1,$2,$3,$4) returning *`,
+        [userId, f.goal, f.target_value || null, f.target_date || null]
+      );
+      return rows[0];
+    },
+    async getLatestHealthGoal(userId) {
+      const { rows } = await pool.query(
+        "select * from user_health_goal where user_id=$1 and status='active' order by created_at desc limit 1",
+        [userId]
+      );
+      return rows[0] || null;
+    },
   };
 }
 
@@ -1055,6 +1262,13 @@ function makeMemoryBackend() {
   const symptoms = [];
   const reminders = [];
   const goals = [];
+  const conditions = [];
+  const healthMetrics = [];
+  const lifestyle = new Map();
+  const healthGoals = [];
+  let condSeq = 1;
+  let metricSeq = 1;
+  let hgSeq = 1;
   let seq = 1;
   let reqSeq = 1;
   let medSeq = 1;
@@ -1123,10 +1337,11 @@ function makeMemoryBackend() {
       }
       usersById.delete(userId);
       kb.delete(userId);
+      lifestyle.delete(userId);
       const purge = (arr) => {
         for (let i = arr.length - 1; i >= 0; i--) if (arr[i].user_id === userId) arr.splice(i, 1);
       };
-      [glucose, meds, health, labs, challenges, serviceReqs, goals].forEach(purge);
+      [glucose, meds, health, labs, challenges, serviceReqs, goals, conditions, healthMetrics, healthGoals, medsMaster].forEach(purge);
     },
     async addGlucose(userId, value, context, note) {
       glucose.push({ user_id: userId, value_mgdl: value, context, note, created_at: nowISO() });
@@ -1361,6 +1576,110 @@ function makeMemoryBackend() {
     async activityCountsSince() {
       return { glucose: 0, medication: 0, checkin: 0, wellbeing: 0, coach: 0, in_range: 0 };
     },
+    // ===== My Health (2026-07) =====
+    async addConditions(userId, names, source, originalMessage) {
+      const created = [];
+      for (const raw of names || []) {
+        const condition_name = String(raw).trim();
+        if (!condition_name) continue;
+        const row = {
+          id: "c" + condSeq++, user_id: userId, condition_name, status: "active",
+          source: source || null, original_message: originalMessage || null, created_at: nowISO(),
+        };
+        conditions.push(row);
+        created.push(row);
+      }
+      return created;
+    },
+    async listConditions(userId) {
+      return conditions.filter((c) => c.user_id === userId && c.status === "active");
+    },
+    async setConditionStatus(userId, name, status) {
+      const needle = String(name).toLowerCase();
+      for (const c of conditions) {
+        if (c.user_id === userId && c.status === "active" && c.condition_name.toLowerCase().includes(needle)) {
+          c.status = status;
+        }
+      }
+    },
+    async clearConditions(userId) {
+      for (const c of conditions) if (c.user_id === userId && c.status === "active") c.status = "resolved";
+    },
+    async addHealthMedication(userId, f) {
+      const row = {
+        id: "m" + medSeq++, user_id: userId, active: true, created_at: nowISO(),
+        name: f.name, generic_name: f.generic_name || null, dose: f.dose || null,
+        frequency: f.frequency || null, source: f.source || null, original_message: f.original_message || null,
+      };
+      medsMaster.push(row);
+      return row;
+    },
+    async deactivateMedicationByName(userId, name) {
+      const needle = String(name).toLowerCase();
+      const hit = [];
+      for (const m of medsMaster) {
+        if (m.user_id === userId && m.active && String(m.name).toLowerCase().includes(needle)) {
+          m.active = false;
+          hit.push(m);
+        }
+      }
+      return hit;
+    },
+    async addHealthMetric(userId, f) {
+      const row = {
+        id: "hm" + metricSeq++, user_id: userId, metric_type: f.metric_type,
+        value: f.value ?? null, secondary_value: f.secondary_value ?? null, unit: f.unit || null,
+        reading_context: f.reading_context || null, measurement_date: f.measurement_date || null,
+        source: f.source || null, original_message: f.original_message || null, created_at: nowISO(),
+      };
+      healthMetrics.push(row);
+      return row;
+    },
+    async latestMetrics(userId) {
+      const sorted = healthMetrics
+        .filter((r) => r.user_id === userId)
+        .sort((a, b) => {
+          const da = a.measurement_date || a.created_at;
+          const dbb = b.measurement_date || b.created_at;
+          return da < dbb ? 1 : -1;
+        });
+      const seen = new Map();
+      for (const r of sorted) if (!seen.has(r.metric_type)) seen.set(r.metric_type, r);
+      return [...seen.values()];
+    },
+    async upsertLifestyle(userId, f) {
+      const existing = lifestyle.get(userId) || { user_id: userId };
+      const merged = {
+        ...existing,
+        smoking_status: f.smoking_status ?? existing.smoking_status ?? null,
+        smoking_quantity: f.smoking_quantity ?? existing.smoking_quantity ?? null,
+        activity_level: f.activity_level ?? existing.activity_level ?? null,
+        activity_type: f.activity_type ?? existing.activity_type ?? null,
+        original_message: f.original_message ?? existing.original_message ?? null,
+        last_updated_at: nowISO(),
+      };
+      lifestyle.set(userId, merged);
+      return merged;
+    },
+    async getLifestyle(userId) {
+      return lifestyle.get(userId) || null;
+    },
+    async addHealthGoal(userId, f) {
+      for (const g of healthGoals) if (g.user_id === userId && g.status === "active") g.status = "replaced";
+      const row = {
+        id: "hg" + hgSeq++, user_id: userId, goal: f.goal, target_value: f.target_value || null,
+        target_date: f.target_date || null, status: "active", created_at: nowISO(),
+      };
+      healthGoals.push(row);
+      return row;
+    },
+    async getLatestHealthGoal(userId) {
+      return (
+        healthGoals
+          .filter((g) => g.user_id === userId && g.status === "active")
+          .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))[0] || null
+      );
+    },
   };
 }
 
@@ -1536,6 +1855,20 @@ export const updateMedConsistency = (id, patch) => backend.updateMedConsistency(
 export const logMedConsistencyResponse = (id, taken, reason) =>
   backend.logMedConsistencyResponse(id, taken, reason);
 export const addMedSatisfaction = (id, response, note) => backend.addMedSatisfaction(id, response, note);
+
+// ===== My Health (2026-07) =====
+export const addConditions = (id, names, source, msg) => backend.addConditions(id, names, source, msg);
+export const listConditions = (id) => backend.listConditions(id);
+export const setConditionStatus = (id, name, status) => backend.setConditionStatus(id, name, status);
+export const clearConditions = (id) => backend.clearConditions(id);
+export const addHealthMedication = (id, fields) => backend.addHealthMedication(id, fields);
+export const deactivateMedicationByName = (id, name) => backend.deactivateMedicationByName(id, name);
+export const addHealthMetric = (id, fields) => backend.addHealthMetric(id, fields);
+export const latestMetrics = (id) => backend.latestMetrics(id);
+export const upsertLifestyle = (id, fields) => backend.upsertLifestyle(id, fields);
+export const getLifestyle = (id) => backend.getLifestyle(id);
+export const addHealthGoal = (id, fields) => backend.addHealthGoal(id, fields);
+export const getLatestHealthGoal = (id) => backend.getLatestHealthGoal(id);
 
 export const dueReminders = (nowIso = new Date().toISOString()) =>
   backend.dueReminders ? backend.dueReminders(nowIso) : Promise.resolve([]);

@@ -22,7 +22,11 @@
       "Bash(pm2 list *)",
       "Bash(pm2 describe *)",
       "Bash(timeout 5 node src/index.js)",
-      "Bash(echo \"exit \\(124=stayed up ok\\): $?\")"
+      "Bash(echo \"exit \\(124=stayed up ok\\): $?\")",
+      "Bash(GROQ_API_KEY=x TELEGRAM_BOT_TOKEN=x node --input-type=module -e ' *)",
+      "Bash(grep -vE \"Store:|DATABASE_URL|WhatsApp|SECURITY|next major|current behavior|libpq|standard|weaker|prepare|explicitly|want libpq|postgresql|trace-warnings|^\\\\\\(node|^$|modes will|No messaging|WHATSAPP|TELEGRAM_BOT\")",
+      "Bash(grep -vE \"Store:|DATABASE_URL|WhatsApp|SECURITY|libpq|standard|weaker|prepare|explicitly|postgresql|trace-warnings|^\\\\\\(node|^$|modes will|next major|current behavior|want libpq\")",
+      "Bash(GROQ_API_KEY=x TELEGRAM_BOT_TOKEN=x node --test test/)"
     ]
   }
 }

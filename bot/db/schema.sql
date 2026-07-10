@@ -702,3 +702,90 @@ select * from (values
   ('CTA-RU-003','cta','roman_urdu',array['any'],null,null,null,null,null,'Choti update. Time ke sath bara farq.',3,30)
 ) as v(id, kind, language, age_brackets, "window", engagement, milestone, trigger_days, reminder_type, text, cooldown_days, sort_order)
 where not exists (select 1 from public.message_blocks);
+
+-- ============================================================
+-- My Health (spec "Main Menu Revision v2.1", 2026-07)
+-- ------------------------------------------------------------
+-- "My Health" is the user's canonical, conversational health profile. A
+-- one-time 5-question guided setup builds it; afterwards the user simply
+-- tells DrSaab what changed in free text and the AI updates the right record.
+-- Each user experiences one conversation, but we persist STRUCTURED records
+-- (plus the original message, for traceability) across these tables.
+-- ============================================================
+
+-- Profile progress tracking lives on the user row so resume is a single read.
+--   health_profile_status: not_started | in_progress | completed
+--   health_setup_step:     0 = not started, then 1..5 = next unanswered question
+--     1 = Health Conditions, 2 = Medications, 3 = Latest Health Numbers,
+--     4 = Lifestyle, 5 = Health Goal
+alter table public.users add column if not exists health_profile_status text default 'not_started';
+alter table public.users add column if not exists health_setup_step     int  default 0;
+alter table public.users add column if not exists health_setup_started_at   timestamptz;
+alter table public.users add column if not exists health_setup_completed_at timestamptz;
+
+-- ---------- Medical conditions ----------
+create table if not exists public.user_conditions (
+  id               uuid primary key default gen_random_uuid(),
+  user_id          uuid references public.users(id) on delete cascade,
+  condition_name   text not null,             -- normalized, e.g. "Type 2 Diabetes"
+  status           text default 'active',     -- active | resolved
+  source           text,                      -- text | image | report
+  original_message text,                      -- verbatim user message, for traceability
+  created_at       timestamptz default now(),
+  updated_at       timestamptz default now()
+);
+create index if not exists user_conditions_user_idx on public.user_conditions(user_id, status);
+drop trigger if exists user_conditions_touch on public.user_conditions;
+create trigger user_conditions_touch before update on public.user_conditions
+  for each row execute function public.touch_updated_at();
+
+-- ---------- Health medications (My Health master) ----------
+-- Reuses the existing `medications` master table (one row per standing med).
+-- These columns capture what the My Health conversation extracts.
+alter table public.medications add column if not exists generic_name     text;
+alter table public.medications add column if not exists source           text;   -- text | image
+alter table public.medications add column if not exists original_message text;
+
+-- ---------- Health metrics (longitudinal, never overwritten) ----------
+-- Every new reading is a NEW dated row. The latest valid row per metric_type
+-- is the "current value" shown in the My Health summary.
+create table if not exists public.health_metrics (
+  id               uuid primary key default gen_random_uuid(),
+  user_id          uuid references public.users(id) on delete cascade,
+  metric_type      text not null,             -- hba1c | glucose | weight | height | blood_pressure | waist
+  value            numeric,                   -- primary value (e.g. weight kg, glucose mg/dL, systolic)
+  secondary_value  numeric,                   -- e.g. diastolic for blood_pressure
+  unit             text,                      -- %, mg_dl, kg, cm, mmHg
+  reading_context  text,                      -- fasting | random | post_meal | null
+  measurement_date date,                      -- when the reading was taken (if known)
+  source           text,                      -- text | image | report
+  original_message text,
+  created_at       timestamptz default now()
+);
+create index if not exists health_metrics_user_idx on public.health_metrics(user_id, metric_type, measurement_date desc, created_at desc);
+
+-- ---------- Lifestyle (one row per user, upserted) ----------
+create table if not exists public.user_lifestyle (
+  user_id          uuid primary key references public.users(id) on delete cascade,
+  smoking_status   text,                      -- smoker | non_smoker | ex_smoker | null
+  smoking_quantity text,                      -- free-text, e.g. "8 cigarettes/day"
+  activity_level   text,                      -- e.g. "3x/week"
+  activity_type    text,                      -- e.g. "gym", "walking"
+  original_message text,
+  last_updated_at  timestamptz default now()
+);
+
+-- ---------- Health goal ----------
+-- The single "primary health goal" from My Health lives on the user row
+-- (mirrors into users.primary_goal / users.goals so existing AI context and
+-- the Goals & Progress feature keep working). A dated history is also kept.
+create table if not exists public.user_health_goal (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid references public.users(id) on delete cascade,
+  goal         text not null,
+  target_value text,
+  target_date  date,
+  status       text default 'active',         -- active | achieved | replaced
+  created_at   timestamptz default now()
+);
+create index if not exists user_health_goal_user_idx on public.user_health_goal(user_id, status, created_at desc);

@@ -15,7 +15,7 @@ export async function GET(req) {
       q(`select content, message_count, last_seen, updated_at from patient_kb where user_id=$1`, [id]),
       q(`select value_mgdl, context, created_at from glucose_logs
          where user_id=$1 order by created_at desc limit 30`, [id]),
-      q(`select kind, role, content, created_at from coach_messages
+      q(`select kind, role, content, media_type, media_data, created_at from coach_messages
          where user_id=$1 order by created_at desc limit 40`, [id]),
       q(`select name, dose, created_at from medication_logs
          where user_id=$1 order by created_at desc limit 10`, [id]),

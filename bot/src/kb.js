@@ -3,22 +3,42 @@
 // fresh. A compact slice is injected into coach prompts for personalization;
 // the full text is shown in the admin dashboard.
 
-import { recentGlucose, weeklyStats, latestWeight, upsertKB } from "./supabase.js";
+import {
+  recentGlucose,
+  weeklyStats,
+  latestWeight,
+  upsertKB,
+  listConditions,
+  listMedications,
+  latestMetrics,
+  getLifestyle,
+} from "./supabase.js";
 
 export async function buildKBContent(user) {
-  const [recent, stats, weight] = await Promise.all([
+  const [recent, stats, weight, conditions, meds, metrics, life] = await Promise.all([
     recentGlucose(user.id, 6),
     weeklyStats(user.id),
     latestWeight(user.id),
+    listConditions(user.id).catch(() => []),
+    listMedications(user.id).catch(() => []),
+    latestMetrics(user.id).catch(() => []),
+    getLifestyle(user.id).catch(() => null),
   ]);
+
+  const byType = {};
+  for (const m of metrics) byType[m.metric_type] = m;
 
   const lines = [
     `# Patient: ${user.name || "Unknown"}`,
     `Age: ${user.age ?? "-"}  ·  Gender: ${user.gender ?? "-"}  ·  City: ${user.city ?? "-"}  ·  Language: ${user.language}`,
     `Diabetes status: ${user.diabetes_status ?? "-"}`,
-    `Height: ${user.height_cm ?? "-"} cm  ·  Weight: ${weight ?? user.weight_kg ?? "-"} kg`,
+    // ---- My Health profile ----
+    `Conditions: ${conditions.length ? conditions.map((c) => c.condition_name).join(", ") : user.other_conditions ?? "-"}`,
+    `Medications: ${meds.length ? meds.map((m) => [m.name, m.dose].filter(Boolean).join(" ")).join("; ") : user.medications ?? "-"}`,
+    `Latest HbA1c: ${byType.hba1c ? `${byType.hba1c.value}%` : user.latest_hba1c ? `${user.latest_hba1c}%` : "-"}`,
+    `Height: ${user.height_cm ?? "-"} cm  ·  Weight: ${byType.weight?.value ?? weight ?? user.weight_kg ?? "-"} kg`,
+    `Lifestyle: smoking ${life?.smoking_quantity || life?.smoking_status || "-"} · activity ${[life?.activity_type, life?.activity_level].filter(Boolean).join(" ") || "-"}`,
     `Goals: ${user.goals ?? "-"}`,
-    `Medications: ${user.medications ?? "-"}`,
     `Plan: ${user.tier}  ·  Streak: ${user.streak || 0} day(s)`,
     `This week — readings: ${stats.glucoseCount}, avg: ${stats.glucoseAvg ?? "-"} mg/dL (range ${stats.glucoseMin ?? "-"}–${stats.glucoseMax ?? "-"}), meds: ${stats.medicationCount}, check-ins: ${stats.healthCount}`,
   ];

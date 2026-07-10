@@ -409,6 +409,76 @@ const STR = {
     btn_askdrsaab: "💬 Ask DrSaab",
     btn_more: "🌟 More",
     btn_main_menu: "🏠 Main Menu",
+    btn_myhealth: "❤️ My Health",
+
+    // ===== ❤️ My Health (spec "Main Menu Revision v2.1", 2026-07) =====
+    // Buttons
+    btn_mh_start: "1️⃣ Start",
+    btn_mh_yes: "1️⃣ Yes",
+    btn_mh_edit: "2️⃣ Edit",
+    btn_mh_skip: "Skip ⏭",
+    btn_mh_ctx_fasting: "Fasting",
+    btn_mh_ctx_random: "Random",
+    btn_mh_ctx_postmeal: "After a meal",
+    // Intro (not started)
+    mh_intro:
+      "❤️ *My Health*\n\nThe more I know about your health, the better I can personalize my advice.\n\nThis only takes about 2 minutes.",
+    // Resume (in progress)
+    mh_resume_welcome: "❤️ *My Health*\n\nWelcome back! Last time we talked about {done}.\n\nLet's continue.",
+    mh_resume_welcome_nostep: "❤️ *My Health*\n\nWelcome back! Let's continue where we left off.",
+    mh_recap_conditions: "your health conditions",
+    mh_recap_medications: "your medicines",
+    mh_recap_metrics: "your health numbers",
+    mh_recap_lifestyle: "your lifestyle",
+    mh_recap_goal: "your goal",
+    // Question headers / prompts
+    mh_question_of: "*Question {n} of {total}*",
+    mh_q1_conditions:
+      "Let's start with the basics.\n\nWhat health conditions do you currently have? Just type naturally.\n\nExample: \"I have Type 2 diabetes, high blood pressure and cholesterol.\"",
+    mh_q2_medications:
+      "What medicines are you currently taking?\n\nYou can:\n• Type them\n• Send a photo of the medicine boxes\n• Send a photo of your prescription",
+    mh_q3_metrics:
+      "Do you know any of your latest health numbers?\n\nFor example:\n• HbA1c\n• Blood sugar\n• Weight\n• Blood pressure\n\nJust tell me whichever ones you know.",
+    mh_q4_lifestyle:
+      "Tell me a little about your lifestyle.\n\nFor example:\n• Do you smoke?\n• Do you exercise?\n\nJust answer naturally.",
+    mh_q5_goal:
+      "Finally...\n\nWhat's the one thing you'd most like to improve over the next few months?\n\nExample: better blood sugar, lose weight, build muscle, stay healthy, run a 5K.",
+    // Confirmation card
+    mh_confirm_intro: "I've recorded:\n\n{lines}\n\nIs that correct?",
+    mh_edit_reask: "No problem — go ahead and type it again.",
+    mh_saved_ok: "✅ Saved.",
+    // "couldn't extract" nudges
+    mh_none_conditions:
+      "I didn't quite catch any conditions there. You can type them (e.g. \"Type 2 diabetes, high blood pressure\"), or tap Skip.",
+    mh_none_medications:
+      "I didn't catch any medicines. You can type them, send a photo of the boxes/prescription, or tap Skip.",
+    mh_none_metrics:
+      "I didn't catch any numbers. You can type them (e.g. \"HbA1c 7.2, weight 81kg\"), or tap Skip.",
+    // Glucose context follow-up
+    mh_glucose_context_q: "Got it — was that reading *fasting*, *random*, or *after a meal*?",
+    // Setup complete
+    mh_setup_complete: "❤️ That's everything I need for now — your health profile is ready. Thank you!",
+    // Summary (completed)
+    mh_summary_header: "❤️ *My Health*\n\nHere's what I currently know about your health:",
+    mh_summary_footer:
+      "To update anything, simply type it below.\n\nExamples:\n\"My weight is now 79 kg.\"\n\"My HbA1c is 6.8.\"\n\"I've stopped taking Tagipmet.\"\n\"I've also been diagnosed with fatty liver.\"",
+    mh_summary_dash: "—",
+    mh_lbl_conditions: "🩺 *Conditions:*",
+    mh_lbl_meds: "💊 *Medicines:*",
+    mh_lbl_hba1c: "🧪 *Latest HbA1c:*",
+    mh_lbl_glucose: "🩸 *Latest Glucose:*",
+    mh_lbl_weight: "⚖️ *Weight:*",
+    mh_lbl_bp: "🫀 *Blood Pressure:*",
+    mh_lbl_smoking: "🚬 *Smoking:*",
+    mh_lbl_activity: "🏃 *Activity:*",
+    mh_lbl_goal: "🎯 *Goal:*",
+    mh_smoking_smoker: "Smoker",
+    mh_smoking_non_smoker: "Non-smoker",
+    mh_smoking_ex_smoker: "Ex-smoker",
+    // Update mode
+    mh_update_hint:
+      "Just tell me what's changed and I'll update your health profile.\n\nExamples: \"My fasting sugar was 104\", \"I now weigh 76 kg\", \"I've started taking Ozempic.\"",
+    mh_update_saved: "✅ Updated your health profile.",
 
     // Profile-based main-menu additions (shown conditionally per user)
     btn_p_type1: "🤝 Type 1 Community",

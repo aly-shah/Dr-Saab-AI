@@ -76,6 +76,10 @@ function profileContext(user) {
   if (user?.age) parts.push(`Age: ${user.age}`);
   if (user?.gender) parts.push(`Gender: ${user.gender}`);
   if (user?.diabetes_status) parts.push(`Diabetes status: ${user.diabetes_status}`);
+  // From My Health — the canonical health profile the coach should reference
+  // without asking the user to repeat it.
+  if (user?.other_conditions) parts.push(`Conditions: ${user.other_conditions}`);
+  if (user?.latest_hba1c) parts.push(`Latest HbA1c: ${user.latest_hba1c}%`);
   if (user?.height_cm) parts.push(`Height: ${user.height_cm} cm`);
   if (user?.weight_kg) parts.push(`Weight: ${user.weight_kg} kg`);
   if (user?.goals) parts.push(`Goals: ${user.goals}`);
@@ -462,6 +466,198 @@ export async function generateFitnessPlan(user, answers = {}) {
     ],
     { maxTokens: 600 }
   );
+}
+
+// ====================================================================
+// My Health (spec "Main Menu Revision v2.1", 2026-07)
+// Free-text (and image) → structured health records. Every extractor
+// returns JSON only; the flow shows the user a confirmation before saving.
+// ====================================================================
+
+// Shared runner: sends a system+user prompt, parses the JSON object back.
+// Vision endpoints often reject response_format, so jsonMode is skipped when
+// an image is attached (we then rely on parseLabJson's tolerant fallback).
+async function extractJson(system, text, imageDataUrl = null, maxTokens = 700) {
+  const messages = [
+    { role: "system", content: system },
+    { role: "user", content: userContent(text || "", imageDataUrl) },
+  ];
+  const raw = await complete(messages, {
+    maxTokens,
+    model: imageDataUrl ? config.llm.visionModel : config.llm.model,
+    jsonMode: !imageDataUrl,
+  });
+  return parseLabJson(raw) || {};
+}
+
+/** Q1 — Health conditions. Returns { conditions: [normalized names] }. */
+export async function extractHealthConditions(user, text) {
+  const system = `You extract medical conditions from a free-text message for a health-coaching app. Return ONE JSON object only:
+{ "conditions": [ string, ... ] }
+
+Rules:
+- Normalize to clean, capitalized names (e.g. "Type 2 Diabetes", "High Blood Pressure", "High Cholesterol", "Heart Disease", "Kidney Disease", "Fatty Liver", "PCOS", "Thyroid Disease", "Depression", "Anxiety").
+- Recognize any other legitimate medical condition too, not only the examples.
+- If the user says they have none / nothing, return an empty array.
+- Do NOT invent conditions that were not mentioned. Return valid JSON only.`;
+  const out = await extractJson(system, text);
+  return { conditions: Array.isArray(out.conditions) ? out.conditions.filter(Boolean) : [] };
+}
+
+/** Q2 — Medications (text or photo). Returns { medications: [{name, generic_name, dose, frequency}] }. */
+export async function extractHealthMedications(user, text, imageDataUrl = null) {
+  const system = `You extract the user's current medicines from their message${imageDataUrl ? " and/or the attached photo of medicine boxes or a prescription" : ""}. Return ONE JSON object only:
+{ "medications": [ { "name": string, "generic_name": string|null, "dose": string|null, "frequency": string|null } ] }
+
+Rules:
+- "name" = brand or written name. "generic_name" = active ingredient(s) if known, else null.
+- "dose" e.g. "50/500 mg", "10 mg", "20 units". "frequency" e.g. "once daily", "twice daily", "with breakfast".
+- If a field is unknown, use null. Never invent a medicine that is not present.
+- If the user says none, return an empty array. Return valid JSON only.`;
+  const out = await extractJson(system, text || "Extract the medicines from the attached image.", imageDataUrl, 800);
+  const meds = Array.isArray(out.medications) ? out.medications : [];
+  return {
+    medications: meds
+      .filter((m) => m && m.name)
+      .map((m) => ({
+        name: String(m.name).trim(),
+        generic_name: m.generic_name ? String(m.generic_name).trim() : null,
+        dose: m.dose ? String(m.dose).trim() : null,
+        frequency: m.frequency ? String(m.frequency).trim() : null,
+      })),
+  };
+}
+
+/** Q3 — Latest health numbers. Returns { metrics: [...] }. */
+export async function extractHealthMetrics(user, text) {
+  const system = `You extract health measurements from a free-text message. Return ONE JSON object only:
+{ "metrics": [ { "metric_type": string, "value": number|null, "secondary_value": number|null, "unit": string|null, "reading_context": string|null, "measurement_date": string|null } ] }
+
+Allowed metric_type values: "hba1c", "glucose", "weight", "height", "blood_pressure", "waist".
+Rules:
+- HbA1c: value = the percentage number, unit = "%".
+- glucose: value = mg/dL number (convert mmol/L to mg/dL by ×18, rounded). unit = "mg_dl". reading_context = "fasting" | "random" | "post_meal" if stated, else null.
+- weight: unit = "kg" (convert lb->kg ×0.4536 if needed). height: unit = "cm". waist: unit = "cm".
+- blood_pressure: value = systolic, secondary_value = diastolic, unit = "mmHg".
+- measurement_date: ISO "YYYY-MM-DD" only if the user gave a concrete date, else null.
+- Only include metrics actually present. No value is mandatory. Never invent numbers. Return valid JSON only.`;
+  const out = await extractJson(system, text);
+  const metrics = Array.isArray(out.metrics) ? out.metrics : [];
+  const allowed = new Set(["hba1c", "glucose", "weight", "height", "blood_pressure", "waist"]);
+  return { metrics: metrics.filter((m) => m && allowed.has(m.metric_type) && (m.value != null || m.secondary_value != null)).map((m) => ({
+    metric_type: m.metric_type,
+    value: m.value != null ? Number(m.value) : null,
+    secondary_value: m.secondary_value != null ? Number(m.secondary_value) : null,
+    unit: m.unit || null,
+    reading_context: m.reading_context || null,
+    measurement_date: /^\d{4}-\d{2}-\d{2}$/.test(m.measurement_date || "") ? m.measurement_date : null,
+  })) };
+}
+
+/** Q4 — Lifestyle. Returns { smoking_status, smoking_quantity, activity_level, activity_type }. */
+export async function extractLifestyle(user, text) {
+  const system = `You extract lifestyle information from a free-text message. Return ONE JSON object only:
+{ "smoking_status": "smoker"|"non_smoker"|"ex_smoker"|null,
+  "smoking_quantity": string|null,
+  "activity_level": string|null,
+  "activity_type": string|null }
+
+Rules:
+- smoking_quantity: short phrase like "8 cigarettes/day" if given, else null.
+- activity_level: short phrase like "3x/week", "daily", "rarely" if given, else null.
+- activity_type: e.g. "gym", "walking", "running", "yoga" if mentioned, else null.
+- Use null for anything not stated. Return valid JSON only.`;
+  const out = await extractJson(system, text);
+  return {
+    smoking_status: ["smoker", "non_smoker", "ex_smoker"].includes(out.smoking_status) ? out.smoking_status : null,
+    smoking_quantity: out.smoking_quantity ? String(out.smoking_quantity).trim() : null,
+    activity_level: out.activity_level ? String(out.activity_level).trim() : null,
+    activity_type: out.activity_type ? String(out.activity_type).trim() : null,
+  };
+}
+
+/** Q5 — Primary health goal. Returns { goal }. */
+export async function extractHealthGoal(user, text) {
+  const system = `You extract the ONE main health goal the user wants to improve over the next few months. Return ONE JSON object only:
+{ "goal": string }
+Rules:
+- Keep it short and clear, e.g. "Improve blood sugar", "Lose weight", "Build muscle", "Stay healthy", "Run a 5K".
+- Base it on what the user said; do not add unrelated goals. Return valid JSON only.`;
+  const out = await extractJson(system, text);
+  const goal = out.goal ? String(out.goal).trim().slice(0, 120) : (text || "").trim().slice(0, 120);
+  return { goal };
+}
+
+/**
+ * Completed-profile free-text update router. The user simply tells DrSaab what
+ * changed ("my weight is now 79 kg", "I stopped Tagipmet", "diagnosed with
+ * fatty liver"); this determines intent(s), extracts values, and returns a
+ * normalized change-set plus a concise confirmation line the flow echoes back.
+ */
+export async function parseHealthUpdate(user, text, imageDataUrl = null) {
+  const lang = user?.language || "en";
+  const system = `You are DrSaab's health-profile update parser. The user has an existing health profile and is telling you what changed. Determine every relevant change and return ONE JSON object only:
+
+{
+  "conditions":  { "add": [string], "remove": [string] },
+  "medications": { "add": [ {"name":string,"generic_name":string|null,"dose":string|null,"frequency":string|null} ], "stop": [string] },
+  "metrics":     [ {"metric_type":string,"value":number|null,"secondary_value":number|null,"unit":string|null,"reading_context":string|null,"measurement_date":string|null} ],
+  "lifestyle":   {"smoking_status":"smoker"|"non_smoker"|"ex_smoker"|null,"smoking_quantity":string|null,"activity_level":string|null,"activity_type":string|null} | null,
+  "goal":        string|null,
+  "needs_context": "glucose"|null,
+  "reply":       string
+}
+
+Rules:
+- Only fill the sections the user actually referenced; leave the others empty ([] or null).
+- Conditions: "also diagnosed with X" -> add:["X"]; normalize names (e.g. "Fatty Liver").
+- Medications: "started X" -> add; "stopped/no longer taking X" -> stop:["X"].
+- Metrics: same normalization as lab numbers — hba1c(%), glucose(mg_dl; convert mmol/L ×18), weight(kg), height(cm), blood_pressure(systolic=value,diastolic=secondary_value,mmHg), waist(cm). measurement_date only if a concrete date is given.
+- needs_context = "glucose" ONLY when the user gave a blood sugar value but did NOT say whether it was fasting, random or post-meal. Otherwise null.
+- reply: a SHORT, warm WhatsApp confirmation in ${LANG_NAME[lang] || "English"} of what you understood and updated (no emojis, one or two lines). If nothing health-related was found, set every section empty and make reply a gentle nudge asking them to share a health update.
+- Never invent data. Return valid JSON only.`;
+  const out = await extractJson(system, text, imageDataUrl, 800);
+  const allowed = new Set(["hba1c", "glucose", "weight", "height", "blood_pressure", "waist"]);
+  const cond = out.conditions || {};
+  const med = out.medications || {};
+  return {
+    conditions: {
+      add: Array.isArray(cond.add) ? cond.add.filter(Boolean).map((s) => String(s).trim()) : [],
+      remove: Array.isArray(cond.remove) ? cond.remove.filter(Boolean).map((s) => String(s).trim()) : [],
+    },
+    medications: {
+      add: Array.isArray(med.add)
+        ? med.add.filter((m) => m && m.name).map((m) => ({
+            name: String(m.name).trim(),
+            generic_name: m.generic_name ? String(m.generic_name).trim() : null,
+            dose: m.dose ? String(m.dose).trim() : null,
+            frequency: m.frequency ? String(m.frequency).trim() : null,
+          }))
+        : [],
+      stop: Array.isArray(med.stop) ? med.stop.filter(Boolean).map((s) => String(s).trim()) : [],
+    },
+    metrics: Array.isArray(out.metrics)
+      ? out.metrics.filter((m) => m && allowed.has(m.metric_type) && (m.value != null || m.secondary_value != null)).map((m) => ({
+          metric_type: m.metric_type,
+          value: m.value != null ? Number(m.value) : null,
+          secondary_value: m.secondary_value != null ? Number(m.secondary_value) : null,
+          unit: m.unit || null,
+          reading_context: m.reading_context || null,
+          measurement_date: /^\d{4}-\d{2}-\d{2}$/.test(m.measurement_date || "") ? m.measurement_date : null,
+        }))
+      : [],
+    lifestyle: out.lifestyle && typeof out.lifestyle === "object"
+      ? {
+          smoking_status: ["smoker", "non_smoker", "ex_smoker"].includes(out.lifestyle.smoking_status) ? out.lifestyle.smoking_status : null,
+          smoking_quantity: out.lifestyle.smoking_quantity ? String(out.lifestyle.smoking_quantity).trim() : null,
+          activity_level: out.lifestyle.activity_level ? String(out.lifestyle.activity_level).trim() : null,
+          activity_type: out.lifestyle.activity_type ? String(out.lifestyle.activity_type).trim() : null,
+        }
+      : null,
+    goal: out.goal ? String(out.goal).trim().slice(0, 120) : null,
+    needs_context: out.needs_context === "glucose" ? "glucose" : null,
+    reply: out.reply ? String(out.reply).trim() : "",
+  };
 }
 
 /** Beginner gym plan for a prediabetes user. Uses the three onboarding

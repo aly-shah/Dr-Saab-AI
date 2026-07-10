@@ -297,6 +297,44 @@ export function profileKeyboard(lang) {
 }
 
 // ===================================================================
+// ❤️ My Health (spec "Main Menu Revision v2.1", 2026-07)
+// ===================================================================
+// Not-started screen — a single "Start" button (no submenus).
+export function myHealthStartKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [{ text: t(lang, "btn_mh_start"), callback_data: "mh:start" }],
+      [{ text: t(lang, "btn_back"), callback_data: "menu" }],
+    ],
+  };
+}
+
+// Yes / Edit confirmation card shown after AI extraction (Q1–Q3).
+export function myHealthConfirmKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "btn_mh_yes"), callback_data: "mh:ok" },
+        { text: t(lang, "btn_mh_edit"), callback_data: "mh:edit" },
+      ],
+    ],
+  };
+}
+
+// Fasting / Random / Post-meal picker for an ambiguous glucose reading.
+export function myHealthContextKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "btn_mh_ctx_fasting"), callback_data: "mh:ctx:fasting" },
+        { text: t(lang, "btn_mh_ctx_random"), callback_data: "mh:ctx:random" },
+        { text: t(lang, "btn_mh_ctx_postmeal"), callback_data: "mh:ctx:post_meal" },
+      ],
+    ],
+  };
+}
+
+// ===================================================================
 // v2 onboarding journey keyboards
 // ===================================================================
 
@@ -495,6 +533,8 @@ export function understandKeyboard(lang) {
 export function mainMenuKeyboardV2(lang, user) {
   const b = (key, action) => ({ text: t(lang, key), callback_data: `feat:${action}` });
   const rows = [];
+  // ❤️ My Health sits at the top of the menu (spec v2.1, 2026-07).
+  rows.push(b("btn_myhealth", "myhealth"));
   const profileBtn = profileMenuButton(lang, user);
   if (profileBtn) rows.push(profileBtn);
   rows.push(

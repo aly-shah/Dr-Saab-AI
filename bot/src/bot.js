@@ -46,6 +46,7 @@ import {
   startHealth,
   healthText,
 } from "./flows/tracking.js";
+import { startMyHealth, myHealthText, myHealthCallback } from "./flows/myhealth.js";
 import { startCoach, coachText } from "./flows/coach.js";
 import { startAskDrsaab, askDrsaabText } from "./flows/askdrsaab.js";
 import { startLab, labText, handleUploadLabButton } from "./flows/labreport.js";
@@ -214,6 +215,9 @@ async function dispatchFeature(bot, chatId, session, action) {
       return showMyProgress(bot, chatId, session);
     case "more":
       return showMore(bot, chatId, session);
+    case "myhealth":
+      // ❤️ My Health — the user's canonical, conversational health profile.
+      return startMyHealth(bot, chatId, session);
     case "askdrsaab":
       // Ask DrSaab is the open AI conversation — free-tier ready, paid users
       // get the OpenAI-backed model and deeper personalisation.
@@ -346,7 +350,7 @@ export async function handleMessage(bot, msg) {
   // user is NOT mid-flow, so "help"/"menu" inside a coach chat stay as content.
   const word = (text || "").trim().toLowerCase();
   const inFlow = [
-    "onboarding", "glucose", "medication", "health",
+    "onboarding", "glucose", "medication", "health", "myhealth",
     "coach", "food", "fitness", "askdrsaab", "lab", "goals", "challenge_code", "profileq",
     "weight", "activity", "symptoms", "prediabetes", "betterme", "pregnancy",
   ].includes(session.state);
@@ -382,6 +386,8 @@ export async function handleMessage(bot, msg) {
   switch (session.state) {
     case "onboarding":
       return onboardingText(bot, chatId, session, text);
+    case "myhealth":
+      return myHealthText(bot, chatId, session, text, msg);
     case "glucose":
       return glucoseText(bot, chatId, session, text);
     case "medication":
@@ -458,6 +464,9 @@ export async function handleCallback(bot, query) {
   }
 
   if (data === "menu") return showMenu(bot, chatId, session);
+
+  // ❤️ My Health — start / confirm (ok/edit/skip) / glucose-context picker.
+  if (data.startsWith("mh:")) return myHealthCallback(bot, chatId, session, data);
 
   // Goals — spec 2026-07 (list / add flow / detail / edit / review)
   if (data === "goal:add" || data === "goal:set") return startAddGoal(bot, chatId, session);
