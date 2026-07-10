@@ -563,7 +563,7 @@ create table if not exists public.message_blocks (
   kind           text not null,              -- greeting|reminder_summary|coaching|milestone|inactivity|cta
   language       text not null,              -- english | roman_urdu
   age_brackets   text[] default '{any}',     -- {'50-64','65+'} or {'any'}
-  window         text,                       -- morning|afternoon|evening|any  (greeting)
+  "window"       text,                       -- morning|afternoon|evening|any  (greeting) — quoted: reserved keyword
   engagement     text,                       -- HE|E|LOW|RISK                  (coaching)
   milestone      text,                       -- T7|T21|T40|T66|T90             (milestone)
   trigger_days   int,                        -- 2|4|7|14                       (inactivity)
@@ -627,7 +627,7 @@ on conflict (key) do nothing;
 -- ---------- Seed message_blocks (spec §15.1–15.7) ----------
 -- Runs only on first migration; once populated the Admin Portal owns edits.
 insert into public.message_blocks
-  (id, kind, language, age_brackets, window, engagement, milestone, trigger_days, reminder_type, text, cooldown_days, sort_order)
+  (id, kind, language, age_brackets, "window", engagement, milestone, trigger_days, reminder_type, text, cooldown_days, sort_order)
 select * from (values
   -- 15.1 Greeting — English
   ('G-EN-001','greeting','english',array['any'],'morning'  ,null,null,null,null,'Good morning{first_name_optional}, quick health check-in for today.',3,10),
@@ -695,5 +695,5 @@ select * from (values
   ('CTA-RU-001','cta','roman_urdu',array['any'],null,null,null,null,null,'Ready hon to update bhej dein.',3,10),
   ('CTA-RU-002','cta','roman_urdu',array['any'],null,null,null,null,null,'Ek reading, meal, medicine update, ya question bhej dein.',3,20),
   ('CTA-RU-003','cta','roman_urdu',array['any'],null,null,null,null,null,'Choti update. Time ke sath bara farq.',3,30)
-) as v(id, kind, language, age_brackets, window, engagement, milestone, trigger_days, reminder_type, text, cooldown_days, sort_order)
+) as v(id, kind, language, age_brackets, "window", engagement, milestone, trigger_days, reminder_type, text, cooldown_days, sort_order)
 where not exists (select 1 from public.message_blocks);

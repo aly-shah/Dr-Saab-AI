@@ -33,7 +33,10 @@ module.exports = {
       autorestart: true,
       max_restarts: 15,
       max_memory_restart: "300M",
-      env: { NODE_ENV: "production" },
+      // WEB_API_PORT must match the port in drsaab-web's BOT_API_URL above,
+      // otherwise /api/bot proxies to a port the bot isn't listening on and
+      // the web chat returns "bot_unreachable".
+      env: { NODE_ENV: "production", WEB_API_PORT: String(WEB_API_PORT) },
     },
   ],
 };

@@ -115,20 +115,29 @@ async function complete(messages, { maxTokens = 600, model, jsonMode = false, pa
       temperature: 0.6,
     };
     if (jsonMode) req.response_format = { type: "json_object" };
-    let res;
+    // Stream the completion instead of buffering the whole body. On some VPS
+    // networks a large buffered response over a reused keep-alive socket drops
+    // mid-body as "Premature close"; consuming the body incrementally as chunks
+    // arrive avoids that failure mode. We still retry the whole read on a
+    // mid-stream drop. The public contract is unchanged: we return the full text.
+    let content = "";
     for (let attempt = 0; ; attempt++) {
       try {
-        res = await chosenClient.chat.completions.create(req);
+        content = "";
+        const stream = await chosenClient.chat.completions.create({ ...req, stream: true });
+        for await (const chunk of stream) {
+          content += chunk.choices?.[0]?.delta?.content || "";
+        }
         break;
       } catch (err) {
-        if (attempt < 2 && isPrematureClose(err)) {
+        if (attempt < 3 && isPrematureClose(err)) {
           await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
           continue;
         }
         throw err;
       }
     }
-    return res.choices[0]?.message?.content?.trim() || "";
+    return content.trim();
   } catch (e) {
     // Explain the real cause in red (e.g. "GROQ rate limit hit (429)…") so it's
     // obvious in the logs why a reply failed. Flows still show the user a
