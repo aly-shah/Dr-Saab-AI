@@ -32,11 +32,17 @@ const paidClient = config.llm.paidApiKey
   ? new OpenAI({ apiKey: config.llm.paidApiKey, maxRetries: 4, timeout: 60_000, fetch: resilientFetch })
   : null;
 
-// Undici surfaces mid-response socket drops as this exact string. The OpenAI
-// SDK's built-in retry does not always cover it, so we wrap the call ourselves.
+// Transient mid-response socket drops surface differently across HTTP stacks:
+// undici uses "Premature close" / UND_ERR_SOCKET; node-fetch (core https) uses
+// ECONNRESET / "aborted" / FetchError. The OpenAI SDK's built-in retry does not
+// reliably cover these, so we wrap the call ourselves and retry on any of them.
 function isPrematureClose(e) {
   const msg = e?.message || e?.cause?.message || "";
-  return /Premature close|socket hang up|ECONNRESET|UND_ERR_SOCKET/i.test(msg);
+  const code = String(e?.code || e?.cause?.code || e?.errno || "");
+  return (
+    /Premature close|socket hang up|aborted|terminated|network|fetch failed|ECONNRESET|ETIMEDOUT|EPIPE|UND_ERR/i.test(msg) ||
+    /ECONNRESET|ETIMEDOUT|EPIPE|UND_ERR/i.test(code)
+  );
 }
 
 const LANG_NAME = {
