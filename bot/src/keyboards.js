@@ -505,7 +505,9 @@ export function mainMenuKeyboardV2(lang, user) {
     b("btn_askdrsaab", "askdrsaab"),
     b("btn_more", "more"),
   );
-  return stack(rows);
+  // keepEmoji: the main menu is designed to show its icons, so opt this
+  // keyboard out of the send-time emoji stripper (see utils.cleanKeyboard).
+  return { ...stack(rows), keepEmoji: true };
 }
 
 // Maps a user's onboarding profile to the one condition-specific menu button

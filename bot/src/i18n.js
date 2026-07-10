@@ -400,13 +400,13 @@ const STR = {
     profileq_done: "Your background profile is complete. Thank you!",
 
     // ===== Build 1: new menu hierarchy =====
-    menu_v2_title: "Choose an option from the Menu",
+    menu_v2_title: "Choose an option from the Menu:",
     btn_checkin: "🩺 Check In",
     btn_foodhelp: "🍽️ Food Help",
     btn_checkreport: "📋 Explain My Report",
     btn_myprogress: "🎯 Goals & Progress",
     btn_askdrsaab: "💬 Ask DrSaab",
-    btn_more: "⚙️ More",
+    btn_more: "🌟 More",
     btn_main_menu: "🏠 Main Menu",
 
     // Profile-based main-menu additions (shown conditionally per user)

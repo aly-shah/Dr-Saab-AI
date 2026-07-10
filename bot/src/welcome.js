@@ -33,7 +33,8 @@ function scenarioLang(scenario) {
 export async function sendWelcomeWithLangPicker(bot, chatId, scenario = "eng") {
   const key = SCENARIO_KEYS[scenario] || "welcome_eng";
   const lang = scenarioLang(scenario);
-  await send(bot, chatId, t(lang, key), { keyboard: langPickerKeyboard(), markdown: true });
+  // keepEmoji: the welcome banner intentionally shows the 👋 wave.
+  await send(bot, chatId, t(lang, key), { keyboard: langPickerKeyboard(), markdown: true, keepEmoji: true });
 }
 
 // Returns "eng" | "salaam" | "urdu" | null.

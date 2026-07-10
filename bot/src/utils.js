@@ -21,9 +21,14 @@ export function stripEmoji(s = "") {
 
 function cleanKeyboard(kb) {
   if (!kb?.inline_keyboard) return kb;
+  // A keyboard can opt out of emoji stripping by setting `keepEmoji: true`
+  // (e.g. the main menu, which is designed to show its icons). Drop the flag
+  // before it reaches Telegram, which rejects unknown reply_markup fields.
+  const { keepEmoji, ...rest } = kb;
+  if (keepEmoji) return rest;
   return {
-    ...kb,
-    inline_keyboard: kb.inline_keyboard.map((row) =>
+    ...rest,
+    inline_keyboard: rest.inline_keyboard.map((row) =>
       row.map((b) => (b && typeof b.text === "string" ? { ...b, text: stripEmoji(b.text) } : b))
     ),
   };
@@ -33,8 +38,8 @@ function cleanKeyboard(kb) {
  * Safe message sender. Uses legacy Markdown for our own UI strings, and
  * transparently retries as plain text if Telegram rejects the formatting.
  */
-export async function send(bot, chatId, text, { keyboard = null, markdown = false } = {}) {
-  text = stripEmoji(text);
+export async function send(bot, chatId, text, { keyboard = null, markdown = false, keepEmoji = false } = {}) {
+  if (!keepEmoji) text = stripEmoji(text);
   const opts = {};
   if (keyboard) opts.reply_markup = cleanKeyboard(keyboard);
   if (markdown) opts.parse_mode = "Markdown";
