@@ -424,7 +424,7 @@ async function makePostgresBackend() {
       : /ENOTFOUND|ECONNREFUSED|timeout|EAI_AGAIN/i.test(e?.message)
       ? "cannot reach the database host — check DATABASE_URL and that the DB is running."
       : e?.message;
-    logError("Database", `connection test failed: ${why}`);
+    throw new Error(why);
   }
 
   const insertDynamic = async (table, obj) => {
@@ -1340,12 +1340,21 @@ function makeMemoryBackend() {
 
 let storeName;
 if (config.hasPostgres) {
-  backend = await makePostgresBackend();
-  storeName = "Postgres";
+  try {
+    backend = await makePostgresBackend();
+    storeName = "Postgres";
+  } catch (e) {
+    logError("Database", `Postgres unavailable: ${e?.message || e}`);
+  }
 } else if (config.hasSupabase) {
-  backend = await makeSupabaseBackend();
-  storeName = "Supabase";
-} else {
+  try {
+    backend = await makeSupabaseBackend();
+    storeName = "Supabase";
+  } catch (e) {
+    logError("Database", `Supabase unavailable: ${e?.message || e}`);
+  }
+}
+if (!backend) {
   backend = makeMemoryBackend();
   storeName = "in-memory (data resets on restart)";
   // Silent fallback to in-memory would make users appear "new" after every

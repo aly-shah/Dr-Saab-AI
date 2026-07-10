@@ -64,6 +64,7 @@ function Avatar() {
 }
 
 export default function BotChatPage() {
+  const [mounted, setMounted] = useState(false);
   const [messages, setMessages] = useState([]); // {from, text, rows?}
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -73,6 +74,10 @@ export default function BotChatPage() {
   const taRef = useRef(null);
   const startedRef = useRef(false);
   const fileRef = useRef(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
@@ -204,6 +209,56 @@ export default function BotChatPage() {
   })();
 
   const empty = messages.length === 0;
+
+  if (!mounted) {
+    return (
+      <div className="flex h-dvh flex-col bg-white">
+        <div className="pointer-events-none fixed inset-0 -z-10">
+          <div className="absolute -left-32 top-0 h-80 w-80 rounded-full bg-primary-light/15 blur-3xl" />
+          <div className="absolute right-0 top-24 h-80 w-80 rounded-full bg-accent/10 blur-3xl" />
+        </div>
+
+        <header className="flex items-center justify-between border-b border-line/50 px-3 py-3 sm:px-6">
+          <div className="flex items-center gap-1.5 sm:gap-3">
+            <a href="/" title="Back to website" className="flex items-center gap-1 rounded-full py-1.5 pl-1.5 pr-2.5 text-sm font-medium text-ink/60 transition hover:bg-muted hover:text-ink">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+              <span className="hidden sm:inline">Website</span>
+            </a>
+            <span className="h-5 w-px bg-line/70" />
+            <div className="flex items-center gap-2">
+              <img src="/logo-mark.png" alt="" className="h-8 w-8 object-contain" />
+              <span className="text-[15px] font-bold tracking-tight text-ink">
+                DrSaab <span className="text-primary">AI</span>
+              </span>
+              <span className="hidden rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-accent sm:inline">online</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled
+            className="flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold text-ink/30"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12a7 7 0 1 1 2 5M5 12V7m0 5h5" />
+            </svg>
+            New chat
+          </button>
+        </header>
+
+        <div className="flex flex-1 items-center justify-center px-4 text-center">
+          <div>
+            <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-primary to-accent text-white shadow-card">
+              <SparkleIcon className="h-8 w-8" />
+            </span>
+            <h1 className="mt-5 text-2xl font-bold tracking-tight text-ink sm:text-3xl">Loading DrSaab</h1>
+            <p className="mx-auto mt-2 max-w-md text-ink/55">Preparing your WhatsApp chat...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-dvh flex-col bg-white">

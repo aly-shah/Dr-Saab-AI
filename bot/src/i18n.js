@@ -124,7 +124,7 @@ const STR = {
 
     // ===== v2 onboarding journey (DrSaab MVP) =====
     welcome_eng:
-      "Assalamualaikum and welcome to *DrSaab* — your AI Coach for Diabetes.\n\nI can help you understand your diabetes, build healthier habits, stay consistent, and improve your long-term health.\n\nFor اردو messaging, please select Urdu below.\nAur WhatsApp wali Urdu mein baat karnay ke liye, WhatsApp Urdu ka option use karain.",
+      "As Salam Alaikum and welcome to DrSaab — your AI Coach for Diabetes 👋🏼\n\nI can help you understand your diabetes, build healthier habits, stay consistent, and improve your long-term health.\n\nFor اردو messaging, please select Urdu below.\nAur WhatsApp wali Urdu mein baat karnay ke liye, WhatsApp Urdu ka option use karain.",
     welcome_salaam:
       "Walaikumussalam and welcome to *DrSaab* — your AI Coach for Diabetes.\n\nI can help you understand your diabetes, build healthier habits, stay consistent, and improve your long-term health.\n\nFor اردو messaging, please select Urdu below.\nAur WhatsApp wali Urdu mein baat karnay ke liye, WhatsApp Urdu ka option use karain.",
     welcome_urdu_intent:
@@ -143,7 +143,7 @@ const STR = {
     ut_gestational: "I have Gestational Diabetes",
     ut_healthier: "I want to live healthier",
 
-    ask_age_v2: "Ok great. Let's begin. When is your birthday?\nPlease share day, month and year (e.g. 12 March 1985).",
+    ask_age_v2: "Let's begin. When is your birthday?\nPlease share day, month and year (e.g. 12 March 1985).",
     ask_dob_missing:
       "I just need a complete birthday — please send the missing *{missing}* (e.g. 12 March 1985).",
     btn_multi_done: "Done",
@@ -400,7 +400,7 @@ const STR = {
     profileq_done: "Your background profile is complete. Thank you!",
 
     // ===== Build 1: new menu hierarchy =====
-    menu_v2_title: "👋 What would you like help with today?",
+    menu_v2_title: "Choose an option from the Menu",
     btn_checkin: "🩺 Check In",
     btn_foodhelp: "🍽️ Food Help",
     btn_checkreport: "📋 Explain My Report",
