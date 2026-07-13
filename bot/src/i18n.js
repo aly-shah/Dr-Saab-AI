@@ -921,7 +921,7 @@ const STR = {
       "Got it — *{junk}*. About how many times each week do you eat these foods?",
     // Step 3 — video share
     pd_crav_video:
-      "Thanks. I'd like you to watch this short video — it explains how sugary drinks and ultra-processed foods can affect your long-term health.\n\n▶️ https://www.youtube.com/watch?v=DHma9_xQgD8&t=45s",
+      "Thanks. I'd like you to watch this short video — it explains how sugary drinks and ultra-processed foods can affect your long-term health.\n\n[▶️ Watch the video](https://www.youtube.com/watch?v=DHma9_xQgD8&t=45s)",
     // Step 4 — reflection
     pd_crav_reflection_q:
       "After watching the video, what changes do you think you could realistically make over the next few weeks?",
@@ -1632,7 +1632,7 @@ const STR = {
     pd_crav_junk_freq_q:
       "سمجھ گیا — *{junk}*. ہفتے میں تقریباً کتنی بار کھاتے ہیں؟",
     pd_crav_video:
-      "شکریہ۔ ایک مختصر ویڈیو دیکھیں — یہ بتاتی ہے کہ میٹھے مشروبات اور الٹرا پروسیسڈ فوڈز آپ کی طویل مدتی صحت پر کیسے اثر ڈالتے ہیں۔\n\n▶️ https://www.youtube.com/watch?v=DHma9_xQgD8&t=45s",
+      "شکریہ۔ ایک مختصر ویڈیو دیکھیں — یہ بتاتی ہے کہ میٹھے مشروبات اور الٹرا پروسیسڈ فوڈز آپ کی طویل مدتی صحت پر کیسے اثر ڈالتے ہیں۔\n\n[▶️ ویڈیو دیکھیں](https://www.youtube.com/watch?v=DHma9_xQgD8&t=45s)",
     pd_crav_reflection_q:
       "ویڈیو دیکھنے کے بعد آپ کے خیال میں آنے والے ہفتوں میں کون سی حقیقی تبدیلیاں کر سکتے ہیں؟",
     pd_crav_commit_q: "اگر اِس ہفتے صرف ایک چھوٹی تبدیلی کرنی ہو، تو کیا حقیقت پسندانہ لگتا ہے؟",
@@ -2328,7 +2328,7 @@ const STR = {
     pd_crav_junk_freq_q:
       "Samajh gaya — *{junk}*. Haftay mein taqreeban kitni bar khaatay hain?",
     pd_crav_video:
-      "Shukriya. Zara yeh short video dekhein — batati hai ke meethay drinks aur ultra-processed foods long-term health par kaisa asar daaltay hain.\n\n▶️ https://www.youtube.com/watch?v=DHma9_xQgD8&t=45s",
+      "Shukriya. Zara yeh short video dekhein — batati hai ke meethay drinks aur ultra-processed foods long-term health par kaisa asar daaltay hain.\n\n[▶️ Watch the video](https://www.youtube.com/watch?v=DHma9_xQgD8&t=45s)",
     pd_crav_reflection_q:
       "Video dekhne ke baad aap ke khayal se aane wale haftoun mein kaunsi realistic tabdeeliyan kar saktay hain?",
     pd_crav_commit_q: "Agar iss haftay sirf aik chhoti tabdeeli karni ho, kya realistic lagta hai?",

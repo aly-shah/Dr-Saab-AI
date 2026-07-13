@@ -118,11 +118,19 @@ export async function myHealthCallback(bot, chatId, session, data) {
   if (!session.data) session.data = {};
 
   if (action === "start") {
-    session.user = await updateUser(session.user.id, {
-      health_profile_status: "in_progress",
-      health_setup_step: 1,
-      health_setup_started_at: new Date().toISOString(),
-    });
+    try {
+      session.user = await updateUser(session.user.id, {
+        health_profile_status: "in_progress",
+        health_setup_step: 1,
+        health_setup_started_at: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.error("myhealth start error:", e?.stack || e?.message || e);
+      return send(bot, chatId, t(lang, "error_generic"), {
+        keyboard: backKeyboard(lang),
+        markdown: true,
+      });
+    }
     return promptQuestion(bot, chatId, session, 1);
   }
 
@@ -322,17 +330,34 @@ async function commitPending(bot, chatId, session) {
 async function advanceAfter(bot, chatId, session, q) {
   const next = q + 1;
   if (next > TOTAL_STEPS) return finishSetup(bot, chatId, session);
-  session.user = await updateUser(session.user.id, { health_setup_step: next });
+  try {
+    session.user = await updateUser(session.user.id, { health_setup_step: next });
+  } catch (e) {
+    console.error("myhealth advance error:", e?.stack || e?.message || e);
+    const lang = langOf(session);
+    return send(bot, chatId, t(lang, "error_generic"), {
+      keyboard: backKeyboard(lang),
+      markdown: true,
+    });
+  }
   return promptQuestion(bot, chatId, session, next);
 }
 
 async function finishSetup(bot, chatId, session) {
   const lang = langOf(session);
-  session.user = await updateUser(session.user.id, {
-    health_profile_status: "completed",
-    health_setup_step: TOTAL_STEPS,
-    health_setup_completed_at: new Date().toISOString(),
-  });
+  try {
+    session.user = await updateUser(session.user.id, {
+      health_profile_status: "completed",
+      health_setup_step: TOTAL_STEPS,
+      health_setup_completed_at: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.error("myhealth finish error:", e?.stack || e?.message || e);
+    return send(bot, chatId, t(lang, "error_generic"), {
+      keyboard: backKeyboard(lang),
+      markdown: true,
+    });
+  }
   await refreshKB(session.user).catch(() => {});
   await send(bot, chatId, t(lang, "mh_setup_complete"), { markdown: true });
   session.step = "update";

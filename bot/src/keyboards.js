@@ -430,7 +430,6 @@ function profileMenuButton(lang, user) {
   const ut = user?.user_type;
   const dt = user?.diabetes_status;
   if (ut === "diabetes" && dt === "type1") return b("btn_p_type1", "type1");
-  if (ut === "diabetes" && dt === "gestational") return b("btn_p_pregnancy", "gestational");
   if (ut === "prediabetes") return b("btn_p_prediabetes", "prediabetes");
   if (ut === "healthier") return b("btn_p_healthier", "healthier");
   return null;

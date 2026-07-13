@@ -402,7 +402,11 @@ export async function handleMessage(bot, msg) {
     case "pregnancy":
       return pregnancyText(bot, chatId, session, text);
     default:
-      return showMenu(bot, chatId, session);
+      // Idle — no active flow. Treat any free-text message as an Ask DrSaab
+      // question so users (esp. on WhatsApp) can ask anything without first
+      // navigating into the Ask DrSaab section. Menu/help word commands are
+      // handled above this switch and still open the menu.
+      return askDrsaabText(bot, chatId, session, text, msg);
   }
 }
 

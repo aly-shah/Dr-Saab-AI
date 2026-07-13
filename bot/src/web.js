@@ -89,7 +89,10 @@ async function processWeb(sessionId, type, payload) {
       });
     }
   } catch (e) {
-    console.error("web process error:", e?.message);
+    // Log the full stack so backend failures (missing columns, bad env, etc.)
+    // are debuggable from server logs instead of just showing the user a
+    // generic message with no signal in the log.
+    console.error("web process error:", e?.stack || e?.message || e);
     buffer.push({ text: "😕 Something went wrong. Please try again.", rows: [] });
   }
   return buffer;
