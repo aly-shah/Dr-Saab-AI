@@ -65,13 +65,13 @@ async function sendRaw(payload) {
   }
 }
 
-// Resolve an inbound WhatsApp media id to a base64 data URL for the vision model.
-// It is a two-step flow on the Cloud API: GET the media id → a (short-lived,
+// Resolve an inbound WhatsApp media id to a raw { buffer, mime } pair.
+// Two-step flow on the Cloud API: GET the media id → a (short-lived,
 // authenticated) download URL, then GET that URL with the same auth.
 //   • Meta direct : both calls use the Bearer token, the URL is on graph.facebook.com
 //   • 360dialog   : both calls use the D360-API-KEY; the returned URL must be
 //                   fetched through 360dialog's own host, so we swap the origin.
-async function fetchMediaDataUrl(mediaId) {
+async function fetchMediaBinary(mediaId) {
   const w = config.whatsapp;
   try {
     if (w.provider === "360dialog") {
@@ -89,8 +89,7 @@ async function fetchMediaDataUrl(mediaId) {
         logError("WhatsApp media", describeWhatsAppError(binRes.status, await binRes.text(), w.provider), "download");
         return null;
       }
-      const buf = Buffer.from(await binRes.arrayBuffer());
-      return `data:${mime_type || "image/jpeg"};base64,${buf.toString("base64")}`;
+      return { buffer: Buffer.from(await binRes.arrayBuffer()), mime: mime_type || "application/octet-stream" };
     }
     // Meta Cloud API (direct)
     const headers = { Authorization: `Bearer ${w.token}` };
@@ -105,12 +104,17 @@ async function fetchMediaDataUrl(mediaId) {
       logError("WhatsApp media", describeWhatsAppError(binRes.status, await binRes.text(), w.provider), "download");
       return null;
     }
-    const buf = Buffer.from(await binRes.arrayBuffer());
-    return `data:${mime_type || "image/jpeg"};base64,${buf.toString("base64")}`;
+    return { buffer: Buffer.from(await binRes.arrayBuffer()), mime: mime_type || "application/octet-stream" };
   } catch (e) {
-    logError("WhatsApp media", `could not download image: ${e?.message}`);
+    logError("WhatsApp media", `could not download media: ${e?.message}`);
     return null;
   }
+}
+
+async function fetchMediaDataUrl(mediaId) {
+  const bin = await fetchMediaBinary(mediaId);
+  if (!bin) return null;
+  return `data:${bin.mime || "image/jpeg"};base64,${bin.buffer.toString("base64")}`;
 }
 
 // Map our inline_keyboard rows → WhatsApp interactive. WhatsApp allows at most
@@ -228,6 +232,31 @@ async function onInbound(value) {
         await bot.sendMessage(from, t(user?.language || "en", "voice_note_saved")).catch(() => {});
       })().catch((e) => {
         logError("WhatsApp inbound (audio)", e?.message);
+        return replyOnError(bot, from, e);
+      });
+    } else if (m.type === "document" && m.document?.id) {
+      // PDFs / attached files (used by the "Explain My Report" flow). Download
+      // the binary up front and hand it to the shared flows via the same
+      // __documentBuffer / __documentMime channel that utils.documentBuffer
+      // looks at first — labText then extracts text via pdf.js. If it's an
+      // image sent as a document, also expose it as __imageDataUrl so the
+      // vision coaches keep working.
+      await (async () => {
+        const bin = await fetchMediaBinary(m.document.id);
+        const caption = m.document?.caption ?? "";
+        const isImage = bin?.mime?.toLowerCase().startsWith("image/");
+        await handleMessage(bot, {
+          chat: { id: from },
+          from: { id: from },
+          text: caption,
+          caption,
+          __documentBuffer: bin?.buffer || null,
+          __documentMime: bin?.mime || null,
+          __imageDataUrl: isImage && bin ? `data:${bin.mime};base64,${bin.buffer.toString("base64")}` : null,
+          __source: "whatsapp",
+        });
+      })().catch((e) => {
+        logError("WhatsApp inbound (document)", e?.message);
         return replyOnError(bot, from, e);
       });
     } else {
