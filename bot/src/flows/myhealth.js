@@ -111,6 +111,12 @@ export async function myHealthCallback(bot, chatId, session, data) {
   const lang = langOf(session);
   const action = data.split(":")[1];
 
+  // A callback can arrive after the in-memory session was cleared (bot restart,
+  // an intervening resetFlow). Re-assert the flow state so the user's next TYPED
+  // answer routes back to myHealthText rather than falling through to showMenu.
+  session.state = "myhealth";
+  if (!session.data) session.data = {};
+
   if (action === "start") {
     session.user = await updateUser(session.user.id, {
       health_profile_status: "in_progress",
@@ -188,6 +194,7 @@ export async function myHealthText(bot, chatId, session, text, msg) {
 // ===================================================================
 async function promptQuestion(bot, chatId, session, q) {
   const lang = langOf(session);
+  session.state = "myhealth";
   session.step = `q${q}`;
   session.data.pending = null;
   const header = t(lang, "mh_question_of", { n: q, total: TOTAL_STEPS });
@@ -377,6 +384,7 @@ async function showSummary(bot, chatId, session) {
   lines.push("");
   lines.push(t(lang, "mh_summary_footer"));
 
+  session.state = "myhealth";
   session.step = "update";
   return send(bot, chatId, lines.join("\n"), { keyboard: backKeyboard(lang), markdown: true });
 }

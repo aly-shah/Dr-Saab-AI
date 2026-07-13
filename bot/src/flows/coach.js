@@ -16,14 +16,18 @@ const PROMPT_KEY = {
 };
 
 // kind: 'coach' | 'food' | 'fitness'  (all premium)
-export async function startCoach(bot, chatId, session, kind) {
+// promptKeyOverride: optional i18n key to use in place of the default intro
+// (used by Food Help sub-options that want to skip the generic Food Coach
+// intro and jump straight to their own prompt with the Back-to-Menu button).
+export async function startCoach(bot, chatId, session, kind, promptKeyOverride) {
   const lang = langOf(session);
   if (!isPremium(session.user)) {
     return send(bot, chatId, t(lang, "premium_required"), { keyboard: backKeyboard(lang), markdown: true });
   }
   session.state = kind;
   session.history = [];
-  await send(bot, chatId, t(lang, PROMPT_KEY[kind]), { keyboard: backKeyboard(lang), markdown: true });
+  const promptKey = promptKeyOverride || PROMPT_KEY[kind];
+  await send(bot, chatId, t(lang, promptKey), { keyboard: backKeyboard(lang), markdown: true });
 }
 
 export async function coachText(bot, chatId, session, text, msg) {
@@ -56,7 +60,11 @@ export async function coachText(bot, chatId, session, text, msg) {
     saveCoachMessage(session.user.id, kind, "user", userText || "[image]");
     saveCoachMessage(session.user.id, kind, "assistant", reply);
 
-    await send(bot, chatId, reply, { keyboard: backKeyboard(lang) });
+    // Nutrition Label Scanner replies open with 😀/😬/😞 and use 🟢🟡🔴 in the
+    // Rating line — preserve those glyphs instead of running them through the
+    // global emoji stripper.
+    const keepEmoji = kind === "label";
+    await send(bot, chatId, reply, { keyboard: backKeyboard(lang), keepEmoji });
     session.user = await applyScores(session.user, "coach");
   } catch (e) {
     console.error("coach error:", e?.message);

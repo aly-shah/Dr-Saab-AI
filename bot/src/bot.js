@@ -5,7 +5,6 @@ import {
   mainMenuKeyboardV2,
   checkInKeyboard,
   foodHelpKeyboard,
-  myProgressKeyboard,
   moreKeyboard,
   profileKeyboard,
   languageKeyboard,
@@ -50,7 +49,7 @@ import { startMyHealth, myHealthText, myHealthCallback } from "./flows/myhealth.
 import { startCoach, coachText } from "./flows/coach.js";
 import { startAskDrsaab, askDrsaabText } from "./flows/askdrsaab.js";
 import { startLab, labText, handleUploadLabButton } from "./flows/labreport.js";
-import { showProgress, showSummary, showRecentActivity } from "./flows/progress.js";
+import { showSummary } from "./flows/progress.js";
 import { showEducation } from "./flows/education.js";
 import { showT1Community, dispatchT1Community } from "./flows/t1community.js";
 import {
@@ -68,19 +67,6 @@ import {
   dispatchPregnancy,
   pregnancyText,
 } from "./flows/pregnancy.js";
-import {
-  showGoals,
-  startAddGoal,
-  pickGoalSuggestion,
-  showGoalDetail,
-  completeGoal,
-  deleteGoal,
-  showEditMenu,
-  startEditField,
-  handleReviewAction,
-  handleSkipAction,
-  goalsText,
-} from "./flows/goals.js";
 import {
   showChallenges,
   showMyChallenges,
@@ -129,10 +115,6 @@ function showCheckIn(bot, chatId, session) {
 function showFoodHelp(bot, chatId, session) {
   const lang = langOf(session);
   return send(bot, chatId, t(lang, "foodhelp_title"), { keyboard: foodHelpKeyboard(lang), markdown: true });
-}
-function showMyProgress(bot, chatId, session) {
-  const lang = langOf(session);
-  return send(bot, chatId, t(lang, "progress_menu_title"), { keyboard: myProgressKeyboard(lang), markdown: true });
 }
 function showMore(bot, chatId, session) {
   const lang = langOf(session);
@@ -211,8 +193,6 @@ async function dispatchFeature(bot, chatId, session, action) {
       return showCheckIn(bot, chatId, session);
     case "foodhelp":
       return showFoodHelp(bot, chatId, session);
-    case "myprogress":
-      return showMyProgress(bot, chatId, session);
     case "more":
       return showMore(bot, chatId, session);
     case "myhealth":
@@ -238,9 +218,10 @@ async function dispatchFeature(bot, chatId, session, action) {
     case "lab":
       return startLab(bot, chatId, session);
     case "upload_lab":
+    case "take_photo_lab":
+      // Web chat intercepts both callbacks to open the file picker or the
+      // camera respectively — on Telegram / WhatsApp we just print the hint.
       return handleUploadLabButton(bot, chatId, session);
-    case "progress":
-      return showProgress(bot, chatId, session);
     case "summary":
       return showSummary(bot, chatId, session);
     case "learn":
@@ -253,8 +234,6 @@ async function dispatchFeature(bot, chatId, session, action) {
       return showBetterMe(bot, chatId, session);
     case "pregnancy":
       return showPregnancy(bot, chatId, session);
-    case "goals":
-      return showGoals(bot, chatId, session);
     case "challenges":
       return showChallenges(bot, chatId, session);
     case "reports":
@@ -351,7 +330,7 @@ export async function handleMessage(bot, msg) {
   const word = (text || "").trim().toLowerCase();
   const inFlow = [
     "onboarding", "glucose", "medication", "health", "myhealth",
-    "coach", "food", "fitness", "askdrsaab", "lab", "goals", "challenge_code", "profileq",
+    "coach", "food", "fitness", "askdrsaab", "lab", "challenge_code", "profileq",
     "weight", "activity", "symptoms", "prediabetes", "betterme", "pregnancy",
   ].includes(session.state);
   if (session.user.onboarded) {
@@ -412,8 +391,6 @@ export async function handleMessage(bot, msg) {
       return askDrsaabText(bot, chatId, session, text, msg);
     case "lab":
       return labText(bot, chatId, session, text, msg);
-    case "goals":
-      return goalsText(bot, chatId, session, text);
     case "challenge_code":
       return challengeCodeText(bot, chatId, session, text);
     case "profileq":
@@ -467,23 +444,6 @@ export async function handleCallback(bot, query) {
 
   // ❤️ My Health — start / confirm (ok/edit/skip) / glucose-context picker.
   if (data.startsWith("mh:")) return myHealthCallback(bot, chatId, session, data);
-
-  // Goals — spec 2026-07 (list / add flow / detail / edit / review)
-  if (data === "goal:add" || data === "goal:set") return startAddGoal(bot, chatId, session);
-  if (data.startsWith("goalsug:")) return pickGoalSuggestion(bot, chatId, session, data.split(":")[1]);
-  if (data.startsWith("goal:skip:")) return handleSkipAction(bot, chatId, session, data.split(":")[2]);
-  if (data.startsWith("goal:view:")) return showGoalDetail(bot, chatId, session, data.split(":")[2]);
-  if (data.startsWith("goal:edit:")) return showEditMenu(bot, chatId, session, data.split(":")[2]);
-  if (data.startsWith("goal:complete:")) return completeGoal(bot, chatId, session, data.split(":")[2]);
-  if (data.startsWith("goal:delete:")) return deleteGoal(bot, chatId, session, data.split(":")[2]);
-  if (data.startsWith("goaledit:")) {
-    const [, gid, field] = data.split(":");
-    return startEditField(bot, chatId, session, gid, field);
-  }
-  if (data.startsWith("goalrev:")) {
-    const [, gid, action] = data.split(":");
-    return handleReviewAction(bot, chatId, session, gid, action);
-  }
 
   // Challenges (feature prefix `chl:` — distinct from onboarding `ch:`)
   if (data.startsWith("chl:")) {
@@ -539,20 +499,17 @@ export async function handleCallback(bot, query) {
       restaurant: "foodhelp_restaurant_prompt",
       snacks: "foodhelp_snacks_prompt",
     }[x];
+    // Restaurant Guidance skips the generic Food Coach intro — its own prompt
+    // already tells the user what to do, so the intro was redundant.
+    if (x === "restaurant") {
+      await startCoach(bot, chatId, session, "food", seedKey);
+      return;
+    }
     await startCoach(bot, chatId, session, "food");
     if (seedKey && session.state === "food") {
       await send(bot, chatId, t(langOf(session), seedKey), { markdown: true });
     }
     return;
-  }
-
-  // My Progress submenu
-  if (data.startsWith("mp:")) {
-    const x = data.split(":")[1];
-    if (x === "weekly") return showSummary(bot, chatId, session);
-    if (x === "monthly") return showMonthlyReport(bot, chatId, session);
-    if (x === "trends") return showProgress(bot, chatId, session);
-    if (x === "recent") return showRecentActivity(bot, chatId, session);
   }
 
   // More submenu (spec 2026-07: 4 items). Legacy `mo:` deep links kept so
@@ -573,7 +530,6 @@ export async function handleCallback(bot, query) {
     if (x === "account") return showAccount(bot, chatId, session);
     if (x === "plan") return showPlan(bot, chatId, session);
     if (x === "support") return showSupport(bot, chatId, session);
-    if (x === "goals") return showGoals(bot, chatId, session);
     if (x === "challenges") return showChallenges(bot, chatId, session);
     if (x === "executive") return showExecutive(bot, chatId, session);
   }

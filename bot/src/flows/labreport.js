@@ -1,9 +1,10 @@
 import { t } from "../i18n.js";
-import { send, typing, langOf, photoDataUrl } from "../utils.js";
+import { send, typing, langOf, photoDataUrl, documentBuffer } from "../utils.js";
 import { isPaid } from "../tiers.js";
 import { backKeyboard, labStartKeyboard } from "../keyboards.js";
 import { explainLab } from "../openai.js";
 import { addLabReport, countLabReportsSince, recentLabReports } from "../supabase.js";
+import { extractPdfText, isPdfMime } from "../pdf.js";
 
 // Free-tier ceiling. Paid users are unlimited. Spec: free users get a plan
 // limit rather than a hard block — see the "Explain My Report" write-up.
@@ -64,7 +65,32 @@ export async function labText(bot, chatId, session, text, msg) {
   }
 
   const imageDataUrl = msg ? await photoDataUrl(bot, msg) : null;
-  const userText = (text || msg?.caption || "").trim();
+  let userText = (text || msg?.caption || "").trim();
+
+  // PDF attachment: vision models can't read PDFs. Extract text server-side
+  // and feed it in as if the user had typed the values themselves. Applies to
+  // Telegram documents and to the pre-resolved WhatsApp path (both surface
+  // through documentBuffer). Web PDFs are handled earlier in web.js.
+  if (!imageDataUrl && msg) {
+    const doc = await documentBuffer(bot, msg);
+    if (doc && isPdfMime(doc.mime)) {
+      const extracted = await extractPdfText(doc.buffer);
+      if (extracted) {
+        userText = [userText, extracted].filter(Boolean).join("\n\n");
+      } else {
+        return send(bot, chatId, t(lang, "lab_pdf_unreadable"), {
+          keyboard: backKeyboard(lang),
+          markdown: true,
+        });
+      }
+    } else if (doc && !doc.mime.startsWith("image/")) {
+      return send(bot, chatId, t(lang, "lab_unsupported_file"), {
+        keyboard: backKeyboard(lang),
+        markdown: true,
+      });
+    }
+  }
+
   if (!userText && !imageDataUrl) {
     return send(bot, chatId, t(lang, "lab_prompt"), { keyboard: backKeyboard(lang), markdown: true });
   }

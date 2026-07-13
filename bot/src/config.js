@@ -96,12 +96,19 @@ export const config = {
   },
 };
 
-// At least one messaging channel must be configured. WhatsApp is the primary
-// channel; Telegram is an optional fallback.
-if (!config.telegramEnabled && !config.whatsapp.enabled) {
-  console.error(red("\n✖ No messaging channel configured."));
-  console.error(red("  Set WhatsApp credentials (D360_API_KEY for 360dialog, or"));
-  console.error(red("  WHATSAPP_TOKEN + WHATSAPP_PHONE_NUMBER_ID for Meta Cloud API),"));
-  console.error(red("  and/or TELEGRAM_BOT_TOKEN for the optional Telegram channel.\n"));
-  process.exit(1);
+// TELEGRAM DISABLED — the channel guard used to require WhatsApp OR Telegram.
+// With Telegram commented out (see index.js) the web chat GUI is always
+// available, so a warning is enough — don't exit if only WhatsApp is missing.
+if (!config.whatsapp.enabled) {
+  console.warn(
+    "   ⚠ WhatsApp not configured — running with the web chat GUI only. Set D360_API_KEY (360dialog) or WHATSAPP_TOKEN + WHATSAPP_PHONE_NUMBER_ID (Meta Cloud API) to enable it."
+  );
 }
+// Original guard, preserved for when Telegram is re-enabled:
+// if (!config.telegramEnabled && !config.whatsapp.enabled) {
+//   console.error(red("\n✖ No messaging channel configured."));
+//   console.error(red("  Set WhatsApp credentials (D360_API_KEY for 360dialog, or"));
+//   console.error(red("  WHATSAPP_TOKEN + WHATSAPP_PHONE_NUMBER_ID for Meta Cloud API),"));
+//   console.error(red("  and/or TELEGRAM_BOT_TOKEN for the optional Telegram channel.\n"));
+//   process.exit(1);
+// }

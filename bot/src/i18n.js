@@ -73,10 +73,15 @@ const STR = {
     fitness_prompt:
       "🏃 *Fitness Coach*. Tell me your day or energy level and I'll suggest safe movement.\n_Tap Back to Menu when done._",
     lab_prompt:
-      "📋 *Explain My Report*\n\nUpload your blood test or medical report — send a photo, or paste the values as text.\n\nI'll explain your results in simple language, highlight anything important, and tell you what it may mean for your diabetes.\n\n*Supported reports:*\n• Blood tests\n• HbA1c reports\n• Cholesterol / Lipid Profile\n• Kidney function tests\n• Liver function tests\n• Urine tests\n• Hospital laboratory reports\n• Diabetes-related investigations\n_Tap Back to Menu when done._",
-    btn_upload_lab: "📎 Upload Image",
+      "📋 *Explain My Report*\n\nUpload your blood test or medical report — send a photo, attach an image or PDF, or paste the values as text.\n\nI'll explain your results in simple language, highlight anything important, and tell you what it may mean for your diabetes.\n\n*Supported reports:*\n• Blood tests\n• HbA1c reports\n• Cholesterol / Lipid Profile\n• Kidney function tests\n• Liver function tests\n• Urine tests\n• Hospital laboratory reports\n• Diabetes-related investigations\n_Tap Back to Menu when done._",
+    btn_upload_lab: "📎 Attach Report",
+    btn_take_photo_lab: "📸 Take a Photo",
     upload_lab_hint:
-      "📸 Just attach the report photo and send.\n\n_Tap the attach icon (paperclip) in your chat, pick your report image, and hit send. I'll analyse it and add it to your record._",
+      "📸 Attach the report and send.\n\n_Tap the attach icon (paperclip) in your chat, pick your report (image or PDF) or take a fresh photo, and hit send. I'll analyse it and add it to your record._",
+    lab_pdf_unreadable:
+      "I received the PDF but couldn't read any text from it — it may be a scanned image. Please share a photo or screenshot of the report instead.",
+    lab_unsupported_file:
+      "That file type isn't supported yet — please attach a photo, an image file, or a PDF of your report.",
     lab_saved: "✅ Your report has been analyzed and added to your health record.",
     lab_disclaimer:
       "_Important: This explanation is for understanding your report only. Please consult your doctor before making any medical decisions or changing your treatment._",
@@ -94,7 +99,7 @@ const STR = {
     progress_low_data:
       "📈 *Your Progress*\n\nI don't have enough of your data yet to give you a useful report. Log a few blood-sugar readings, weight entries or a check-in, and talk to me regularly so I can spot trends. Your report gets better every time you use DrSaab.",
     progress_goals_header: "🎯 *My Goals*",
-    progress_no_goals: "_You haven't set any goals yet. Tap Goals & Progress to add one._",
+    progress_no_goals: "_You haven't set any goals yet._",
     progress_free_upgrade:
       "🔒 *Unlock Premium* to get:\n• Detailed progress reports\n• Goal tracking\n• Personalised AI recommendations\n• Advanced trend analysis\n• Doctor-ready summaries",
     progress_upgrade_cta: "⭐ Upgrade Now",
@@ -405,7 +410,7 @@ const STR = {
     btn_checkin: "🩺 Check In",
     btn_foodhelp: "🍽️ Food Help",
     btn_checkreport: "📋 Explain My Report",
-    btn_myprogress: "🎯 Goals & Progress",
+    // btn_myprogress removed — "Goals & Progress" retired per 2026-07 revision.
     btn_askdrsaab: "💬 Ask DrSaab",
     btn_more: "🌟 More",
     btn_main_menu: "🏠 Main Menu",
@@ -504,12 +509,8 @@ const STR = {
     btn_fh_label: "🏷️ Scan Nutrition Label",
     btn_fh_snacks: "🥜 Healthy Snack Ideas",
 
-    // My Progress submenu
-    progress_menu_title: "📈 *My Progress* — choose a view:",
-    btn_mp_weekly: "📅 Weekly Summary",
-    btn_mp_monthly: "📆 Monthly Summary",
-    btn_mp_trends: "📊 Health Trends",
-    btn_mp_recent: "📝 Recent Activity",
+    // "My Progress" / "Goals & Progress" submenu removed per 2026-07 revision —
+    // a data-trend summary now lives inside ❤️ My Health.
 
     // More submenu (keeps Challenges/Goals/Executive reachable)
     more_title: "⚙️ *More*",
@@ -618,7 +619,7 @@ const STR = {
       "Thanks for sharing that. It's important to discuss any medication concerns with your doctor before making any changes.",
 
     // Reminder-firing templates for new categories
-    reminder_template_med_consistency: "💊 {name}",
+    reminder_template_med_consistency: "💊 Don't forget to take your medications:\n{name}",
 
     // Ask DrSaab entry
     askdrsaab_prompt:
@@ -722,7 +723,7 @@ const STR = {
     reminders_prefs_title: "🔔 *Reminders*",
     reminders_prefs_intro: "Choose which reminders you'd like to receive. Tap a category to turn it on or off.",
     rem_cat_blood_sugar: "🩸 Blood Sugar",
-    rem_cat_medication: "💊 Medication Check-ins",
+    rem_cat_medication: "💊 Medication",
     rem_cat_goals: "🎯 Goal Reminders",
     rem_cat_coaching: "💬 Coaching Messages",
     rem_cat_on: "On",
@@ -1426,7 +1427,7 @@ const STR = {
     progress_low_data:
       "📈 *آپ کی پیش رفت*\n\nمفید رپورٹ کے لیے ابھی کافی معلومات نہیں۔ چند بلڈ شوگر ریڈنگز، وزن، یا چیک اِن لاگ کریں، اور DrSaab سے باقاعدہ بات کریں۔ جتنا آپ استعمال کریں گے، رپورٹ اتنی ہی بہتر ہو گی۔",
     progress_goals_header: "🎯 *میرے اہداف*",
-    progress_no_goals: "_ابھی کوئی ہدف نہیں — Goals & Progress سے شامل کریں۔_",
+    progress_no_goals: "_ابھی کوئی ہدف نہیں۔_",
     progress_free_upgrade:
       "🔒 *پریمیم* حاصل کریں:\n• تفصیلی پیش رفت رپورٹس\n• ہدف ٹریکنگ\n• ذاتی اے آئی سفارشات\n• جدید رجحان تجزیہ\n• ڈاکٹر کے لیے تیار خلاصے",
     progress_upgrade_cta: "⭐ ابھی اپ گریڈ کریں",
@@ -1446,7 +1447,7 @@ const STR = {
     reminders_prefs_intro:
       "منتخب کریں کہ آپ کون سی یاد دہانیاں وصول کرنا چاہتے ہیں۔ آن یا آف کرنے کے لیے کسی زمرے پر دبائیں۔",
     rem_cat_blood_sugar: "🩸 بلڈ شوگر",
-    rem_cat_medication: "💊 ادویات چیک اِن",
+    rem_cat_medication: "💊 ادویات",
     rem_cat_goals: "🎯 اہداف کی یاد دہانی",
     rem_cat_coaching: "💬 کوچنگ پیغامات",
     rem_cat_on: "آن",
@@ -2122,7 +2123,7 @@ const STR = {
     progress_low_data:
       "📈 *Aap ki Pesh-raft*\n\nMufeed report ke liye abhi kaafi data nahi. Kuch blood sugar readings, wazan, ya check-in log karein aur DrSaab se regular baat karein. Jitna aap use karenge, report utni behtar hoti jayegi.",
     progress_goals_header: "🎯 *Mere Goals*",
-    progress_no_goals: "_Abhi koi goal nahi — Goals & Progress se add karein._",
+    progress_no_goals: "_Abhi koi goal nahi._",
     progress_free_upgrade:
       "🔒 *Premium* unlock karein:\n• Tafseeli progress reports\n• Goal tracking\n• Personalized AI recommendations\n• Advanced trend analysis\n• Doctor-ready summaries",
     progress_upgrade_cta: "⭐ Abhi Upgrade karein",
@@ -2142,7 +2143,7 @@ const STR = {
     reminders_prefs_intro:
       "Chunein ke aap kaun se reminders chahte hain. On ya off karne ke liye category par tap karein.",
     rem_cat_blood_sugar: "🩸 Blood Sugar",
-    rem_cat_medication: "💊 Medication Check-ins",
+    rem_cat_medication: "💊 Medication",
     rem_cat_goals: "🎯 Goal Reminders",
     rem_cat_coaching: "💬 Coaching Messages",
     rem_cat_on: "On",

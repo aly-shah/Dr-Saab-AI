@@ -63,8 +63,7 @@ export function mainMenuKeyboard(lang) {
       [b("btn_glucose", "glucose"), b("btn_medication", "medication")],
       [b("btn_health", "health"), b("btn_food", "food")],
       [b("btn_coach", "coach"), b("btn_fitness", "fitness")],
-      [b("btn_lab", "lab"), b("btn_goals", "goals")],
-      [b("btn_challenges", "challenges"), b("btn_progress", "progress")],
+      [b("btn_lab", "lab"), b("btn_challenges", "challenges")],
       [b("btn_reports", "reports"), b("btn_learn", "learn")],
       [b("btn_executive", "executive"), b("btn_profile", "profile")],
       [b("btn_subscription", "subscription")],
@@ -80,133 +79,6 @@ export function upgradeKeyboard(lang) {
         { text: t(lang, "btn_view_plans"), callback_data: "feat:subscription" },
         { text: t(lang, "btn_maybe_later"), callback_data: "menu" },
       ],
-    ],
-  };
-}
-
-// Legacy single-goal keyboard, kept so any old deep-link that lands on it still
-// works. New flow starts from goalsListKeyboard below.
-export function goalsKeyboard(lang) {
-  return {
-    inline_keyboard: [
-      [{ text: t(lang, "btn_set_goal"), callback_data: "goal:add" }],
-      [{ text: t(lang, "btn_back"), callback_data: "menu" }],
-    ],
-  };
-}
-
-// ---- My Goals (2026-07): up to 3 active goals per user ----
-export const GOAL_MAX_ACTIVE = 3;
-
-// Suggestion keys map to i18n strings `goalsug_<key>`. `other` opens a
-// free-text prompt. Order matches the spec.
-export const GOAL_SUGGESTIONS = [
-  "lower_a1c",
-  "lose_weight",
-  "exercise_more",
-  "walk_more",
-  "improve_blood_sugar",
-  "take_meds",
-  "eat_healthy",
-  "improve_cholesterol",
-  "improve_bp",
-  "sleep_better",
-  "prepare_surgery",
-  "run_5k",
-];
-
-// Home screen for My Goals: one row per active goal (opens detail), plus
-// "Add a goal" if under the cap. Empty state falls back to just Add + Back.
-export function goalsListKeyboard(lang, activeGoals = []) {
-  const rows = [];
-  for (const g of activeGoals) {
-    const label = truncate(g.title || "goal", 40);
-    rows.push([{ text: label, callback_data: `goal:view:${g.id}` }]);
-  }
-  if (activeGoals.length < GOAL_MAX_ACTIVE) {
-    rows.push([{ text: t(lang, "btn_goal_add"), callback_data: "goal:add" }]);
-  }
-  rows.push([{ text: t(lang, "btn_back"), callback_data: "menu" }]);
-  return { inline_keyboard: rows };
-}
-
-export function goalSuggestionsKeyboard(lang) {
-  const rows = [];
-  for (let i = 0; i < GOAL_SUGGESTIONS.length; i += 2) {
-    const row = [];
-    for (const key of GOAL_SUGGESTIONS.slice(i, i + 2)) {
-      row.push({ text: t(lang, `goalsug_${key}`), callback_data: `goalsug:${key}` });
-    }
-    rows.push(row);
-  }
-  rows.push([{ text: t(lang, "goalsug_other"), callback_data: "goalsug:other" }]);
-  rows.push([{ text: t(lang, "btn_back"), callback_data: "feat:goals" }]);
-  return { inline_keyboard: rows };
-}
-
-// Motivation / target-date prompt: single Skip button (both fields are optional).
-export function goalSkipKeyboard(lang, action) {
-  return {
-    inline_keyboard: [
-      [{ text: t(lang, "btn_skip"), callback_data: `goal:skip:${action}` }],
-      [{ text: t(lang, "btn_back"), callback_data: "feat:goals" }],
-    ],
-  };
-}
-
-// Detail view for a single active goal — edit / mark complete / delete.
-export function goalDetailKeyboard(lang, goalId) {
-  return {
-    inline_keyboard: [
-      [{ text: t(lang, "btn_goal_edit"), callback_data: `goal:edit:${goalId}` }],
-      [{ text: t(lang, "btn_goal_complete"), callback_data: `goal:complete:${goalId}` }],
-      [{ text: t(lang, "btn_goal_delete"), callback_data: `goal:delete:${goalId}` }],
-      [{ text: t(lang, "btn_back"), callback_data: "feat:goals" }],
-    ],
-  };
-}
-
-export function goalEditKeyboard(lang, goalId) {
-  return {
-    inline_keyboard: [
-      [{ text: t(lang, "btn_goal_edit_title"), callback_data: `goaledit:${goalId}:title` }],
-      [{ text: t(lang, "btn_goal_edit_motivation"), callback_data: `goaledit:${goalId}:motivation` }],
-      [{ text: t(lang, "btn_goal_edit_target"), callback_data: `goaledit:${goalId}:target` }],
-      [{ text: t(lang, "btn_back"), callback_data: `goal:view:${goalId}` }],
-    ],
-  };
-}
-
-// Target-date reminder — Yes / Not Yet.
-export function goalReviewKeyboard(lang, goalId) {
-  return {
-    inline_keyboard: [
-      [
-        { text: t(lang, "btn_goal_review_yes"), callback_data: `goalrev:${goalId}:yes` },
-        { text: t(lang, "btn_goal_review_notyet"), callback_data: `goalrev:${goalId}:notyet` },
-      ],
-    ],
-  };
-}
-
-// Follow-up when the user says Yes (goal achieved).
-export function goalReviewYesKeyboard(lang, goalId) {
-  return {
-    inline_keyboard: [
-      [{ text: t(lang, "btn_goal_review_new"), callback_data: `goalrev:${goalId}:new` }],
-      [{ text: t(lang, "btn_goal_review_continue"), callback_data: `goalrev:${goalId}:continue` }],
-      [{ text: t(lang, "btn_goal_review_remove"), callback_data: `goalrev:${goalId}:remove` }],
-    ],
-  };
-}
-
-// Follow-up when the user says Not Yet.
-export function goalReviewNotYetKeyboard(lang, goalId) {
-  return {
-    inline_keyboard: [
-      [{ text: t(lang, "btn_goal_review_continue"), callback_data: `goalrev:${goalId}:continue` }],
-      [{ text: t(lang, "btn_goal_review_update_target"), callback_data: `goalrev:${goalId}:updatetarget` }],
-      [{ text: t(lang, "btn_goal_review_remove"), callback_data: `goalrev:${goalId}:remove` }],
     ],
   };
 }
@@ -282,6 +154,7 @@ export function labStartKeyboard(lang) {
   return {
     inline_keyboard: [
       [{ text: t(lang, "btn_upload_lab"), callback_data: "feat:upload_lab" }],
+      [{ text: t(lang, "btn_take_photo_lab"), callback_data: "feat:take_photo_lab" }],
       [{ text: t(lang, "btn_back"), callback_data: "menu" }],
     ],
   };
@@ -526,7 +399,7 @@ export function understandKeyboard(lang) {
 // Build 1 menu hierarchy (simplified spec, 2-level cap)
 // ===================================================================
 
-// New 6-item top menu per the Build 1 spec. Old features (Challenges, Goals,
+// New 6-item top menu per the Build 1 spec. Old features (Challenges,
 // Executive) move under "More" — see moreKeyboard below — so nothing is lost.
 // A single profile-based row is prepended above the defaults when the user's
 // onboarding selection matches one of the special-case profiles.
@@ -541,7 +414,6 @@ export function mainMenuKeyboardV2(lang, user) {
     b("btn_checkin", "checkin"),
     b("btn_foodhelp", "foodhelp"),
     b("btn_checkreport", "lab"),
-    b("btn_myprogress", "myprogress"),
     b("btn_askdrsaab", "askdrsaab"),
     b("btn_more", "more"),
   );
@@ -558,7 +430,6 @@ function profileMenuButton(lang, user) {
   const ut = user?.user_type;
   const dt = user?.diabetes_status;
   if (ut === "diabetes" && dt === "type1") return b("btn_p_type1", "type1");
-  if (ut === "diabetes" && dt === "type2") return b("btn_p_type2", "type2");
   if (ut === "diabetes" && dt === "gestational") return b("btn_p_pregnancy", "gestational");
   if (ut === "prediabetes") return b("btn_p_prediabetes", "prediabetes");
   if (ut === "healthier") return b("btn_p_healthier", "healthier");
@@ -589,20 +460,8 @@ export function foodHelpKeyboard(lang) {
   ]);
 }
 
-export function myProgressKeyboard(lang) {
-  const b = (key, action) => ({ text: t(lang, key), callback_data: `mp:${action}` });
-  return stack([
-    b("btn_mp_weekly", "weekly"),
-    b("btn_mp_monthly", "monthly"),
-    b("btn_mp_trends", "trends"),
-    b("btn_mp_recent", "recent"),
-    { text: t(lang, "btn_main_menu"), callback_data: "menu" },
-  ]);
-}
-
 // More — spec 2026-07: four items only (Reminders, Language, Subscription,
-// Account). Goals / Challenges / Executive stay callable via their `feat:`
-// deep links (Goals is still on the top-level menu as "Goals & Progress");
+// Account). Challenges / Executive stay callable via their `feat:` deep links;
 // they're just no longer surfaced from this screen.
 export function moreKeyboard(lang) {
   const b = (key, action) => ({ text: t(lang, key), callback_data: `mo:${action}` });
@@ -622,7 +481,6 @@ export function moreKeyboard(lang) {
 export const REMINDER_CATEGORIES = [
   { key: "blood_sugar",     labelKey: "rem_cat_blood_sugar",     icon: "🩸", prefField: "pref_rem_blood_sugar" },
   { key: "med_consistency", labelKey: "rem_cat_medication",      icon: "💊", prefField: "pref_rem_med_consistency" },
-  { key: "goals",           labelKey: "rem_cat_goals",           icon: "🎯", prefField: "pref_rem_goals" },
   { key: "coaching",        labelKey: "rem_cat_coaching",        icon: "💬", prefField: "pref_rem_coaching" },
 ];
 

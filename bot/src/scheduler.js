@@ -8,10 +8,9 @@
 //      (user_id, date) lands in daily_message_log — the DB unique index
 //      is the source of truth for "already sent today".
 //
-//   2. Legacy per-user reminder schedules and goal-target reviews. These
-//      are transactional (the user themselves created the reminder or
-//      goal), so they run independently of the composer and are not
-//      constrained by the 1/day system-message cap.
+//   2. Per-user reminder schedules. These are transactional (the user
+//      themselves created the reminder), so they run independently of the
+//      composer and are not constrained by the 1/day system-message cap.
 //
 // The pre-Build-1 morning-reminder / streak / weekly-summary / winback
 // branches have been removed — the composer replaces all four with
@@ -25,14 +24,11 @@ import {
   allActiveUsers,
   alreadySentToday,
   dueReminders,
-  goalsDueForReview,
   logDailyMessage,
   markReminderFired,
-  updateGoal,
 } from "./supabase.js";
-import { send, sanitizeMd } from "./utils.js";
+import { send } from "./utils.js";
 import { t } from "./i18n.js";
-import { goalReviewKeyboard } from "./keyboards.js";
 import { composeDailyMessage } from "./composer.js";
 import { config } from "./config.js";
 
@@ -86,35 +82,6 @@ async function fireDueReminders(bots, usersById) {
       await markReminderFired(r.id, nextIso);
     } catch (e) {
       console.error("reminder send/mark:", e?.message);
-    }
-  }
-}
-
-async function fireGoalReviews(bots, usersById) {
-  let due;
-  try {
-    due = await goalsDueForReview(new Date().toISOString().slice(0, 10));
-  } catch (e) {
-    return console.error("goal reviews query:", e?.message);
-  }
-  if (!due?.length) return;
-  for (const g of due) {
-    const u = usersById.get(g.user_id);
-    if (!u) continue;
-    const bot = botFor(bots, u);
-    const chat = chatIdFor(u);
-    if (!bot || !chat) continue;
-    const lang = u.language || "en";
-    try {
-      await send(
-        bot,
-        chat,
-        t(lang, "goal_review_prompt", { goal: sanitizeMd(g.title || "") }),
-        { keyboard: goalReviewKeyboard(lang, g.id), markdown: true },
-      );
-      await updateGoal(u.id, g.id, { review_sent_at: new Date().toISOString() });
-    } catch (e) {
-      console.error("goal review send:", e?.message);
     }
   }
 }
@@ -181,7 +148,6 @@ async function runTick(bots) {
 
   // Independent, user-opted-in paths — run every tick.
   await fireDueReminders(bots, usersById);
-  await fireGoalReviews(bots, usersById);
 
   // Composer path — runs once per day at the configured hour. The DB
   // unique constraint (user_id, date) is the ultimate idempotency guard,
@@ -202,6 +168,6 @@ export function startScheduler(bots = {}) {
   setInterval(tick, 15 * 60 * 1000); // every 15 minutes
   setTimeout(tick, 30 * 1000); // and shortly after boot
   console.log(
-    `   Scheduler on (composer at ${config.composer.hour}:00 PKT, plus reminders/goal reviews).`
+    `   Scheduler on (composer at ${config.composer.hour}:00 PKT, plus reminders).`
   );
 }

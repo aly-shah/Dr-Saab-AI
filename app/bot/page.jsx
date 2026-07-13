@@ -74,6 +74,7 @@ export default function BotChatPage() {
   const taRef = useRef(null);
   const startedRef = useRef(false);
   const fileRef = useRef(null);
+  const cameraRef = useRef(null);
 
   useEffect(() => {
     setMounted(true);
@@ -164,10 +165,14 @@ export default function BotChatPage() {
 
   const sendCallback = (btn) => {
     if (loading) return;
-    // Special-case: the "Upload Image" chip on the Explain My Report screen
-    // opens the browser file picker instead of firing the bot callback.
+    // Special-case: the two attach chips on the Explain My Report screen open
+    // the browser file picker / camera instead of firing the bot callback.
     if (btn.data === "feat:upload_lab") {
       fileRef.current?.click();
+      return;
+    }
+    if (btn.data === "feat:take_photo_lab") {
+      cameraRef.current?.click();
       return;
     }
     setMessages((prev) => [...prev, { from: "user", text: btn.label }]);
@@ -178,16 +183,31 @@ export default function BotChatPage() {
     const file = e.target.files?.[0];
     e.target.value = ""; // allow re-selecting the same file later
     if (!file || loading) return;
-    if (!file.type?.startsWith("image/")) return;
+    const isImage = !!file.type?.startsWith("image/");
+    const isPdf = file.type === "application/pdf";
+    if (!isImage && !isPdf) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          from: "bot",
+          text: "That file type isn't supported yet — please attach a photo, an image file, or a PDF of your report.",
+          rows: [],
+        },
+      ]);
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = String(reader.result || "");
       if (!dataUrl) return;
       const caption = input.trim();
-      setMessages((prev) => [...prev, { from: "user", image: dataUrl, text: caption }]);
+      const bubble = isImage
+        ? { from: "user", image: dataUrl, text: caption }
+        : { from: "user", text: `📄 ${file.name || "report.pdf"}${caption ? `\n${caption}` : ""}` };
+      setMessages((prev) => [...prev, bubble]);
       setInput("");
       requestAnimationFrame(() => taRef.current && (taRef.current.style.height = "auto"));
-      callBot({ type: "image", dataUrl, caption });
+      callBot({ type: isImage ? "image" : "file", dataUrl, caption });
     };
     reader.readAsDataURL(file);
   };
@@ -396,7 +416,15 @@ export default function BotChatPage() {
             <input
               ref={fileRef}
               type="file"
+              accept="image/*,application/pdf"
+              onChange={onFilePicked}
+              className="hidden"
+            />
+            <input
+              ref={cameraRef}
+              type="file"
               accept="image/*"
+              capture="environment"
               onChange={onFilePicked}
               className="hidden"
             />
@@ -404,12 +432,25 @@ export default function BotChatPage() {
               type="button"
               onClick={() => fileRef.current?.click()}
               disabled={loading}
-              aria-label="Attach image"
-              title="Attach report image"
+              aria-label="Attach image or PDF"
+              title="Attach report (image or PDF)"
               className="grid h-10 w-10 flex-none place-items-center rounded-full text-ink/55 transition hover:bg-muted hover:text-primary disabled:opacity-30"
             >
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21.4 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 1 1 4.95 4.95l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.49" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => cameraRef.current?.click()}
+              disabled={loading}
+              aria-label="Take a photo"
+              title="Take a photo of the report"
+              className="grid h-10 w-10 flex-none place-items-center rounded-full text-ink/55 transition hover:bg-muted hover:text-primary disabled:opacity-30"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 8h3l2-2h6l2 2h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2z" />
+                <circle cx="12" cy="13" r="4" />
               </svg>
             </button>
             <textarea

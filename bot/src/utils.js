@@ -70,19 +70,56 @@ export async function typing(bot, chatId) {
 // Return a base64 data URL for any image attached to the message, suitable for
 // the vision model. Adapters that resolve media themselves (e.g. WhatsApp)
 // pass it pre-computed as msg.__imageDataUrl; Telegram downloads on demand.
-// Returns null if there's no photo.
+// Accepts either `msg.photo` (compressed image) or `msg.document` when the
+// document's mime type is image/* (a user who attaches a JPG/PNG as "File"
+// rather than "Photo" in the Telegram client). Returns null otherwise; PDFs
+// travel through the separate documentBuffer() path below.
 export async function photoDataUrl(bot, msg) {
   if (msg?.__imageDataUrl) return msg.__imageDataUrl;
-  const photos = msg.photo;
-  if (!photos || !photos.length) return null;
-  const fileId = photos[photos.length - 1].file_id;
+  const photos = msg?.photo;
+  if (photos?.length) {
+    const fileId = photos[photos.length - 1].file_id;
+    try {
+      const link = await bot.getFileLink(fileId);
+      const res = await fetch(link);
+      const buf = Buffer.from(await res.arrayBuffer());
+      return `data:image/jpeg;base64,${buf.toString("base64")}`;
+    } catch (e) {
+      console.error("photo download failed:", e?.message);
+      return null;
+    }
+  }
+  const doc = msg?.document;
+  if (doc?.file_id && typeof doc.mime_type === "string" && doc.mime_type.startsWith("image/")) {
+    try {
+      const link = await bot.getFileLink(doc.file_id);
+      const res = await fetch(link);
+      const buf = Buffer.from(await res.arrayBuffer());
+      return `data:${doc.mime_type};base64,${buf.toString("base64")}`;
+    } catch (e) {
+      console.error("image document download failed:", e?.message);
+      return null;
+    }
+  }
+  return null;
+}
+
+// Download a Telegram document (or return a WhatsApp-provided buffer) as a
+// { mime, buffer } pair. Used for PDFs on the lab-report flow — the caller
+// then extracts text via pdf.js. Returns null if there's no document.
+export async function documentBuffer(bot, msg) {
+  if (msg?.__documentBuffer && msg?.__documentMime) {
+    return { mime: msg.__documentMime, buffer: msg.__documentBuffer };
+  }
+  const doc = msg?.document;
+  if (!doc?.file_id) return null;
   try {
-    const link = await bot.getFileLink(fileId);
+    const link = await bot.getFileLink(doc.file_id);
     const res = await fetch(link);
     const buf = Buffer.from(await res.arrayBuffer());
-    return `data:image/jpeg;base64,${buf.toString("base64")}`;
+    return { mime: doc.mime_type || "application/octet-stream", buffer: buf };
   } catch (e) {
-    console.error("photo download failed:", e?.message);
+    console.error("document download failed:", e?.message);
     return null;
   }
 }

@@ -4,6 +4,7 @@
 
 import http from "node:http";
 import { handleMessage, handleCallback } from "./bot.js";
+import { parseDataUrl, isPdfMime, isImageMime, extractPdfText } from "./pdf.js";
 
 function createVirtualBot(buffer) {
   return {
@@ -37,18 +38,48 @@ async function processWeb(sessionId, type, payload) {
         from: { id: sessionId },
         __source: "web",
       });
-    } else if (type === "image") {
-      // Web upload: frontend already read the file as a data URL. Feed it into
-      // the shared flow using the same __imageDataUrl channel WhatsApp uses.
+    } else if (type === "image" || type === "file") {
+      // Web upload: frontend already read the file as a data URL. Two shapes:
+      //   • image (image/jpeg, image/png, …) → passed as __imageDataUrl so the
+      //     shared flows send it to the vision model.
+      //   • PDF (application/pdf) → text is extracted here and passed as the
+      //     message text, so the lab flow can analyse it as if the user typed
+      //     the values. Vision models can't read PDFs directly.
       const { dataUrl, caption } = payload || {};
-      await handleMessage(vbot, {
-        chat: { id: sessionId },
-        from: { id: sessionId },
-        text: caption || "",
-        caption: caption || "",
-        __imageDataUrl: dataUrl,
-        __source: "web",
-      });
+      const parsed = parseDataUrl(dataUrl);
+      if (parsed && isPdfMime(parsed.mime)) {
+        const text = await extractPdfText(parsed.buffer);
+        if (!text) {
+          buffer.push({
+            text:
+              "I received the PDF but couldn't read any text from it — it may be a scanned image. Please share a photo or screenshot of the report instead.",
+            rows: [],
+          });
+          return buffer;
+        }
+        const combined = [caption?.trim(), text].filter(Boolean).join("\n\n");
+        await handleMessage(vbot, {
+          chat: { id: sessionId },
+          from: { id: sessionId },
+          text: combined,
+          __source: "web",
+        });
+      } else if (parsed && isImageMime(parsed.mime)) {
+        await handleMessage(vbot, {
+          chat: { id: sessionId },
+          from: { id: sessionId },
+          text: caption || "",
+          caption: caption || "",
+          __imageDataUrl: dataUrl,
+          __source: "web",
+        });
+      } else {
+        buffer.push({
+          text:
+            "That file type isn't supported yet — please attach a photo, an image file, or a PDF of your report.",
+          rows: [],
+        });
+      }
     } else {
       await handleMessage(vbot, {
         chat: { id: sessionId },
@@ -108,7 +139,7 @@ export function startWebServer() {
           }
           let payload;
           if (type === "callback") payload = data;
-          else if (type === "image") payload = { dataUrl, caption };
+          else if (type === "image" || type === "file") payload = { dataUrl, caption };
           else payload = text;
           const messages = await processWeb(sessionId, type, payload);
           return sendJson(res, 200, { messages });
