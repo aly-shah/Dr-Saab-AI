@@ -53,9 +53,11 @@ export async function handleUploadLabButton(bot, chatId, session) {
 export async function labText(bot, chatId, session, text, msg) {
   const lang = langOf(session);
 
-  // Free-tier monthly cap. Paid users bypass entirely.
+  // Free-tier monthly cap. Paid users bypass entirely. If the count query
+  // itself fails (DB down / schema missing) we fail-open so a background DB
+  // hiccup can't block a paying-adjacent feature from running at all.
   if (!isPaid(session.user)) {
-    const used = await countLabReportsSince(session.user.id, firstOfThisMonthIso());
+    const used = await countLabReportsSince(session.user.id, firstOfThisMonthIso()).catch(() => 0);
     if (used >= FREE_MONTHLY_LIMIT) {
       return send(bot, chatId, t(lang, "lab_limit_reached", { limit: FREE_MONTHLY_LIMIT }), {
         keyboard: backKeyboard(lang),
@@ -107,18 +109,33 @@ export async function labText(bot, chatId, session, text, msg) {
       priorLine
     );
 
-    // Auto-save: analysis text + structured extraction. Never asks the user.
-    await addLabReport(session.user.id, userText || "[image]", analysis, {
-      metadata,
-      values,
-      lab_source: labSource,
-    });
+    // Guard: an empty reply from the LLM (Groq occasionally returns "" under
+    // load) would send a blank message that the transport silently rejects,
+    // leaving the user staring at a disclaimer with nothing above it. Treat
+    // it as a generic failure so they see a real message and can retry.
+    if (!analysis || !String(analysis).trim()) {
+      throw new Error("empty analysis from LLM");
+    }
 
+    // Send the analysis first, so a follow-up failure (e.g. history insert)
+    // doesn't hide the answer we already have from the user.
     await send(bot, chatId, analysis, { keyboard: backKeyboard(lang), markdown: true });
     await send(bot, chatId, t(lang, "lab_disclaimer"), { markdown: true });
-    await send(bot, chatId, t(lang, "lab_saved"), { markdown: true });
+
+    // History save is best-effort. If the DB is misconfigured the user still
+    // gets their explanation; we just log the failure and skip the "saved" note.
+    try {
+      await addLabReport(session.user.id, userText || "[image]", analysis, {
+        metadata,
+        values,
+        lab_source: labSource,
+      });
+      await send(bot, chatId, t(lang, "lab_saved"), { markdown: true });
+    } catch (dbErr) {
+      console.error("lab history save failed:", dbErr?.stack || dbErr?.message || dbErr);
+    }
   } catch (e) {
-    console.error("lab error:", e?.message);
+    console.error("lab error:", e?.stack || e?.message || e);
     const key = e?.aiLimited ? "error_ai_limit" : "error_generic";
     await send(bot, chatId, t(lang, key), { keyboard: backKeyboard(lang) });
   }
