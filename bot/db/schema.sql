@@ -789,3 +789,100 @@ create table if not exists public.user_health_goal (
   created_at   timestamptz default now()
 );
 create index if not exists user_health_goal_user_idx on public.user_health_goal(user_id, status, created_at desc);
+
+-- ============================================================
+-- Habit Builder (Better Me → Build a New Habit, spec 2026-07)
+-- ------------------------------------------------------------
+-- One active habit per user at a time (enforced by the partial unique index
+-- below). Lifecycle: setup_pending → daily_cycle → sunday_maintenance_1/2
+-- → established/weekly_maintenance, with paused / reminders_disabled /
+-- removed side-states. Every scheduled reminder writes a habit_check_ins
+-- row; user answers update it in place (unique on user_habit_id, log_date).
+-- ============================================================
+
+create table if not exists public.user_habits (
+  id                     uuid primary key default gen_random_uuid(),
+  user_id                uuid references public.users(id) on delete cascade,
+  habit_type             text not null,                       -- move | water | sleep | smoke_free | no_food_after_dinner
+  habit_name             text not null,                       -- display name snapshot (matches user's language at creation)
+  target_value           numeric,                             -- water: glasses/day; else null
+  target_unit            text,                                -- glasses | minutes | none
+  target_time            text,                                -- sleep: 'HH:MM' local; else null
+  lifecycle_state        text not null default 'setup_pending',
+    -- setup_pending | daily_cycle | daily_cycle_extension |
+    -- sunday_maintenance_1 | sunday_maintenance_2 | established |
+    -- weekly_maintenance | paused | reminders_disabled | removed
+  habit_status           text not null default 'active',      -- active | established | paused | inactive | removed
+  active_slot            boolean not null default true,       -- gates the one-active-habit rule
+  reminder_status        text not null default 'enabled',     -- enabled | paused | disabled
+  reminder_frequency     text not null default 'daily',       -- daily | weekly_sunday | manual_only | none
+  reminder_schedule_id   uuid,                                -- soft fk into reminder_schedules(id)
+  current_cycle_number   int  not null default 1,
+  cycle_start_date       date,
+  cycle_end_date         date,
+  next_check_in_date     date,
+  sunday_check_in_number int  not null default 0,
+  current_streak         int  not null default 0,
+  best_streak            int  not null default 0,
+  last_variation         int,                                 -- 1..3 to prevent consecutive-day repeats
+  created_at             timestamptz not null default now(),
+  updated_at             timestamptz not null default now(),
+  paused_until           timestamptz,
+  established_at         timestamptz,
+  removed_at             timestamptz
+);
+create index if not exists user_habits_user_idx on public.user_habits(user_id, active_slot);
+-- One active habit per user. Removed / paused / reminders_disabled rows keep
+-- their history but set active_slot=false so another habit can be started.
+create unique index if not exists user_habits_one_active_idx
+  on public.user_habits(user_id) where active_slot = true;
+
+drop trigger if exists user_habits_touch on public.user_habits;
+create trigger user_habits_touch before update on public.user_habits
+  for each row execute function public.touch_updated_at();
+
+create table if not exists public.habit_check_ins (
+  id                   uuid primary key default gen_random_uuid(),
+  user_habit_id        uuid references public.user_habits(id) on delete cascade,
+  user_id              uuid references public.users(id) on delete cascade,
+  log_date             date not null,                        -- local calendar day the check-in is for
+  response_status      text not null default 'no_response',  -- completed | not_completed | no_response | manual_entry
+  completed            boolean,
+  reminder_sent_at     timestamptz,
+  response_received_at timestamptz,
+  message_variation_id int,                                   -- 1..3 (which rotating template was used)
+  created_at           timestamptz not null default now()
+);
+create unique index if not exists habit_check_ins_habit_date_key
+  on public.habit_check_ins(user_habit_id, log_date);
+create index if not exists habit_check_ins_user_idx
+  on public.habit_check_ins(user_id, created_at desc);
+
+-- ============================================================
+-- 10-Minute Wins (Better Me → 10 Minute Wins, spec 2026-07)
+-- ------------------------------------------------------------
+-- Lightweight motivation: one small challenge per calendar day. Rotation
+-- excludes the previous 5 days' picks; one swap per day is allowed
+-- (recorded in-place via replacement_used, since the unique (user_id,
+-- challenge_date) key means only one row exists per user per day).
+-- Counters on the users row are the source of truth for completion %.
+-- ============================================================
+
+alter table public.users add column if not exists wins_completed          int  default 0;
+alter table public.users add column if not exists wins_skipped            int  default 0;
+alter table public.users add column if not exists last_win_completed_date date;
+
+create table if not exists public.win_challenge_log (
+  id                bigint generated always as identity primary key,
+  user_id           uuid references public.users(id) on delete cascade,
+  challenge_id      text not null,             -- walk | stretch | water | declutter | unplug
+  challenge_name    text,                      -- localized title snapshot at pick time
+  challenge_date    date not null,
+  status            text not null default 'no_response', -- completed | skipped | no_response
+  replacement_used  boolean not null default false,
+  created_at        timestamptz not null default now()
+);
+create unique index if not exists win_challenge_log_user_date_key
+  on public.win_challenge_log(user_id, challenge_date);
+create index if not exists win_challenge_log_user_recent_idx
+  on public.win_challenge_log(user_id, challenge_date desc);

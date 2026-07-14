@@ -73,7 +73,7 @@ const STR = {
     fitness_prompt:
       "🏃 *Fitness Coach*. Tell me your day or energy level and I'll suggest safe movement.\n_Tap Back to Menu when done._",
     lab_prompt:
-      "📋 *Explain My Report*\n\nUpload your blood test or medical report — send a photo, attach an image or PDF, or paste the values as text.\n\nI'll explain your results in simple language, highlight anything important, and tell you what it may mean for your diabetes.\n\n*Supported reports:*\n• Blood tests\n• HbA1c reports\n• Cholesterol / Lipid Profile\n• Kidney function tests\n• Liver function tests\n• Urine tests\n• Hospital laboratory reports\n• Diabetes-related investigations\n_Tap Back to Menu when done._",
+      "📋 *Explain My Report*\n\n📸 *Just send your report right here in the chat* — a photo, image, or PDF. You can also paste the values as text.\n\nI'll explain your results in simple language, highlight anything important, and tell you what it may mean for your diabetes.\n\n*Supported reports:*\n• Blood tests\n• HbA1c reports\n• Cholesterol / Lipid Profile\n• Kidney function tests\n• Liver function tests\n• Urine tests\n• Hospital laboratory reports\n• Diabetes-related investigations\n_Tap Back to Menu when done._",
     btn_upload_lab: "📎 Attach Report",
     btn_take_photo_lab: "📸 Take a Photo",
     upload_lab_hint:
@@ -406,7 +406,8 @@ const STR = {
     profileq_done: "Your background profile is complete. Thank you!",
 
     // ===== Build 1: new menu hierarchy =====
-    menu_v2_title: "Choose an option from the Menu:",
+    menu_v2_title:
+      "🩺 DrSaab is ready!\n💬 Ask me anything.\n⚡ Use a quick command.\n👇 Or choose from the menu below.",
     btn_checkin: "🩺 Check In",
     btn_foodhelp: "🍽️ Food Help",
     btn_checkreport: "📋 Explain My Report",
@@ -431,23 +432,60 @@ const STR = {
     // Resume (in progress)
     mh_resume_welcome: "❤️ *My Health*\n\nWelcome back! Last time we talked about {done}.\n\nLet's continue.",
     mh_resume_welcome_nostep: "❤️ *My Health*\n\nWelcome back! Let's continue where we left off.",
+    // Recap snippets (used in the resume banner). Keys are step-agnostic so
+    // question order can be re-shuffled in code without churning i18n.
+    mh_recap_aboutyou: "your basics",
     mh_recap_conditions: "your health conditions",
     mh_recap_medications: "your medicines",
     mh_recap_metrics: "your health numbers",
     mh_recap_lifestyle: "your lifestyle",
     mh_recap_goal: "your goal",
-    // Question headers / prompts
+    mh_recap_anything: "anything else",
+    // Question headers / prompts (2026-07 spec: 7 conversational steps)
     mh_question_of: "*Question {n} of {total}*",
-    mh_q1_conditions:
-      "Let's start with the basics.\n\nWhat health conditions do you currently have? Just type naturally.\n\nExample: \"I have Type 2 diabetes, high blood pressure and cholesterol.\"",
-    mh_q2_medications:
-      "What medicines are you currently taking?\n\nYou can:\n• Type them\n• Send a photo of the medicine boxes\n• Send a photo of your prescription",
-    mh_q3_metrics:
-      "Do you know any of your latest health numbers?\n\nFor example:\n• HbA1c\n• Blood sugar\n• Weight\n• Blood pressure\n\nJust tell me whichever ones you know.",
-    mh_q4_lifestyle:
-      "Tell me a little about your lifestyle.\n\nFor example:\n• Do you smoke?\n• Do you exercise?\n\nJust answer naturally.",
-    mh_q5_goal:
-      "Finally...\n\nWhat's the one thing you'd most like to improve over the next few months?\n\nExample: better blood sugar, lose weight, build muscle, stay healthy, run a 5K.",
+    // Q1 — About You. Pre-fill: {known_block} lists whatever gender/age/height/
+    // weight we already have; {ask} is a per-state sentence (all known / some
+    // missing / none known).
+    mh_q_aboutyou:
+      "👋 *About You*\n\n{known_block}{ask}",
+    mh_q_aboutyou_ask_confirm:
+      "Everything look right? Reply *ok* to keep it, or type any updates (e.g. \"weight 76kg\", \"female, 32\").",
+    mh_q_aboutyou_ask_missing:
+      "Please also tell me your *{missing}* — just type naturally.",
+    mh_q_aboutyou_ask_none:
+      "Tell me your *gender*, *age*, *height* and *current weight* — just type naturally (e.g. \"female, 32, 168cm, 62kg\").",
+    mh_q_aboutyou_missing_gender: "gender",
+    mh_q_aboutyou_missing_age: "age",
+    mh_q_aboutyou_missing_height: "height",
+    mh_q_aboutyou_missing_weight: "current weight",
+    mh_aboutyou_line_gender: "• Gender: *{value}*",
+    mh_aboutyou_line_age: "• Age: *{value}*",
+    mh_aboutyou_line_height: "• Height: *{value} cm*",
+    mh_aboutyou_line_weight: "• Weight: *{value} kg*",
+    mh_aboutyou_ok_ack: "Great — thanks for confirming.",
+    mh_aboutyou_updated: "✅ Updated your basics.",
+    mh_none_aboutyou:
+      "I didn't catch any details there. Try something like \"male, 42, 174cm, 78kg\" — or just the parts I'm missing.",
+    // Q2 — Health conditions
+    mh_q_conditions:
+      "❤️ *Your Health*\n\nWhich health conditions do you currently have? Just tell me naturally.\n\nExample: \"I have Type 2 diabetes, high blood pressure and cholesterol.\"",
+    // Q3 — Medicines
+    mh_q_medications:
+      "💊 *Medicines*\n\nWhat medicines or supplements do you currently take?\n\nYou can:\n• Type them\n• Send a photo of the medicine boxes\n• Send a photo of your prescription",
+    // Q4 — Health numbers (expanded to include cholesterol)
+    mh_q_metrics:
+      "📊 *Health Numbers*\n\nTell me any recent health numbers you know — HbA1c, blood sugar, blood pressure, weight, cholesterol, etc.\n\nJust list whichever ones you know.",
+    // Q5 — Lifestyle (expanded to smoking, alcohol, exercise, sleep)
+    mh_q_lifestyle:
+      "🌿 *Your Lifestyle*\n\nTell me a little about your lifestyle — smoking, alcohol, exercise and sleep.\n\nJust answer naturally.",
+    // Q6 — Goal
+    mh_q_goal:
+      "🎯 *Your Goal*\n\nWhat's the biggest thing you'd like to improve over the next few months?\n\nExample: better blood sugar, lose weight, build muscle, stay healthy, run a 5K.",
+    // Q7 — Anything Else? (free-text catch-all)
+    mh_q_anything:
+      "😊 *Anything Else?*\n\nAnything important DrSaab should know? Surgery, injury, allergies, pregnancy, or anything else. If not, simply reply *Nothing else*.",
+    mh_anything_none_ack: "Got it — nothing else to note.",
+    mh_anything_saved: "✅ Noted. Thanks for sharing.",
     // Confirmation card
     mh_confirm_intro: "I've recorded:\n\n{lines}\n\nIs that correct?",
     mh_edit_reask: "No problem — go ahead and type it again.",
@@ -484,6 +522,13 @@ const STR = {
     mh_update_hint:
       "Just tell me what's changed and I'll update your health profile.\n\nExamples: \"My fasting sugar was 104\", \"I now weigh 76 kg\", \"I've started taking Ozempic.\"",
     mh_update_saved: "✅ Updated your health profile.",
+    // Summary card buttons (spec 2026-07: Update My Health Profile + Main Menu)
+    btn_mh_update_profile: "✏️ Update My Health Profile",
+    btn_mh_main_menu: "🏠 Main Menu",
+    mh_update_profile_confirm:
+      "Restarting your health profile will walk you through the 7 questions again. Your existing conditions, medicines and history stay saved. Continue?",
+    btn_mh_update_yes: "✅ Yes, restart",
+    btn_mh_update_no: "↩️ Cancel",
 
     // Profile-based main-menu additions (shown conditionally per user)
     btn_p_type1: "🤝 Type 1 Community",
@@ -580,7 +625,7 @@ const STR = {
 
     // Medication — first-time setup
     med_setup_prompt:
-      "Let's set up your medications. 💊\nYou can either:\n\n📷 *Upload a photo* of your medications or prescription (multiple medications in one photo is fine), or\n\n✍️ *Type your medications* in a message.\n\n_Example:_\n• Metformin 500mg twice daily\n• Rosuvastatin 10mg once daily\n• Humalog insulin 8 units before breakfast\n• Lantus insulin 20 units at bedtime",
+      "Let's set up your medications. 💊\nYou can either:\n\n📷 *Send a photo* of your medications or prescription right here in the chat (multiple medications in one photo is fine), or\n\n✍️ *Type your medications* in a message.\n\n_Example:_\n• Metformin 500mg twice daily\n• Rosuvastatin 10mg once daily\n• Humalog insulin 8 units before breakfast\n• Lantus insulin 20 units at bedtime",
     med_photo_soon:
       "📷 Photo extraction is coming soon. For now, please type your medications — you can list several in one message.",
     med_confirm_intro: "Here's what I understood:\n\n{lines}\n\nIs everything correct?",
@@ -921,7 +966,7 @@ const STR = {
       "Got it — *{junk}*. About how many times each week do you eat these foods?",
     // Step 3 — video share
     pd_crav_video:
-      "Thanks. I'd like you to watch this short video — it explains how sugary drinks and ultra-processed foods can affect your long-term health.\n\n[▶️ Watch the video](https://www.youtube.com/watch?v=DHma9_xQgD8&t=45s)",
+      "Thanks. I'd like you to watch this short video — it explains how sugary drinks and ultra-processed foods can affect your long-term health.\n\n[▶️ Watch the video](https://www.youtube.com/shorts/iNaq4vHPQYY)",
     // Step 4 — reflection
     pd_crav_reflection_q:
       "After watching the video, what changes do you think you could realistically make over the next few weeks?",
@@ -947,28 +992,87 @@ const STR = {
     btn_bm_habit: "🎯 Build a New Habit",
     btn_bm_fitness: "🏋️ My Fitness Plan",
     btn_bm_wins: "⚡ 10-Minute Wins",
-    btn_bm_journey: "❤️ My Health Journey",
 
-    // Build a New Habit
-    bm_habit_title: "🎯 *Build a New Habit*",
-    bm_habit_intro: "Small daily habits build lifelong health. Pick one habit to start with:",
-    bm_habit_water: "Drink more water",
-    bm_habit_sleep: "Sleep earlier",
-    bm_habit_walk: "Walk every day",
-    bm_habit_exercise: "Exercise regularly",
-    bm_habit_veggies: "Eat more vegetables",
-    bm_habit_less_sugar: "Reduce sugar",
-    bm_habit_quit_smoking: "Quit smoking",
-    bm_habit_stress: "Reduce stress",
-    bm_habit_read: "Read daily",
-    bm_habit_pray: "Pray consistently",
-    bm_habit_other: "Something else",
-    bm_habit_other_q: "Great — describe the habit you'd like to build (in your own words).",
-    bm_habit_why_q:
-      "You chose *{habit}*. Why does this habit matter to you?\n\n_A short reason keeps you motivated on tough days._",
-    bm_habit_days_q: "How many days each week can you realistically do this?",
-    bm_habit_done:
-      "✅ Habit set: *{habit}*\nTarget: *{days} day(s)/week*\n\nI'll cheer you on and use this in your future check-ins. Small, steady steps win the race.",
+    // Habit Builder — spec 2026-07 (replaces the old free-form habit picker).
+    bm_habit_title: "🎯 *Habit Builder*",
+    bm_habit_intro:
+      "🌱 Let's build one small habit at a time.\n\nWhich habit would you like to work on?",
+    // Habit library (5 MVP habits)
+    bm_habit_lib_move: "🚶 Move for 20 Minutes",
+    bm_habit_lib_water: "💧 Reach Your Water Goal",
+    bm_habit_lib_sleep: "😴 Sleep Before Your Target Time",
+    bm_habit_lib_smoke_free: "🚭 Stay Smoke-Free",
+    bm_habit_lib_no_food_after_dinner: "🌙 No Food After Dinner",
+    // Per-habit setup intros
+    bm_habit_setup_move:
+      "Your goal is to move for at least 20 minutes a day. Walking, exercise, swimming, cycling or any other physical activity counts.",
+    bm_habit_setup_water_q: "How many glasses of water would you like to aim for each day?",
+    bm_habit_setup_water_other_q: "How many glasses per day would you like to aim for? Type a number.",
+    bm_habit_setup_sleep_q: "What time would you like to be asleep by?",
+    bm_habit_setup_sleep_other_q: "Type your target bedtime (e.g., 10:30 PM).",
+    bm_habit_setup_smoke_free:
+      "Your goal is to stay completely smoke-free each day. A difficult day does not erase your progress.",
+    bm_habit_setup_no_food_after_dinner:
+      "Once dinner is finished, avoid eating again until breakfast.",
+    // Water target buttons
+    btn_hb_water_6: "6",
+    btn_hb_water_8: "8",
+    btn_hb_water_10: "10",
+    btn_hb_water_other: "Another amount",
+    // Sleep time buttons
+    btn_hb_sleep_1030: "10:30 PM",
+    btn_hb_sleep_1100: "11:00 PM",
+    btn_hb_sleep_1130: "11:30 PM",
+    btn_hb_sleep_other: "Another time",
+    // Activation confirmation
+    bm_habit_activation_msg:
+      "✅ Your habit has been added.\n\nFor the first 7 days, DrSaab will check in with you daily. If the habit is going well, check-ins will then move to Sundays.",
+    btn_hb_start: "🌱 Start",
+    btn_hb_start_silent: "🔕 Start Without Reminders",
+    btn_hb_cancel: "❌ Cancel",
+    bm_habit_started_reminders:
+      "🌱 Great — I'll check in with you tomorrow. Say the word any time to pause or stop reminders.",
+    bm_habit_started_silent:
+      "🌱 Habit saved. Reminders are off — log your progress from Habit Builder whenever you like.",
+    bm_habit_cancelled: "Cancelled. Come back whenever you're ready to try again.",
+    // One-active-habit enforcement
+    bm_habit_already_active_title: "You're currently working on: *{name}*",
+    bm_habit_already_active_body:
+      "You can continue with it, adjust it, pause it, stop reminders or remove it before starting another habit.",
+    // Daily reminder — three rotating variations (spec §8)
+    bm_habit_daily_v1: "🌱 Quick habit check: {question}",
+    bm_habit_daily_v2: "Small actions add up. {question}",
+    bm_habit_daily_v3: "You're on a *{streak}-day* streak for *{name}*. {question}",
+    bm_habit_daily_v3_zero: "Every streak begins with one completed day. {question}",
+    // Per-habit daily questions (rendered as {question})
+    bm_habit_q_move: "Did you move for at least 20 minutes today?",
+    bm_habit_q_water: "Did you reach your water goal today ({target} glasses)?",
+    bm_habit_q_sleep: "Were you asleep before {target}?",
+    bm_habit_q_smoke_free: "Did you stay smoke-free today?",
+    bm_habit_q_no_food_after_dinner: "Did you avoid eating after dinner?",
+    // Daily response buttons + acks
+    btn_hb_yes: "✅ Yes",
+    btn_hb_no: "❌ Not Today",
+    btn_hb_stop: "🔕 Stop Reminders",
+    bm_habit_ack_yes: "✅ Done. Another small win added.",
+    bm_habit_ack_no:
+      "That's okay. One missed day does not cancel your progress. We'll try again tomorrow.",
+    // Stop-reminders confirm
+    bm_habit_stop_confirm: "Turn off reminders for *{name}*?",
+    btn_hb_stop_yes: "🔕 Yes, Stop Reminders",
+    btn_hb_keep_reminders: "↩️ Keep Reminders",
+    bm_habit_stop_done:
+      "🔕 Reminders for *{name}* have been turned off. Your progress has been saved. You can restart anytime from Habit Builder.",
+    // Active-habit summary card
+    bm_habit_summary_title: "🌱 *Your Current Habit*",
+    bm_habit_summary_body:
+      "*{name}*\nStatus: {status}\nCurrent streak: *{streak}* days\nThis cycle: *{completed}/{responded}* completed",
+    bm_habit_status_setup: "Setup pending",
+    bm_habit_status_daily: "Daily check-ins",
+    bm_habit_status_disabled: "Reminders off",
+    bm_habit_status_paused: "Paused",
+    btn_hb_stop_short: "🔕 Stop Reminders",
+    btn_hb_main_menu: "🏠 Main Menu",
 
     // My Fitness Plan
     bm_fit_title: "🏋️ *My Fitness Plan*",
@@ -990,50 +1094,31 @@ const STR = {
     bm_fit_error: "I couldn't generate a plan right now. Please try again in a moment.",
     btn_bm_fit_regen: "🔁 Regenerate My Plan",
 
-    // 10-Minute Wins
-    bm_wins_title: "⚡ *10-Minute Win*",
-    bm_wins_prompt: "Here's your quick win:\n\n➡️ *{activity}*\n\nReady to give it a try?",
-    btn_bm_wins_do: "✅ I'll Do It",
-    btn_bm_wins_another: "🔄 Give Me Another",
-    btn_bm_wins_done: "🎉 I Did It",
-    bm_wins_go: "Great — go get it done. I'll check back in about 15 minutes to see how it went. 👊",
-    bm_wins_check: "Welcome back! 😊\nDid you complete your 10-Minute Win?",
-    btn_bm_wins_yes: "🎉 Yes",
-    btn_bm_wins_notyet: "😔 Not Yet",
-    bm_wins_yes:
-      "Fantastic! Small wins like this build lifelong habits.\n\nWhen you're ready, try another Better Me activity from the menu.",
-    bm_wins_notyet:
-      "That's okay. Every small step counts. Try another one when you're ready.\n\nWhen you're ready, try another Better Me activity from the menu.",
-    // Activity pool (reuses a broader mix for a general audience)
-    bm_win_walk_block: "Walk around the block.",
-    bm_win_stairs: "Climb the stairs for 10 minutes.",
-    bm_win_stretch_tv: "Stretch while watching TV.",
-    bm_win_home_workout: "Do a simple home workout.",
-    bm_win_brisk_walk: "Take a brisk walk after your next meal.",
-    bm_win_park_further: "Park further away and walk.",
-    bm_win_phone_walk: "Walk while taking a phone call.",
-
-    // My Health Journey
-    bm_journey_title: "❤️ *My Health Journey*",
-    bm_journey_conditions_have:
-      "Here are the health conditions I have on file for you:\n\n{list}\n\nWould you like to add or update any?",
-    bm_journey_conditions_none:
-      "I don't have any health conditions on file for you yet. Would you like to add any?\n\n_Examples: High blood pressure, High cholesterol, Asthma, Arthritis, Fatty liver, PCOS, Sleep apnea, Thyroid problems._",
-    bm_journey_conditions_prompt:
-      "Type the condition(s) you'd like on file (separated by commas), or send *skip* to leave them as-is.",
-    bm_journey_conditions_saved: "✅ Conditions updated.",
-    bm_journey_goal_q: "What's the biggest health goal you'd like to achieve over the next year?",
-    btn_bm_journey_lose: "Lose weight",
-    btn_bm_journey_fit: "Get fitter",
-    btn_bm_journey_sleep: "Sleep better",
-    btn_bm_journey_quit: "Quit smoking",
-    btn_bm_journey_stress: "Reduce stress",
-    btn_bm_journey_energy: "Feel more energetic",
-    btn_bm_journey_overall: "Improve my overall health",
-    btn_bm_journey_other: "Something else",
-    bm_journey_other_q: "Great — describe your one-year health goal in your own words.",
-    bm_journey_done:
-      "✅ Saved your one-year goal: *{goal}*\n\nI'll use this to personalise your coaching, reminders and progress reports. Consistency beats intensity — I'm with you every step. 💚",
+    // 10-Minute Wins — spec 2026-07 (one challenge per day, no streaks).
+    bm_wins_title: "⚡ *Today's 10-Minute Win*",
+    bm_wins_prompt: "*{title}*\n\n{desc}",
+    btn_bm_wins_done: "✅ Done",
+    btn_bm_wins_skip: "❌ Not Today",
+    btn_bm_wins_swap: "🔄 Give Me Another Win",
+    // Rotating encouragements after Done (spec §Completion Flow)
+    bm_wins_enc_1: "🎉 Small wins build lasting habits.",
+    bm_wins_enc_2: "🎉 Every healthy choice counts.",
+    bm_wins_enc_3: "🎉 Ten minutes today is better than zero.",
+    bm_wins_ack_skip: "That's okay. Tomorrow is another opportunity for a small win.",
+    bm_wins_swap_used: "You've already swapped today's win. Here it is again — give it a try or come back tomorrow for a fresh one.",
+    bm_wins_already_done: "You already completed today's win. 🌱 Come back tomorrow for a fresh one.",
+    bm_wins_already_skipped: "You've closed out today's win. Tomorrow will bring another chance.",
+    // Challenge library — id keys mirror WIN_CHALLENGES in betterme.js
+    bm_win_walk_title: "🚶 Take a 10-Minute Walk",
+    bm_win_walk_desc: "Take a brisk 10-minute walk. Indoors or outdoors — it all counts.",
+    bm_win_stretch_title: "🤸 Stretch for 10 Minutes",
+    bm_win_stretch_desc: "Stretch your neck, shoulders, back and legs gently for 10 minutes.",
+    bm_win_water_title: "💧 Drink Water & Recharge",
+    bm_win_water_desc: "Drink two glasses of water over the next 10 minutes and take a short break from your screen.",
+    bm_win_declutter_title: "🧹 Declutter One Small Space",
+    bm_win_declutter_desc: "Spend 10 minutes tidying one small area such as your desk, bedside table or kitchen counter.",
+    bm_win_unplug_title: "🧘 Unplug for 10 Minutes",
+    bm_win_unplug_desc: "Put your phone away for 10 minutes. Sit quietly, breathe deeply or simply enjoy a few minutes without notifications.",
 
     // ===== Pregnancy Support — for gestational diabetes users (spec 2026-07) =====
     pg_menu_not_gest:
@@ -1136,6 +1221,8 @@ const STR = {
       "✅ تیار ہے، *{name}*! آپ کی پروفائل مکمل ہو گئی۔\n\nنیچے دیے مینو کا استعمال کریں۔ ثابت قدم رہیں — میں ہر روز آپ کے ساتھ ہوں۔ 💚",
     welcome_back: "👋 خوش آمدید، *{name}*! آپ کیا کرنا چاہیں گے؟",
     menu_title: "📋 *مرکزی مینو* — ایک آپشن منتخب کریں:",
+    menu_v2_title:
+      "🩺 DrSaab حاضر ہے!\n💬 کچھ بھی پوچھیں۔\n⚡ یا فوری کمانڈ استعمال کریں۔\n👇 یا نیچے مینو سے چنیں۔",
     btn_glucose: "🩸 شوگر لاگ کریں",
     btn_medication: "💊 ادویات",
     btn_health: "📝 روزانہ چیک اِن",
@@ -1183,7 +1270,7 @@ const STR = {
     fitness_prompt:
       "🏃 *فٹنس کوچ*۔ اپنا دن یا توانائی بتائیں، میں محفوظ ورزش تجویز کروں گا۔\n_مینو پر واپس دبائیں۔_",
     lab_prompt:
-      "📋 *اپنی رپورٹ سمجھیں*\n\nاپنی خون کی جانچ یا میڈیکل رپورٹ اپلوڈ کریں — تصویر بھیجیں یا ویلیوز ٹیکسٹ میں لکھیں۔\n\nمیں آپ کے نتائج آسان الفاظ میں سمجھاؤں گا، اہم چیزوں پر روشنی ڈالوں گا، اور بتاؤں گا کہ آپ کی ذیابیطس کے لیے اس کا کیا مطلب ہو سکتا ہے۔\n\n*قابل قبول رپورٹس:*\n• خون کے ٹیسٹ\n• HbA1c رپورٹ\n• کولیسٹرول / لپڈ پروفائل\n• گردے کے ٹیسٹ\n• جگر کے ٹیسٹ\n• پیشاب کے ٹیسٹ\n• ہسپتال کی لیبارٹری رپورٹس\n• ذیابیطس سے متعلق تحقیقات\n_مینو پر واپس دبائیں۔_",
+      "📋 *اپنی رپورٹ سمجھیں*\n\n📸 *اپنی رپورٹ اسی چیٹ میں بھیج دیں* — تصویر یا PDF۔ چاہیں تو ویلیوز ٹیکسٹ میں بھی لکھ سکتے ہیں۔\n\nمیں آپ کے نتائج آسان الفاظ میں سمجھاؤں گا، اہم چیزوں پر روشنی ڈالوں گا، اور بتاؤں گا کہ آپ کی ذیابیطس کے لیے اس کا کیا مطلب ہو سکتا ہے۔\n\n*قابل قبول رپورٹس:*\n• خون کے ٹیسٹ\n• HbA1c رپورٹ\n• کولیسٹرول / لپڈ پروفائل\n• گردے کے ٹیسٹ\n• جگر کے ٹیسٹ\n• پیشاب کے ٹیسٹ\n• ہسپتال کی لیبارٹری رپورٹس\n• ذیابیطس سے متعلق تحقیقات\n_مینو پر واپس دبائیں۔_",
     btn_upload_lab: "📎 تصویر اپلوڈ کریں",
     upload_lab_hint:
       "📸 بس رپورٹ کی تصویر منسلک کر کے بھیج دیں۔\n\n_چیٹ میں اٹیچ (پیپر کلپ) کے نشان پر کلک کریں، اپنی رپورٹ کی تصویر منتخب کریں اور بھیج دیں۔ میں تجزیہ کر کے آپ کے ریکارڈ میں محفوظ کر دوں گا۔_",
@@ -1632,7 +1719,7 @@ const STR = {
     pd_crav_junk_freq_q:
       "سمجھ گیا — *{junk}*. ہفتے میں تقریباً کتنی بار کھاتے ہیں؟",
     pd_crav_video:
-      "شکریہ۔ ایک مختصر ویڈیو دیکھیں — یہ بتاتی ہے کہ میٹھے مشروبات اور الٹرا پروسیسڈ فوڈز آپ کی طویل مدتی صحت پر کیسے اثر ڈالتے ہیں۔\n\n[▶️ ویڈیو دیکھیں](https://www.youtube.com/watch?v=DHma9_xQgD8&t=45s)",
+      "شکریہ۔ ایک مختصر ویڈیو دیکھیں — یہ بتاتی ہے کہ میٹھے مشروبات اور الٹرا پروسیسڈ فوڈز آپ کی طویل مدتی صحت پر کیسے اثر ڈالتے ہیں۔\n\n[▶️ ویڈیو دیکھیں](https://www.youtube.com/shorts/iNaq4vHPQYY)",
     pd_crav_reflection_q:
       "ویڈیو دیکھنے کے بعد آپ کے خیال میں آنے والے ہفتوں میں کون سی حقیقی تبدیلیاں کر سکتے ہیں؟",
     pd_crav_commit_q: "اگر اِس ہفتے صرف ایک چھوٹی تبدیلی کرنی ہو، تو کیا حقیقت پسندانہ لگتا ہے؟",
@@ -1655,27 +1742,75 @@ const STR = {
     btn_bm_habit: "🎯 نئی عادت بنائیں",
     btn_bm_fitness: "🏋️ میرا فٹنس پلان",
     btn_bm_wins: "⚡ 10 منٹ کی کامیابیاں",
-    btn_bm_journey: "❤️ میرا صحت کا سفر",
 
-    bm_habit_title: "🎯 *نئی عادت بنائیں*",
-    bm_habit_intro: "روزانہ کی چھوٹی عادات زندگی بھر کی صحت بناتی ہیں۔ شروع کرنے کے لیے ایک عادت چنیں:",
-    bm_habit_water: "زیادہ پانی پیئں",
-    bm_habit_sleep: "جلدی سوئیں",
-    bm_habit_walk: "روزانہ چہل قدمی کریں",
-    bm_habit_exercise: "باقاعدہ ورزش کریں",
-    bm_habit_veggies: "زیادہ سبزیاں کھائیں",
-    bm_habit_less_sugar: "چینی کم کریں",
-    bm_habit_quit_smoking: "سگریٹ چھوڑیں",
-    bm_habit_stress: "ذہنی دباؤ کم کریں",
-    bm_habit_read: "روزانہ مطالعہ کریں",
-    bm_habit_pray: "پابندی سے نماز پڑھیں",
-    bm_habit_other: "کچھ اور",
-    bm_habit_other_q: "بہت خوب — وہ عادت اپنے الفاظ میں لکھیں جو آپ اپنانا چاہتے ہیں۔",
-    bm_habit_why_q:
-      "آپ نے *{habit}* چنی۔ یہ عادت آپ کے لیے کیوں اہم ہے؟\n\n_ایک مختصر وجہ مشکل دنوں میں حوصلہ برقرار رکھتی ہے۔_",
-    bm_habit_days_q: "ہفتے میں کتنے دن آپ حقیقت پسندانہ طور پر یہ کر سکتے ہیں؟",
-    bm_habit_done:
-      "✅ عادت طے: *{habit}*\nہدف: *ہفتے میں {days} دن*\n\nمیں آپ کا ساتھ دوں گا اور آنے والے چیک اِن میں یہ استعمال کروں گا۔ چھوٹے ثابت قدم قدم کامیاب ہوتے ہیں۔",
+    bm_habit_title: "🎯 *عادت بنائیں*",
+    bm_habit_intro:
+      "🌱 آئیے ایک وقت میں ایک چھوٹی عادت بناتے ہیں۔\n\nآپ کون سی عادت پر کام کرنا چاہیں گے؟",
+    bm_habit_lib_move: "🚶 20 منٹ چلیں",
+    bm_habit_lib_water: "💧 پانی کا ہدف پورا کریں",
+    bm_habit_lib_sleep: "😴 مقررہ وقت سے پہلے سو جائیں",
+    bm_habit_lib_smoke_free: "🚭 سگریٹ سے پرہیز",
+    bm_habit_lib_no_food_after_dinner: "🌙 رات کے کھانے کے بعد کچھ نہیں",
+    bm_habit_setup_move:
+      "آپ کا مقصد روزانہ کم از کم 20 منٹ کی جسمانی سرگرمی ہے۔ چہل قدمی، ورزش، تیراکی، سائیکلنگ یا کوئی بھی جسمانی حرکت شمار ہوگی۔",
+    bm_habit_setup_water_q: "روزانہ کتنے گلاس پانی کا ہدف رکھنا چاہیں گے؟",
+    bm_habit_setup_water_other_q: "روزانہ کتنے گلاس کا ہدف رکھنا ہے؟ نمبر لکھیں۔",
+    bm_habit_setup_sleep_q: "آپ کس وقت تک سو جانا چاہتے ہیں؟",
+    bm_habit_setup_sleep_other_q: "اپنا مقررہ سونے کا وقت لکھیں (مثلاً 10:30 PM)۔",
+    bm_habit_setup_smoke_free:
+      "آپ کا مقصد ہر روز مکمل طور پر سگریٹ سے پرہیز ہے۔ ایک مشکل دن آپ کی محنت ختم نہیں کرتا۔",
+    bm_habit_setup_no_food_after_dinner:
+      "رات کا کھانا مکمل ہونے کے بعد ناشتے تک کچھ نہ کھائیں۔",
+    btn_hb_water_6: "6",
+    btn_hb_water_8: "8",
+    btn_hb_water_10: "10",
+    btn_hb_water_other: "کوئی اور مقدار",
+    btn_hb_sleep_1030: "10:30 PM",
+    btn_hb_sleep_1100: "11:00 PM",
+    btn_hb_sleep_1130: "11:30 PM",
+    btn_hb_sleep_other: "کوئی اور وقت",
+    bm_habit_activation_msg:
+      "✅ آپ کی عادت شامل کر لی گئی ہے۔\n\nپہلے 7 دن تک DrSaab روزانہ آپ سے پوچھے گا۔ اگر عادت مضبوط ہو رہی ہو تو چیک اِن اتوار کو منتقل ہو جائیں گے۔",
+    btn_hb_start: "🌱 شروع کریں",
+    btn_hb_start_silent: "🔕 بغیر یاد دہانی کے شروع کریں",
+    btn_hb_cancel: "❌ منسوخ کریں",
+    bm_habit_started_reminders:
+      "🌱 بہت خوب — کل چیک اِن کروں گا۔ کبھی بھی یاد دہانی روکنے یا بند کرنے کے لیے کہہ دیں۔",
+    bm_habit_started_silent:
+      "🌱 عادت محفوظ ہو گئی۔ یاد دہانی بند ہے — جب چاہیں Habit Builder سے پیش رفت درج کریں۔",
+    bm_habit_cancelled: "منسوخ کر دیا۔ جب ہمت ہو دوبارہ آجائیں۔",
+    bm_habit_already_active_title: "آپ ابھی *{name}* پر کام کر رہے ہیں",
+    bm_habit_already_active_body:
+      "نئی عادت شروع کرنے سے پہلے آپ اسے جاری رکھ سکتے ہیں، تبدیل کر سکتے ہیں، عارضی طور پر روک سکتے ہیں، یاد دہانی بند کر سکتے ہیں یا اسے ہٹا سکتے ہیں۔",
+    bm_habit_daily_v1: "🌱 عادت چیک: {question}",
+    bm_habit_daily_v2: "چھوٹی چھوٹی کوششیں اکٹھی ہو کر بڑا فرق ڈالتی ہیں۔ {question}",
+    bm_habit_daily_v3: "*{name}* کے لیے آپ کا *{streak}-دن* کا سلسلہ چل رہا ہے۔ {question}",
+    bm_habit_daily_v3_zero: "ہر سلسلہ ایک مکمل دن سے شروع ہوتا ہے۔ {question}",
+    bm_habit_q_move: "کیا آج آپ نے کم از کم 20 منٹ حرکت کی؟",
+    bm_habit_q_water: "کیا آج آپ نے پانی کا ہدف پورا کیا ({target} گلاس)؟",
+    bm_habit_q_sleep: "کیا آج آپ {target} سے پہلے سو گئے؟",
+    bm_habit_q_smoke_free: "کیا آج آپ سگریٹ سے مکمل پرہیز کیا؟",
+    bm_habit_q_no_food_after_dinner: "کیا آج آپ نے رات کے کھانے کے بعد کچھ نہیں کھایا؟",
+    btn_hb_yes: "✅ ہاں",
+    btn_hb_no: "❌ آج نہیں",
+    btn_hb_stop: "🔕 یاد دہانی بند کریں",
+    bm_habit_ack_yes: "✅ ہو گیا۔ ایک اور چھوٹی کامیابی۔",
+    bm_habit_ack_no:
+      "کوئی بات نہیں۔ ایک چُھوٹا دن آپ کی پیش رفت ختم نہیں کرتا۔ کل دوبارہ کوشش کریں گے۔",
+    bm_habit_stop_confirm: "*{name}* کے لیے یاد دہانی بند کریں؟",
+    btn_hb_stop_yes: "🔕 ہاں، بند کریں",
+    btn_hb_keep_reminders: "↩️ چالو رکھیں",
+    bm_habit_stop_done:
+      "🔕 *{name}* کی یاد دہانی بند کر دی گئی۔ آپ کی پیش رفت محفوظ ہے۔ جب چاہیں Habit Builder سے دوبارہ شروع کر سکتے ہیں۔",
+    bm_habit_summary_title: "🌱 *آپ کی موجودہ عادت*",
+    bm_habit_summary_body:
+      "*{name}*\nحالت: {status}\nموجودہ سلسلہ: *{streak}* دن\nاس سائیکل میں: *{completed}/{responded}* مکمل",
+    bm_habit_status_setup: "ترتیب جاری",
+    bm_habit_status_daily: "روزانہ چیک اِن",
+    bm_habit_status_disabled: "یاد دہانی بند",
+    bm_habit_status_paused: "عارضی طور پر روکا گیا",
+    btn_hb_stop_short: "🔕 یاد دہانی بند کریں",
+    btn_hb_main_menu: "🏠 مرکزی مینو",
 
     bm_fit_title: "🏋️ *میرا فٹنس پلان*",
     bm_fit_intro:
@@ -1696,47 +1831,28 @@ const STR = {
     bm_fit_error: "ابھی پلان تیار نہیں ہو سکا۔ ذرا بعد میں دوبارہ کوشش کیجیے۔",
     btn_bm_fit_regen: "🔁 پلان دوبارہ بنائیں",
 
-    bm_wins_title: "⚡ *10 منٹ کی کامیابی*",
-    bm_wins_prompt: "یہ رہی آپ کی جلدی کامیابی:\n\n➡️ *{activity}*\n\nآزمانے کے لیے تیار؟",
-    btn_bm_wins_do: "✅ میں کروں گا/گی",
-    btn_bm_wins_another: "🔄 دوسری بتائیں",
-    btn_bm_wins_done: "🎉 مکمل کر لیا",
-    bm_wins_go: "بہترین — کر کے آئیں۔ میں تقریباً 15 منٹ بعد پوچھوں گا کہ کیسا رہا۔ 👊",
-    bm_wins_check: "خوش آمدید! 😊\nکیا آپ نے اپنی 10 منٹ کی کامیابی مکمل کی؟",
-    btn_bm_wins_yes: "🎉 ہاں",
-    btn_bm_wins_notyet: "😔 ابھی نہیں",
-    bm_wins_yes:
-      "شاندار! ایسی چھوٹی کامیابیاں زندگی بھر کی عادات بناتی ہیں۔\n\nجب تیار ہوں، مینو سے Better Me کی کوئی اور سرگرمی آزمائیں۔",
-    bm_wins_notyet:
-      "کوئی بات نہیں۔ ہر چھوٹا قدم اہم ہے۔ جب تیار ہوں، دوبارہ کوشش کریں۔\n\nجب تیار ہوں، مینو سے Better Me کی کوئی اور سرگرمی آزمائیں۔",
-    bm_win_walk_block: "بلاک کے گرد چہل قدمی کریں۔",
-    bm_win_stairs: "10 منٹ تک سیڑھیاں چڑھیں۔",
-    bm_win_stretch_tv: "ٹی وی دیکھتے ہوئے اسٹریچ کریں۔",
-    bm_win_home_workout: "گھر پر آسان ورزش کریں۔",
-    bm_win_brisk_walk: "اگلے کھانے کے بعد تیز چہل قدمی کریں۔",
-    bm_win_park_further: "دور پارک کریں اور چل کر جائیں۔",
-    bm_win_phone_walk: "فون پر بات کرتے ہوئے چہل قدمی کریں۔",
-
-    bm_journey_title: "❤️ *میرا صحت کا سفر*",
-    bm_journey_conditions_have:
-      "آپ کے پروفائل میں یہ صحت کے مسائل درج ہیں:\n\n{list}\n\nکیا آپ کوئی چیز شامل یا اپڈیٹ کرنا چاہیں گے؟",
-    bm_journey_conditions_none:
-      "ابھی آپ کے پروفائل میں کوئی صحت کا مسئلہ درج نہیں۔ کیا آپ کوئی شامل کرنا چاہیں گے؟\n\n_مثالیں: ہائی بلڈ پریشر، ہائی کولیسٹرول، دمہ، جوڑوں کا درد، فیٹی لیور، PCOS، سلیپ ایپنیا، تھائیرائیڈ۔_",
-    bm_journey_conditions_prompt:
-      "جو مسائل درج کرنا چاہتے ہیں لکھیں (کاما سے الگ کریں)، یا *skip* لکھ دیں۔",
-    bm_journey_conditions_saved: "✅ صحت کے مسائل اپڈیٹ ہو گئے۔",
-    bm_journey_goal_q: "اگلے ایک سال میں آپ کا سب سے بڑا صحت کا ہدف کیا ہے؟",
-    btn_bm_journey_lose: "وزن کم کرنا",
-    btn_bm_journey_fit: "فٹ ہونا",
-    btn_bm_journey_sleep: "بہتر نیند",
-    btn_bm_journey_quit: "سگریٹ چھوڑنا",
-    btn_bm_journey_stress: "دباؤ کم کرنا",
-    btn_bm_journey_energy: "زیادہ توانا محسوس کرنا",
-    btn_bm_journey_overall: "مجموعی صحت بہتر کرنا",
-    btn_bm_journey_other: "کچھ اور",
-    bm_journey_other_q: "بہت خوب — اپنا ایک سالہ صحت کا ہدف اپنے الفاظ میں لکھیں۔",
-    bm_journey_done:
-      "✅ ایک سالہ ہدف محفوظ ہو گیا: *{goal}*\n\nمیں یہ آپ کی کوچنگ، یاد دہانیوں اور رپورٹس میں شامل کروں گا۔ مستقل مزاجی شدت پر بھاری ہے — میں ہر قدم پر آپ کے ساتھ ہوں۔ 💚",
+    bm_wins_title: "⚡ *آج کی 10 منٹ کی کامیابی*",
+    bm_wins_prompt: "*{title}*\n\n{desc}",
+    btn_bm_wins_done: "✅ ہو گیا",
+    btn_bm_wins_skip: "❌ آج نہیں",
+    btn_bm_wins_swap: "🔄 دوسری دیں",
+    bm_wins_enc_1: "🎉 چھوٹی کامیابیاں دیرپا عادات بناتی ہیں۔",
+    bm_wins_enc_2: "🎉 ہر صحت مند انتخاب معنی رکھتا ہے۔",
+    bm_wins_enc_3: "🎉 آج کے 10 منٹ صفر سے بہتر ہیں۔",
+    bm_wins_ack_skip: "کوئی بات نہیں۔ کل ایک اور چھوٹی کامیابی کا موقع ہو گا۔",
+    bm_wins_swap_used: "آج آپ پہلے ہی ایک بار تبدیل کر چکے ہیں۔ یہی چیلنج آزمائیں یا کل نئی کے لیے آئیں۔",
+    bm_wins_already_done: "آج کی کامیابی مکمل ہو چکی ہے۔ 🌱 کل ایک نئی چیلنج کے لیے آئیں۔",
+    bm_wins_already_skipped: "آج کا کارڈ بند ہو چکا ہے۔ کل ایک اور موقع ملے گا۔",
+    bm_win_walk_title: "🚶 10 منٹ چلیں",
+    bm_win_walk_desc: "10 منٹ تیز چہل قدمی کریں۔ اندر ہو یا باہر — دونوں شمار ہوں گے۔",
+    bm_win_stretch_title: "🤸 10 منٹ اسٹریچنگ",
+    bm_win_stretch_desc: "گردن، کندھوں، کمر اور ٹانگوں کو 10 منٹ آرام سے کھینچیں۔",
+    bm_win_water_title: "💧 پانی پیئیں اور تازہ دم ہوں",
+    bm_win_water_desc: "اگلے 10 منٹ میں دو گلاس پانی پئیں اور اسکرین سے تھوڑا وقفہ لیں۔",
+    bm_win_declutter_title: "🧹 ایک جگہ صاف کریں",
+    bm_win_declutter_desc: "10 منٹ کوئی چھوٹی جگہ صاف کریں — میز، سائیڈ ٹیبل یا کچن کاؤنٹر۔",
+    bm_win_unplug_title: "🧘 10 منٹ فون سے دور",
+    bm_win_unplug_desc: "10 منٹ فون رکھ دیں۔ خاموشی سے بیٹھیں، گہرا سانس لیں یا بغیر اطلاعات کے چند لمحے گزاریں۔",
 
     // ===== Pregnancy Support — for gestational diabetes users (spec 2026-07) =====
     pg_menu_not_gest:
@@ -1832,6 +1948,8 @@ const STR = {
       "✅ Tayyar hai, *{name}*! Aap ki profile mukammal ho gayi.\n\nNeechay diye menu ka istemaal karein. Saabit qadam rahein — main har roz aap ke saath hoon. 💚",
     welcome_back: "👋 Khush aamdeed, *{name}*! Aap kya karna chahenge?",
     menu_title: "📋 *Main Menu* — ek option chunein:",
+    menu_v2_title:
+      "🩺 DrSaab ready hai!\n💬 Kuch bhi poochein.\n⚡ Ya quick command use karein.\n👇 Ya neechay menu se chunein.",
     btn_glucose: "🩸 Sugar Log Karein",
     btn_medication: "💊 Adwiyat",
     btn_health: "📝 Rozana Check-in",
@@ -1879,7 +1997,7 @@ const STR = {
     fitness_prompt:
       "🏃 *Fitness Coach*. Apna din ya energy batayein, main mehfooz exercise tajweez karoonga.\n_Menu par wapas dabayein._",
     lab_prompt:
-      "📋 *Apni Report Samjhein*\n\nApni khoon ki jaanch ya medical report upload karein — tasveer bhejein ya values text mein likhein.\n\nMain aap ke natayij asaan alfaaz mein samjhaonga, ahem cheezon par roshni daaloonga, aur bataonga ke aap ki diabetes ke liye is ka kya matlab ho sakta hai.\n\n*Qabil qabool reports:*\n• Blood tests\n• HbA1c reports\n• Cholesterol / Lipid Profile\n• Gurdon ke tests\n• Jigar ke tests\n• Peshab ke tests\n• Hospital laboratory reports\n• Diabetes se mutalliq tehqeeqat\n_Menu par wapas dabayein._",
+      "📋 *Apni Report Samjhein*\n\n📸 *Apni report yahin chat mein bhej dein* — tasveer ya PDF. Ya values text mein bhi likh sakte hain.\n\nMain aap ke natayij asaan alfaaz mein samjhaonga, ahem cheezon par roshni daaloonga, aur bataonga ke aap ki diabetes ke liye is ka kya matlab ho sakta hai.\n\n*Qabil qabool reports:*\n• Blood tests\n• HbA1c reports\n• Cholesterol / Lipid Profile\n• Gurdon ke tests\n• Jigar ke tests\n• Peshab ke tests\n• Hospital laboratory reports\n• Diabetes se mutalliq tehqeeqat\n_Menu par wapas dabayein._",
     btn_upload_lab: "📎 Tasveer Upload Karein",
     upload_lab_hint:
       "📸 Bas report ki tasveer attach kar ke bhej dein.\n\n_Chat mein attach (paper-clip) icon dabayein, apni report ki tasveer chunein aur bhej dein. Main tajziya kar ke aap ke record mein mehfooz kar doonga._",
@@ -2328,7 +2446,7 @@ const STR = {
     pd_crav_junk_freq_q:
       "Samajh gaya — *{junk}*. Haftay mein taqreeban kitni bar khaatay hain?",
     pd_crav_video:
-      "Shukriya. Zara yeh short video dekhein — batati hai ke meethay drinks aur ultra-processed foods long-term health par kaisa asar daaltay hain.\n\n[▶️ Watch the video](https://www.youtube.com/watch?v=DHma9_xQgD8&t=45s)",
+      "Shukriya. Zara yeh short video dekhein — batati hai ke meethay drinks aur ultra-processed foods long-term health par kaisa asar daaltay hain.\n\n[▶️ Watch the video](https://www.youtube.com/shorts/iNaq4vHPQYY)",
     pd_crav_reflection_q:
       "Video dekhne ke baad aap ke khayal se aane wale haftoun mein kaunsi realistic tabdeeliyan kar saktay hain?",
     pd_crav_commit_q: "Agar iss haftay sirf aik chhoti tabdeeli karni ho, kya realistic lagta hai?",
@@ -2351,27 +2469,75 @@ const STR = {
     btn_bm_habit: "🎯 Nayi Aadat Banayein",
     btn_bm_fitness: "🏋️ Mera Fitness Plan",
     btn_bm_wins: "⚡ 10-Minute Wins",
-    btn_bm_journey: "❤️ Mera Sehat ka Safar",
 
-    bm_habit_title: "🎯 *Nayi Aadat Banayein*",
-    bm_habit_intro: "Rozana ki chhoti aadatein zindagi bhar ki sehat banati hain. Shuru karnay ke liye aik aadat chunein:",
-    bm_habit_water: "Zyada paani peein",
-    bm_habit_sleep: "Jaldi soyein",
-    bm_habit_walk: "Rozana walk karein",
-    bm_habit_exercise: "Regularly exercise karein",
-    bm_habit_veggies: "Zyada sabziyan khaayein",
-    bm_habit_less_sugar: "Sugar kam karein",
-    bm_habit_quit_smoking: "Cigarette chhorein",
-    bm_habit_stress: "Stress kam karein",
-    bm_habit_read: "Rozana mutala karein",
-    bm_habit_pray: "Pabandi se namaz parhein",
-    bm_habit_other: "Kuch aur",
-    bm_habit_other_q: "Bohat khoob — jo aadat aap banana chahtay hain apne alfaaz mein likhein.",
-    bm_habit_why_q:
-      "Aap ne *{habit}* chuni. Yeh aadat aap ke liye kyun ahem hai?\n\n_Aik chhoti wajah mushkil dinon mein himmat qaim rakhti hai._",
-    bm_habit_days_q: "Haftay mein kitne din aap realistically yeh kar saktay hain?",
-    bm_habit_done:
-      "✅ Aadat set: *{habit}*\nTarget: *{days} din/haftay*\n\nMain aap ka saath doonga aur aane wale check-ins mein yeh use karoonga. Chhotay saabit qadam kaamyaab hote hain.",
+    bm_habit_title: "🎯 *Habit Builder*",
+    bm_habit_intro:
+      "🌱 Aik waqt mein aik chhoti aadat par kaam karte hain.\n\nAap kaunsi aadat par kaam karna chahenge?",
+    bm_habit_lib_move: "🚶 20 minutes chalein",
+    bm_habit_lib_water: "💧 Paani ka goal poora karein",
+    bm_habit_lib_sleep: "😴 Target time se pehle so jayein",
+    bm_habit_lib_smoke_free: "🚭 Cigarette se pura parhez",
+    bm_habit_lib_no_food_after_dinner: "🌙 Dinner ke baad kuch nahi",
+    bm_habit_setup_move:
+      "Goal yeh hai ke rozana kam az kam 20 minutes movement karein. Walk, exercise, swimming, cycling ya koi bhi physical activity count hoti hai.",
+    bm_habit_setup_water_q: "Rozana kitne glass paani ka goal rakhna chahenge?",
+    bm_habit_setup_water_other_q: "Rozana kitne glass ka goal rakhna hai? Number likh dein.",
+    bm_habit_setup_sleep_q: "Kis waqt tak so jaana chahte hain?",
+    bm_habit_setup_sleep_other_q: "Apna target bedtime type karein (misal ke tor par 10:30 PM).",
+    bm_habit_setup_smoke_free:
+      "Goal yeh hai ke har din pura pura smoke-free rahein. Aik mushkil din aap ki progress ko cancel nahi karta.",
+    bm_habit_setup_no_food_after_dinner:
+      "Dinner ke baad, breakfast tak kuch bhi na khaayein.",
+    btn_hb_water_6: "6",
+    btn_hb_water_8: "8",
+    btn_hb_water_10: "10",
+    btn_hb_water_other: "Koi aur amount",
+    btn_hb_sleep_1030: "10:30 PM",
+    btn_hb_sleep_1100: "11:00 PM",
+    btn_hb_sleep_1130: "11:30 PM",
+    btn_hb_sleep_other: "Koi aur time",
+    bm_habit_activation_msg:
+      "✅ Aap ki aadat add ho gayi hai.\n\nPehle 7 din DrSaab rozana check-in karega. Agar aadat set ho rahi hui to check-ins Sunday par shift ho jayenge.",
+    btn_hb_start: "🌱 Start",
+    btn_hb_start_silent: "🔕 Bina reminders ke start",
+    btn_hb_cancel: "❌ Cancel",
+    bm_habit_started_reminders:
+      "🌱 Set. Kal check-in karoonga. Reminders pause ya band karnay ke liye kabhi bhi keh dein.",
+    bm_habit_started_silent:
+      "🌱 Aadat save ho gayi. Reminders off hain — jab chahein Habit Builder se progress log kar lein.",
+    bm_habit_cancelled: "Cancel ho gaya. Jab dobara ready hon aa jaana.",
+    bm_habit_already_active_title: "Aap abhi *{name}* par kaam kar rahe hain",
+    bm_habit_already_active_body:
+      "Nayi aadat shuru karnay se pehle aap isay continue kar sakte hain, adjust kar sakte hain, pause kar sakte hain, reminders band kar sakte hain ya remove kar sakte hain.",
+    bm_habit_daily_v1: "🌱 Quick habit check: {question}",
+    bm_habit_daily_v2: "Chhoti actions milkar bara farq banati hain. {question}",
+    bm_habit_daily_v3: "*{name}* ke liye aap ki *{streak}-din* ki streak chal rahi hai. {question}",
+    bm_habit_daily_v3_zero: "Har streak aik mukammal din se shuru hoti hai. {question}",
+    bm_habit_q_move: "Kya aaj aap ne kam az kam 20 minutes movement ki?",
+    bm_habit_q_water: "Kya aaj aap ne apna water goal poora kiya ({target} glasses)?",
+    bm_habit_q_sleep: "Kya aaj aap {target} se pehle so gaye?",
+    bm_habit_q_smoke_free: "Kya aaj aap pure din smoke-free rahe?",
+    bm_habit_q_no_food_after_dinner: "Kya aaj aap ne dinner ke baad kuch nahi khaya?",
+    btn_hb_yes: "✅ Haan",
+    btn_hb_no: "❌ Aaj nahi",
+    btn_hb_stop: "🔕 Reminders band karein",
+    bm_habit_ack_yes: "✅ Ho gaya. Aik aur chhoti win.",
+    bm_habit_ack_no:
+      "Koi baat nahi. Aik missed din aap ki progress ko cancel nahi karta. Kal dobara try karenge.",
+    bm_habit_stop_confirm: "*{name}* ke reminders band karein?",
+    btn_hb_stop_yes: "🔕 Haan, band kar dein",
+    btn_hb_keep_reminders: "↩️ Reminders rakhein",
+    bm_habit_stop_done:
+      "🔕 *{name}* ke reminders band kar diye gaye hain. Aap ki progress save hai. Jab chahein Habit Builder se dobara start kar sakte hain.",
+    bm_habit_summary_title: "🌱 *Aap ki current aadat*",
+    bm_habit_summary_body:
+      "*{name}*\nStatus: {status}\nCurrent streak: *{streak}* din\nIs cycle mein: *{completed}/{responded}* mukammal",
+    bm_habit_status_setup: "Setup pending",
+    bm_habit_status_daily: "Daily check-ins",
+    bm_habit_status_disabled: "Reminders off",
+    bm_habit_status_paused: "Pause hai",
+    btn_hb_stop_short: "🔕 Reminders band karein",
+    btn_hb_main_menu: "🏠 Main Menu",
 
     bm_fit_title: "🏋️ *Mera Fitness Plan*",
     bm_fit_intro:
@@ -2392,47 +2558,28 @@ const STR = {
     bm_fit_error: "Abhi plan tayaar nahi ho saka. Thora waqt ke baad dobara try karein.",
     btn_bm_fit_regen: "🔁 Plan Dobara Banayein",
 
-    bm_wins_title: "⚡ *10-Minute Win*",
-    bm_wins_prompt: "Aap ki jaldi win:\n\n➡️ *{activity}*\n\nAzmanay ke liye tayaar?",
-    btn_bm_wins_do: "✅ Main karoonga/karoongi",
-    btn_bm_wins_another: "🔄 Doosri batayein",
-    btn_bm_wins_done: "🎉 Mukammal kar liya",
-    bm_wins_go: "Bohot khoob — jaa ke kar aayein. Main 15 minute baad puchhoonga kaisa raha. 👊",
-    bm_wins_check: "Wapas aa gaye! 😊\nKya aap ne apni 10-Minute Win mukammal ki?",
-    btn_bm_wins_yes: "🎉 Haan",
-    btn_bm_wins_notyet: "😔 Abhi nahi",
-    bm_wins_yes:
-      "Shaandaar! Aisi chhoti wins zindagi bhar ki aadatein banati hain.\n\nJab tayaar hon, menu se koi aur Better Me activity azmayein.",
-    bm_wins_notyet:
-      "Koi baat nahi. Har chhota qadam ahem hai. Jab tayaar hon, dobara try karein.\n\nJab tayaar hon, menu se koi aur Better Me activity azmayein.",
-    bm_win_walk_block: "Block ke ird gird chalein.",
-    bm_win_stairs: "10 minute seerhiyan charhein.",
-    bm_win_stretch_tv: "TV dekhtay hue stretch karein.",
-    bm_win_home_workout: "Ghar par asaan workout karein.",
-    bm_win_brisk_walk: "Agla khana khanay ke baad brisk walk karein.",
-    bm_win_park_further: "Door park karein aur chal ke jaayein.",
-    bm_win_phone_walk: "Phone call kartay hue chalein.",
-
-    bm_journey_title: "❤️ *Mera Sehat ka Safar*",
-    bm_journey_conditions_have:
-      "Aap ki profile mein yeh health conditions record hain:\n\n{list}\n\nKya aap koi cheez add ya update karna chahenge?",
-    bm_journey_conditions_none:
-      "Abhi aap ki profile mein koi health condition record nahi hai. Kya aap koi add karna chahenge?\n\n_Misaalein: High blood pressure, High cholesterol, Asthma, Arthritis, Fatty liver, PCOS, Sleep apnea, Thyroid._",
-    bm_journey_conditions_prompt:
-      "Jo conditions record karna chahtay hain likhein (comma se alag karein), ya *skip* likh dein.",
-    bm_journey_conditions_saved: "✅ Health conditions update ho gayi.",
-    bm_journey_goal_q: "Aane wale saal mein aap ka sab se bara sehat ka goal kya hai?",
-    btn_bm_journey_lose: "Wazan kam karna",
-    btn_bm_journey_fit: "Fit hona",
-    btn_bm_journey_sleep: "Behtar neend",
-    btn_bm_journey_quit: "Cigarette chhorna",
-    btn_bm_journey_stress: "Stress kam karna",
-    btn_bm_journey_energy: "Zyada energetic mehsoos karna",
-    btn_bm_journey_overall: "Mujmoi sehat behter karna",
-    btn_bm_journey_other: "Kuch aur",
-    bm_journey_other_q: "Bohat khoob — apna 1-saal ka sehat goal apne alfaaz mein likhein.",
-    bm_journey_done:
-      "✅ Aik-saal ka goal save ho gaya: *{goal}*\n\nMain isay aap ki coaching, reminders aur reports mein use karoonga. Mustaqil mizaji shiddat par bhaari hai — main har qadam par aap ke saath hoon. 💚",
+    bm_wins_title: "⚡ *Aaj ki 10-Minute Win*",
+    bm_wins_prompt: "*{title}*\n\n{desc}",
+    btn_bm_wins_done: "✅ Ho gaya",
+    btn_bm_wins_skip: "❌ Aaj nahi",
+    btn_bm_wins_swap: "🔄 Doosri dein",
+    bm_wins_enc_1: "🎉 Chhoti wins lasting aadatein banati hain.",
+    bm_wins_enc_2: "🎉 Har healthy choice ki qadar hai.",
+    bm_wins_enc_3: "🎉 Aaj ke 10 minutes zero se behter hain.",
+    bm_wins_ack_skip: "Koi baat nahi. Kal aik aur chhoti win ka moqa hoga.",
+    bm_wins_swap_used: "Aap aaj pehle hi swap kar chuke hain. Isay try karein ya kal fresh challenge ke liye aayein.",
+    bm_wins_already_done: "Aaj ki win mukammal ho gayi hai. 🌱 Kal aik nayi ke liye aayein.",
+    bm_wins_already_skipped: "Aaj ka card band ho gaya hai. Kal aik aur moqa milega.",
+    bm_win_walk_title: "🚶 10 minutes chalein",
+    bm_win_walk_desc: "10 minutes brisk walk karein. Indoor ho ya outdoor — dono count honge.",
+    bm_win_stretch_title: "🤸 10 minutes stretching",
+    bm_win_stretch_desc: "Neck, shoulders, back aur legs ko 10 minutes halke se stretch karein.",
+    bm_win_water_title: "💧 Paani peein aur recharge",
+    bm_win_water_desc: "Agle 10 minutes mein 2 glass paani peein aur screen se thora break lein.",
+    bm_win_declutter_title: "🧹 Aik jagah declutter karein",
+    bm_win_declutter_desc: "10 minutes koi choti jagah tidy karein — desk, side table ya kitchen counter.",
+    bm_win_unplug_title: "🧘 10 minutes unplug",
+    bm_win_unplug_desc: "10 minutes phone side par rakhein. Chup baithein, deep breath lein ya bina notifications ke kuch minutes enjoy karein.",
 
     // ===== Pregnancy Support — for gestational diabetes users (spec 2026-07) =====
     pg_menu_not_gest:

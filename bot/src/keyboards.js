@@ -146,15 +146,16 @@ export function backKeyboard(lang, target = "menu") {
   return { inline_keyboard: [[{ text: t(lang, "btn_back"), callback_data: target }]] };
 }
 
-// Keyboard shown on the "Explain My Report" prompt. The "Upload Image" button
-// is a UX affordance: the web chat frontend intercepts it and opens a native
-// file picker; on Telegram / WhatsApp it just prints instructions on where to
-// find the attach control in that client.
+// Keyboard shown on the "Explain My Report" prompt.
+//
+// Both "📸 Take a Photo" and "📎 Attach Report" were removed 2026-07-14:
+// WhatsApp/Telegram callback buttons cannot open the camera or file picker,
+// so they were misleading affordances. The intro copy now asks the user
+// directly to send the report in the chat (photo / image / PDF / text),
+// which works via the client's native paperclip on every channel.
 export function labStartKeyboard(lang) {
   return {
     inline_keyboard: [
-      [{ text: t(lang, "btn_upload_lab"), callback_data: "feat:upload_lab" }],
-      [{ text: t(lang, "btn_take_photo_lab"), callback_data: "feat:take_photo_lab" }],
       [{ text: t(lang, "btn_back"), callback_data: "menu" }],
     ],
   };
@@ -207,6 +208,28 @@ export function myHealthContextKeyboard(lang) {
   };
 }
 
+// Returning-user summary card actions (spec 2026-07: Update / Main Menu).
+export function myHealthSummaryKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [{ text: t(lang, "btn_mh_update_profile"), callback_data: "mh:update_profile" }],
+      [{ text: t(lang, "btn_mh_main_menu"), callback_data: "menu" }],
+    ],
+  };
+}
+
+// "Restart your health profile?" confirmation before wiping health_setup_step.
+export function myHealthUpdateConfirmKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "btn_mh_update_yes"), callback_data: "mh:update_confirm" },
+        { text: t(lang, "btn_mh_update_no"),  callback_data: "mh:update_cancel" },
+      ],
+    ],
+  };
+}
+
 // ===================================================================
 // v2 onboarding journey keyboards
 // ===================================================================
@@ -217,13 +240,15 @@ function stack(rows) {
 }
 
 export function userTypeKeyboard(lang) {
-  // Five-option question that also carries the diabetes-type selection — the
+  // Onboarding question that also carries the diabetes-type selection — the
   // onboarding callback handler maps each value onto user_type + diabetes_status.
+  // "Gestational Diabetes" removed 2026-07-14 (too niche for MVP); the Pregnancy
+  // Support menu remains reachable for any legacy users already tagged as
+  // gestational.
   return stack([
     { text: t(lang, "ut_type1"),       callback_data: "ut:type1" },
     { text: t(lang, "ut_type2"),       callback_data: "ut:type2" },
     { text: t(lang, "ut_prediabetes"), callback_data: "ut:prediabetes" },
-    { text: t(lang, "ut_gestational"), callback_data: "ut:gestational" },
     { text: t(lang, "ut_healthier"),   callback_data: "ut:healthier" },
   ]);
 }
@@ -749,38 +774,102 @@ export function pdBackKeyboard(lang) {
 }
 
 // Better Me — top-level menu for user_type=healthier (spec 2026-07).
+// "My Health Journey" removed 2026-07-14 — the health summary now lives
+// exclusively in My Health, so a second surface for it was redundant.
 export function betterMeMenuKeyboard(lang) {
   const b = (key, action) => ({ text: t(lang, key), callback_data: `bm:${action}` });
   return stack([
     b("btn_bm_habit",   "habit"),
     b("btn_bm_fitness", "fitness"),
     b("btn_bm_wins",    "wins"),
-    b("btn_bm_journey", "journey"),
     { text: t(lang, "btn_main_menu"), callback_data: "menu" },
   ]);
 }
 
-// Build a New Habit — habit picker.
-export function bmHabitPickerKeyboard(lang) {
-  const b = (key, val) => ({ text: t(lang, key), callback_data: `bm:habit:${val}` });
+// Habit Builder — habit library (spec §3, 5 MVP habits).
+// Each row is a full-width button so the emoji + long label render cleanly on
+// mobile (WhatsApp truncates two-column buttons more aggressively).
+export function hbLibraryKeyboard(lang) {
+  const b = (key, val) => ({ text: t(lang, key), callback_data: `bm:hb:pick:${val}` });
   return stack([
-    [b("bm_habit_water", "water"),         b("bm_habit_sleep", "sleep")],
-    [b("bm_habit_walk", "walk"),           b("bm_habit_exercise", "exercise")],
-    [b("bm_habit_veggies", "veggies"),     b("bm_habit_less_sugar", "less_sugar")],
-    [b("bm_habit_quit_smoking", "quit_smoking"), b("bm_habit_stress", "stress")],
-    [b("bm_habit_read", "read"),           b("bm_habit_pray", "pray")],
-    [b("bm_habit_other", "other")],
-    [{ text: t(lang, "btn_back"), callback_data: "feat:betterme" }],
+    b("bm_habit_lib_move", "move"),
+    b("bm_habit_lib_water", "water"),
+    b("bm_habit_lib_sleep", "sleep"),
+    b("bm_habit_lib_smoke_free", "smoke_free"),
+    b("bm_habit_lib_no_food_after_dinner", "no_food_after_dinner"),
+    { text: t(lang, "btn_back"), callback_data: "feat:betterme" },
   ]);
 }
 
-// Habit days-per-week (1..7).
-export function bmHabitDaysKeyboard(lang) {
-  const b = (n) => ({ text: String(n), callback_data: `bm:habitdays:${n}` });
+// Water target picker (6 / 8 / 10 / other).
+export function hbWaterTargetKeyboard(lang) {
+  const b = (key, val) => ({ text: t(lang, key), callback_data: `bm:hb:target:water:${val}` });
   return {
     inline_keyboard: [
-      [b(1), b(2), b(3), b(4)],
-      [b(5), b(6), b(7)],
+      [b("btn_hb_water_6", "6"), b("btn_hb_water_8", "8"), b("btn_hb_water_10", "10")],
+      [{ text: t(lang, "btn_hb_water_other"), callback_data: "bm:hb:target:water:other" }],
+      [{ text: t(lang, "btn_back"), callback_data: "bm:habit" }],
+    ],
+  };
+}
+
+// Sleep target-time picker. Values are ISO-ish 24h strings so they round-trip
+// through the render layer without locale drift.
+export function hbSleepTimeKeyboard(lang) {
+  const b = (key, val) => ({ text: t(lang, key), callback_data: `bm:hb:target:sleep:${val}` });
+  return {
+    inline_keyboard: [
+      [b("btn_hb_sleep_1030", "22:30"), b("btn_hb_sleep_1100", "23:00"), b("btn_hb_sleep_1130", "23:30")],
+      [{ text: t(lang, "btn_hb_sleep_other"), callback_data: "bm:hb:target:sleep:other" }],
+      [{ text: t(lang, "btn_back"), callback_data: "bm:habit" }],
+    ],
+  };
+}
+
+// Habit activation — Start / Start Without Reminders / Cancel (spec §6).
+export function hbActivationKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [{ text: t(lang, "btn_hb_start"), callback_data: "bm:hb:activate" }],
+      [{ text: t(lang, "btn_hb_start_silent"), callback_data: "bm:hb:activate_silent" }],
+      [{ text: t(lang, "btn_hb_cancel"), callback_data: "bm:hb:cancel" }],
+    ],
+  };
+}
+
+// Daily check-in keyboard (spec §7). Stop Reminders must appear on every
+// prompt; habitId is bound in the callback so scheduler-delivered messages
+// remain valid even if the user has multiple future habits.
+export function hbDailyKeyboard(lang, habitId) {
+  return {
+    inline_keyboard: [[
+      { text: t(lang, "btn_hb_yes"), callback_data: `bm:hb:answer:${habitId}:yes` },
+      { text: t(lang, "btn_hb_no"), callback_data: `bm:hb:answer:${habitId}:no` },
+      { text: t(lang, "btn_hb_stop"), callback_data: `bm:hb:answer:${habitId}:stop` },
+    ]],
+  };
+}
+
+// Stop-reminders confirmation (spec §16). Pause-for-7-days is Phase 2 and is
+// intentionally omitted here to avoid exposing an unimplemented action.
+export function hbStopConfirmKeyboard(lang, habitId) {
+  return {
+    inline_keyboard: [
+      [{ text: t(lang, "btn_hb_stop_yes"), callback_data: `bm:hb:stop_confirm:${habitId}` }],
+      [{ text: t(lang, "btn_hb_keep_reminders"), callback_data: "bm:habit" }],
+    ],
+  };
+}
+
+// Active-habit summary card (spec §18). Only actions implemented in Phase 1
+// are shown — the others (pause / remove / change target / change frequency
+// / view progress) land in Phase 2.
+export function hbSummaryKeyboard(lang, habitId) {
+  return {
+    inline_keyboard: [
+      [{ text: t(lang, "btn_hb_stop_short"), callback_data: `bm:hb:stop:${habitId}` }],
+      [{ text: t(lang, "btn_hb_main_menu"), callback_data: "menu" }],
+      [{ text: t(lang, "btn_back"), callback_data: "feat:betterme" }],
     ],
   };
 }
@@ -822,63 +911,20 @@ export function bmFitDoneKeyboard(lang) {
   };
 }
 
-// 10-Minute Wins choice keyboard (do it / another).
+// 10-Minute Wins — spec 2026-07 three-button layout. Swap is on its own row
+// because it's a distinct meta-action ("give me a different challenge"),
+// separate from the Done/Not Today outcome pair.
 export function bmWinsChoiceKeyboard(lang) {
   return {
     inline_keyboard: [
       [
-        { text: t(lang, "btn_bm_wins_do"),      callback_data: "bm:wins_do" },
-        { text: t(lang, "btn_bm_wins_another"), callback_data: "bm:wins_again" },
+        { text: t(lang, "btn_bm_wins_done"), callback_data: "bm:w:done" },
+        { text: t(lang, "btn_bm_wins_skip"), callback_data: "bm:w:skip" },
       ],
-      [{ text: t(lang, "btn_back"), callback_data: "feat:betterme" }],
+      [{ text: t(lang, "btn_bm_wins_swap"), callback_data: "bm:w:swap" }],
+      [{ text: t(lang, "btn_back"),         callback_data: "feat:betterme" }],
     ],
   };
-}
-
-// 15-minute follow-up.
-export function bmWinsFollowupKeyboard(lang) {
-  return {
-    inline_keyboard: [
-      [
-        { text: t(lang, "btn_bm_wins_yes"),    callback_data: "bm:wins_yes" },
-        { text: t(lang, "btn_bm_wins_notyet"), callback_data: "bm:wins_notyet" },
-      ],
-    ],
-  };
-}
-
-// Immediate "Done" button shown alongside the go-do-it nudge.
-export function bmWinsGoKeyboard(lang) {
-  return {
-    inline_keyboard: [
-      [{ text: t(lang, "btn_bm_wins_done"), callback_data: "bm:wins_yes" }],
-      [{ text: t(lang, "btn_back"), callback_data: "feat:betterme" }],
-    ],
-  };
-}
-
-// Health Journey — yes/no on updating conditions.
-export function bmJourneyConditionsKeyboard(lang) {
-  return {
-    inline_keyboard: [
-      [
-        { text: t(lang, "btn_yes"), callback_data: "bm:condyes" },
-        { text: t(lang, "btn_no"),  callback_data: "bm:condno" },
-      ],
-    ],
-  };
-}
-
-// Health Journey — 1-year goal picker.
-export function bmJourneyGoalKeyboard(lang) {
-  const b = (key, val) => ({ text: t(lang, key), callback_data: `bm:jgoal:${val}` });
-  return stack([
-    [b("btn_bm_journey_lose", "lose_weight"),   b("btn_bm_journey_fit", "get_fitter")],
-    [b("btn_bm_journey_sleep", "sleep_better"), b("btn_bm_journey_quit", "quit_smoking")],
-    [b("btn_bm_journey_stress", "reduce_stress"), b("btn_bm_journey_energy", "energetic")],
-    [b("btn_bm_journey_overall", "overall_health")],
-    [b("btn_bm_journey_other", "other")],
-  ]);
 }
 
 // Simple Back-to-Better-Me button used at flow end-points.

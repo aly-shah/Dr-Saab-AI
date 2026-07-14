@@ -502,6 +502,75 @@ async function makeSupabaseBackend() {
         .order("created_at", { ascending: false }).limit(1).maybeSingle();
       return data || null;
     },
+
+    // ===== Habit Builder (2026-07) =====
+    async getActiveUserHabit(userId) {
+      const { data } = await db.from("user_habits").select("*")
+        .eq("user_id", userId).eq("active_slot", true).maybeSingle();
+      return data || null;
+    },
+    async getUserHabitById(habitId) {
+      const { data } = await db.from("user_habits").select("*").eq("id", habitId).maybeSingle();
+      return data || null;
+    },
+    async createUserHabit(userId, fields) {
+      const { data, error } = await db.from("user_habits")
+        .insert({ user_id: userId, active_slot: true, ...fields })
+        .select("*").single();
+      if (error) throw error;
+      return data;
+    },
+    async updateUserHabit(habitId, patch) {
+      const { data, error } = await db.from("user_habits").update(patch).eq("id", habitId).select("*").single();
+      if (error) throw error;
+      return data;
+    },
+    async getHabitCheckIn(userHabitId, logDate) {
+      const { data } = await db.from("habit_check_ins").select("*")
+        .eq("user_habit_id", userHabitId).eq("log_date", logDate).maybeSingle();
+      return data || null;
+    },
+    async upsertHabitCheckIn(fields) {
+      const { data, error } = await db.from("habit_check_ins")
+        .upsert(fields, { onConflict: "user_habit_id,log_date" })
+        .select("*").single();
+      if (error) throw error;
+      return data;
+    },
+
+    // ===== 10-Minute Wins (2026-07) =====
+    async listWinLogsSince(userId, sinceDate) {
+      const { data } = await db.from("win_challenge_log")
+        .select("challenge_id, challenge_date, status, replacement_used")
+        .eq("user_id", userId)
+        .gte("challenge_date", sinceDate)
+        .order("challenge_date", { ascending: false });
+      return data || [];
+    },
+    async getTodayWinLog(userId, date) {
+      const { data } = await db.from("win_challenge_log").select("*")
+        .eq("user_id", userId).eq("challenge_date", date).maybeSingle();
+      return data || null;
+    },
+    async upsertWinLogForDate(userId, date, fields) {
+      const { data, error } = await db.from("win_challenge_log")
+        .upsert({ user_id: userId, challenge_date: date, ...fields }, { onConflict: "user_id,challenge_date" })
+        .select("*").single();
+      if (error) throw error;
+      return data;
+    },
+    // JS-side increment because supabase-js has no atomic bump primitive.
+    // Race window is a per-user counter — acceptable given the low fire-rate
+    // (one bump per user per day at most).
+    async bumpWinCounter(userId, kind) {
+      const { data: u } = await db.from("users").select("wins_completed, wins_skipped").eq("id", userId).maybeSingle();
+      const patch = kind === "completed"
+        ? { wins_completed: (u?.wins_completed || 0) + 1, last_win_completed_date: new Date().toISOString().slice(0, 10) }
+        : { wins_skipped: (u?.wins_skipped || 0) + 1 };
+      const { data, error } = await db.from("users").update(patch).eq("id", userId).select("*").single();
+      if (error) throw error;
+      return data;
+    },
   };
 }
 
@@ -1241,6 +1310,118 @@ async function makePostgresBackend() {
       );
       return rows[0] || null;
     },
+
+    // ===== Habit Builder (2026-07) =====
+    async getActiveUserHabit(userId) {
+      const { rows } = await pool.query(
+        "select * from user_habits where user_id=$1 and active_slot=true limit 1",
+        [userId]
+      );
+      return rows[0] || null;
+    },
+    async getUserHabitById(habitId) {
+      const { rows } = await pool.query("select * from user_habits where id=$1", [habitId]);
+      return rows[0] || null;
+    },
+    async createUserHabit(userId, fields) {
+      const obj = { user_id: userId, active_slot: true, ...fields };
+      const keys = Object.keys(obj);
+      const cols = keys.join(", ");
+      const ph = keys.map((_, i) => `$${i + 1}`).join(", ");
+      const { rows } = await pool.query(
+        `insert into user_habits (${cols}) values (${ph}) returning *`,
+        Object.values(obj)
+      );
+      return rows[0];
+    },
+    async updateUserHabit(habitId, patch) {
+      const keys = Object.keys(patch);
+      if (!keys.length) return this.getUserHabitById(habitId);
+      const set = keys.map((k, i) => `${k} = $${i + 1}`).join(", ");
+      const vals = keys.map((k) => patch[k]);
+      const { rows } = await pool.query(
+        `update user_habits set ${set} where id = $${vals.length + 1} returning *`,
+        [...vals, habitId]
+      );
+      return rows[0] || null;
+    },
+    async getHabitCheckIn(userHabitId, logDate) {
+      const { rows } = await pool.query(
+        "select * from habit_check_ins where user_habit_id=$1 and log_date=$2::date",
+        [userHabitId, logDate]
+      );
+      return rows[0] || null;
+    },
+    async upsertHabitCheckIn(fields) {
+      // (user_habit_id, log_date) is unique. Insert; on conflict, patch the
+      // supplied columns (used both when the reminder fires and when the user
+      // answers later the same day).
+      const patchKeys = Object.keys(fields).filter(
+        (k) => k !== "user_habit_id" && k !== "user_id" && k !== "log_date"
+      );
+      const cols = Object.keys(fields);
+      const ph = cols.map((_, i) => `$${i + 1}`).join(", ");
+      const setClause = patchKeys.length
+        ? patchKeys.map((k) => `${k} = excluded.${k}`).join(", ")
+        : "log_date = excluded.log_date"; // no-op update to satisfy syntax
+      const { rows } = await pool.query(
+        `insert into habit_check_ins (${cols.join(", ")}) values (${ph})
+         on conflict (user_habit_id, log_date) do update set ${setClause}
+         returning *`,
+        Object.values(fields)
+      );
+      return rows[0];
+    },
+
+    // ===== 10-Minute Wins (2026-07) =====
+    async listWinLogsSince(userId, sinceDate) {
+      const { rows } = await pool.query(
+        `select challenge_id, challenge_date, status, replacement_used
+           from win_challenge_log
+          where user_id = $1 and challenge_date >= $2::date
+          order by challenge_date desc`,
+        [userId, sinceDate]
+      );
+      return rows;
+    },
+    async getTodayWinLog(userId, date) {
+      const { rows } = await pool.query(
+        "select * from win_challenge_log where user_id=$1 and challenge_date=$2::date",
+        [userId, date]
+      );
+      return rows[0] || null;
+    },
+    async upsertWinLogForDate(userId, date, fields) {
+      const obj = { user_id: userId, challenge_date: date, ...fields };
+      const cols = Object.keys(obj);
+      const ph = cols.map((_, i) => `$${i + 1}`).join(", ");
+      const patchCols = cols.filter((k) => k !== "user_id" && k !== "challenge_date");
+      const setClause = patchCols.length
+        ? patchCols.map((k) => `${k} = excluded.${k}`).join(", ")
+        : "challenge_date = excluded.challenge_date";
+      const { rows } = await pool.query(
+        `insert into win_challenge_log (${cols.join(", ")}) values (${ph})
+         on conflict (user_id, challenge_date) do update set ${setClause}
+         returning *`,
+        Object.values(obj)
+      );
+      return rows[0];
+    },
+    // Atomic per-user counter bump. `kind` is 'completed' or 'skipped'.
+    async bumpWinCounter(userId, kind) {
+      const sql = kind === "completed"
+        ? `update users
+              set wins_completed = coalesce(wins_completed, 0) + 1,
+                  last_win_completed_date = current_date,
+                  updated_at = now()
+            where id = $1 returning *`
+        : `update users
+              set wins_skipped = coalesce(wins_skipped, 0) + 1,
+                  updated_at = now()
+            where id = $1 returning *`;
+      const { rows } = await pool.query(sql, [userId]);
+      return rows[0] || null;
+    },
   };
 }
 
@@ -1914,3 +2095,30 @@ export const userDueReminders = (userId, nowIso = new Date().toISOString()) =>
   backend.userDueReminders(userId, nowIso);
 export const activityCountsSince = (userId, sinceIso) =>
   backend.activityCountsSince(userId, sinceIso);
+
+// --- Habit Builder (2026-07) ---
+// In-memory backend doesn't implement these — habits require a durable store
+// (reminders + streaks would reset every process restart otherwise). The
+// guards below make the flow degrade to "no active habit" instead of throwing.
+export const getActiveUserHabit = (userId) =>
+  backend.getActiveUserHabit ? backend.getActiveUserHabit(userId) : Promise.resolve(null);
+export const getUserHabitById = (habitId) =>
+  backend.getUserHabitById ? backend.getUserHabitById(habitId) : Promise.resolve(null);
+export const createUserHabit = (userId, fields) =>
+  backend.createUserHabit ? backend.createUserHabit(userId, fields) : Promise.resolve(null);
+export const updateUserHabit = (habitId, patch) =>
+  backend.updateUserHabit ? backend.updateUserHabit(habitId, patch) : Promise.resolve(null);
+export const getHabitCheckIn = (userHabitId, logDate) =>
+  backend.getHabitCheckIn ? backend.getHabitCheckIn(userHabitId, logDate) : Promise.resolve(null);
+export const upsertHabitCheckIn = (fields) =>
+  backend.upsertHabitCheckIn ? backend.upsertHabitCheckIn(fields) : Promise.resolve(null);
+
+// --- 10-Minute Wins (2026-07) ---
+export const listWinLogsSince = (userId, sinceDate) =>
+  backend.listWinLogsSince ? backend.listWinLogsSince(userId, sinceDate) : Promise.resolve([]);
+export const getTodayWinLog = (userId, date) =>
+  backend.getTodayWinLog ? backend.getTodayWinLog(userId, date) : Promise.resolve(null);
+export const upsertWinLogForDate = (userId, date, fields) =>
+  backend.upsertWinLogForDate ? backend.upsertWinLogForDate(userId, date, fields) : Promise.resolve(null);
+export const bumpWinCounter = (userId, kind) =>
+  backend.bumpWinCounter ? backend.bumpWinCounter(userId, kind) : Promise.resolve(null);

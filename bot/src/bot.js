@@ -48,7 +48,7 @@ import {
 import { startMyHealth, myHealthText, myHealthCallback } from "./flows/myhealth.js";
 import { startCoach, coachText } from "./flows/coach.js";
 import { startAskDrsaab, askDrsaabText } from "./flows/askdrsaab.js";
-import { startLab, labText, handleUploadLabButton } from "./flows/labreport.js";
+import { startLab, labText } from "./flows/labreport.js";
 import { showSummary } from "./flows/progress.js";
 import { showEducation } from "./flows/education.js";
 import { showT1Community, dispatchT1Community } from "./flows/t1community.js";
@@ -217,11 +217,6 @@ async function dispatchFeature(bot, chatId, session, action) {
       return startCoach(bot, chatId, session, "fitness");
     case "lab":
       return startLab(bot, chatId, session);
-    case "upload_lab":
-    case "take_photo_lab":
-      // Web chat intercepts both callbacks to open the file picker or the
-      // camera respectively — on Telegram / WhatsApp we just print the hint.
-      return handleUploadLabButton(bot, chatId, session);
     case "summary":
       return showSummary(bot, chatId, session);
     case "learn":
@@ -503,9 +498,10 @@ export async function handleCallback(bot, query) {
       restaurant: "foodhelp_restaurant_prompt",
       snacks: "foodhelp_snacks_prompt",
     }[x];
-    // Restaurant Guidance skips the generic Food Coach intro — its own prompt
-    // already tells the user what to do, so the intro was redundant.
-    if (x === "restaurant") {
+    // Restaurant Guidance and Snack Ideas skip the generic Food Coach intro
+    // — their own prompt already tells the user what to do, so the intro was
+    // redundant and made the entry feel like two separate messages.
+    if (x === "restaurant" || x === "snacks") {
       await startCoach(bot, chatId, session, "food", seedKey);
       return;
     }
@@ -631,7 +627,7 @@ export async function handleCallback(bot, query) {
     return dispatchPrediabetes(bot, chatId, session, data.slice(3));
   }
 
-  // Better Me sub-menu (spec 2026-07): habit / fitness / wins / journey.
+  // Better Me sub-menu (spec 2026-07): habit / fitness / wins.
   if (data.startsWith("bm:")) {
     return dispatchBetterMe(bot, chatId, session, data.slice(3));
   }

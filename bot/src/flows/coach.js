@@ -6,6 +6,7 @@ import { saveCoachMessage, weeklyStats } from "../supabase.js";
 import { applyScores } from "../scores.js";
 import { compactKB } from "../kb.js";
 import { pushHistory } from "../session.js";
+import { matchRestaurant, restaurantHint, PK_RESTAURANTS } from "../restaurants.js";
 
 const PROMPT_KEY = {
   coach: "coach_prompt",
@@ -26,6 +27,8 @@ export async function startCoach(bot, chatId, session, kind, promptKeyOverride) 
   }
   session.state = kind;
   session.history = [];
+  // Restaurant cache belongs to a single food conversation — reset on entry.
+  if (session.data) delete session.data.foodRestaurantId;
   const promptKey = promptKeyOverride || PROMPT_KEY[kind];
   await send(bot, chatId, t(lang, promptKey), { keyboard: backKeyboard(lang), markdown: true });
 }
@@ -53,6 +56,33 @@ export async function coachText(bot, chatId, session, text, msg) {
     } catch {
       /* ignore */
     }
+
+    // Restaurant Guidance: detect a Pakistani restaurant in the current
+    // message; if none, fall back to the one detected earlier in this
+    // conversation. This lets follow-up questions ("what should I order?")
+    // stay grounded on the restaurant the user first mentioned.
+    let restaurant = null;
+    if (kind === "food") {
+      session.data = session.data || {};
+      const fresh = matchRestaurant(userText);
+      if (fresh) {
+        session.data.foodRestaurantId = fresh.id;
+        restaurant = fresh;
+      } else if (session.data.foodRestaurantId) {
+        restaurant = PK_RESTAURANTS.find((r) => r.id === session.data.foodRestaurantId) || null;
+      }
+      if (restaurant) {
+        const hint = restaurantHint(restaurant);
+        extra = extra ? `${extra}\n\n${hint}` : hint;
+      }
+      // Send the menu link once per restaurant match, so the user has a
+      // tap-through even before the AI reply finishes streaming.
+      if (fresh?.menu_url && session.data.foodRestaurantMenuSentId !== fresh.id) {
+        session.data.foodRestaurantMenuSentId = fresh.id;
+        await send(bot, chatId, `📍 *${fresh.name}* menu: ${fresh.menu_url}`, { markdown: true });
+      }
+    }
+
     const reply = await coachReply(session.user, session.history, userText, kind, imageDataUrl, extra);
 
     pushHistory(session, "user", userText || "[image]");

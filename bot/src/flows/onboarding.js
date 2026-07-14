@@ -259,7 +259,6 @@ export async function onboardingCallback(bot, chatId, session, data) {
     const map = {
       type1:       { user_type: "diabetes",    diabetes_type: "type1" },
       type2:       { user_type: "diabetes",    diabetes_type: "type2" },
-      gestational: { user_type: "diabetes",    diabetes_type: "gestational" },
       prediabetes: { user_type: "prediabetes", diabetes_type: null },
       healthier:   { user_type: "healthier",   diabetes_type: null },
     };

@@ -114,7 +114,7 @@ const KIND_ROLE = {
   coach:
     "Focus on overall diabetes self-management: blood sugar patterns, habits, motivation, accountability and consistency.",
   food:
-    "You are the FOOD COACH. When given a meal (text or photo), estimate carbohydrate load and glycemic impact, flag concerns, and suggest healthier swaps using foods common to the user's region. Be specific and practical.",
+    "You are the FOOD COACH. Assume the user is in Pakistan unless they say otherwise, so interpret meal and restaurant names in Pakistani/desi context. When given a meal (text or photo), estimate carbohydrate load and glycemic impact, flag concerns, and suggest healthier swaps using foods that are actually available at that place — Pakistani/desi cuisine (biryani, karahi, kebabs, tikka, naan, roti, daal, sabzi, chapli kebab, nihari, haleem, chaat, seekh, chicken tikka, mutton karahi, sajji), not American fast-food defaults. In particular, 'BBQ' in a Pakistani restaurant name (e.g. BBQ Tonight) refers to charcoal-grilled kebabs/tikka/karahi — NOT hot dogs, burgers, ribs or American barbecue. Only assume international/American menu items if the user names a US chain (McDonald's, KFC, Hardee's, Subway, Domino's, Pizza Hut, Burger King). If the user names a specific restaurant, ground your advice in that restaurant's actual menu categories; do not invent items that are not typically served there. Be specific and practical, WhatsApp-length.",
   analyze:
     "You are the MEAL ANALYSER. The user will describe a meal (text) or send a photo of a plate. Estimate the meal for one typical serving and reply in this EXACT structure, no preamble:\n\n*Meal:* (one-line description of what you see)\n*Per serving (estimate):*\n• Calories: …\n• Carbohydrates: …\n• Protein: …\n• Fat: …\n• Fibre: … (skip this line if you cannot tell)\n\n*Blood sugar impact:* 🟢 Low / 🟡 Moderate / 🔴 High — then explain in ONE line why.\n*Portion advice:* one line.\n*Suggested improvements:* 1–3 concise bullets.\n*Well done:* one short line of positive reinforcement — only when the meal is a genuinely good choice.\n\nNever present estimates as exact nutrition facts. Use foods common to the user's region. Keep it WhatsApp-length. End with: ✅ Meal analysed.",
   label:
@@ -574,6 +574,80 @@ Rules:
     activity_level: out.activity_level ? String(out.activity_level).trim() : null,
     activity_type: out.activity_type ? String(out.activity_type).trim() : null,
   };
+}
+
+/**
+ * Q1 — "About You": gender / age / height / weight from a natural-language
+ * reply. Regex-based (no LLM call) — these are simple numeric/enum fields and
+ * we don't want to burn tokens on every My Health entry.
+ *
+ * Returns { gender?, age?, height_cm?, weight_kg?, ackOnly?: true }.
+ * `ackOnly` is true when the user just confirmed ("ok", "correct", "yes")
+ * without any new data — the caller should accept and move on.
+ */
+export function extractAboutYou(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return {};
+  const lower = raw.toLowerCase();
+
+  // Bare confirmation — "ok" / "yes" / "correct" / "looks good" / "all good".
+  if (/^(ok|okay|k|yes|correct|right|looks good|all good|nothing|no update|no change|nothing to update)\.?$/i.test(raw)) {
+    return { ackOnly: true };
+  }
+
+  const out = {};
+
+  // Gender: male / female / other. Match whole words so "Female" is fine but
+  // "malegorged" (nonsense) isn't. Also accept "M" / "F" as standalone tokens.
+  if (/\b(female|woman|f)\b/i.test(raw)) out.gender = "female";
+  else if (/\b(male|man|m)\b/i.test(raw)) out.gender = "male";
+  else if (/\b(other|non-?binary|nb)\b/i.test(raw)) out.gender = "other";
+
+  // Weight: "78kg", "76 kg", "weight 76", "wt 76" — prefer explicit "kg" tokens
+  // over bare numbers. Convert lbs to kg when explicit.
+  const wKg = lower.match(/(\d{2,3}(?:\.\d+)?)\s*(?:kgs?|kilo(?:gram)?s?)\b/);
+  const wLb = lower.match(/(\d{2,3}(?:\.\d+)?)\s*(?:lbs?|pounds?)\b/);
+  const wLabelled = lower.match(/(?:weight|wt|wgt)[\s:]*?(\d{2,3}(?:\.\d+)?)\b/);
+  if (wKg) out.weight_kg = Number(wKg[1]);
+  else if (wLb) out.weight_kg = Math.round(Number(wLb[1]) * 0.453592 * 10) / 10;
+  else if (wLabelled) out.weight_kg = Number(wLabelled[1]);
+
+  // Height: "174cm" / "1.74m" / "5'8" / "5ft 8in" / "height 174".
+  const hCm = lower.match(/(\d{2,3}(?:\.\d+)?)\s*(?:cm|centimet(?:er|re)s?)\b/);
+  const hM  = lower.match(/(\d(?:\.\d+)?)\s*m(?:eters?|etres?)?\b/);
+  const hFtIn = lower.match(/(\d)\s*(?:'|ft|feet)\s*(\d{1,2})\s*(?:"|in|inch(?:es)?)?/);
+  const hFt = lower.match(/(\d(?:\.\d+)?)\s*(?:'|ft|feet)\b/);
+  const hLabelled = lower.match(/height[\s:]*?(\d{2,3})\b/);
+  if (hCm) out.height_cm = Number(hCm[1]);
+  else if (hFtIn) out.height_cm = Math.round(Number(hFtIn[1]) * 30.48 + Number(hFtIn[2]) * 2.54);
+  else if (hFt) out.height_cm = Math.round(Number(hFt[1]) * 30.48);
+  else if (hM && Number(hM[1]) < 3) out.height_cm = Math.round(Number(hM[1]) * 100);
+  else if (hLabelled) out.height_cm = Number(hLabelled[1]);
+
+  // Age: prefer explicit "age 32" / "32 years / yrs old". Fall back to a
+  // small standalone number (1–120) only if we haven't already parsed a
+  // height/weight above (to avoid grabbing the wrong number).
+  const aLabelled = lower.match(/\bage[\s:]*?(\d{1,3})\b/);
+  const aYearsOld = lower.match(/\b(\d{1,3})\s*(?:years?|yrs?)\s*old\b/);
+  const aYearsOnly = lower.match(/\b(\d{1,3})\s*(?:years?|yrs?)\b/);
+  if (aLabelled) out.age = Number(aLabelled[1]);
+  else if (aYearsOld) out.age = Number(aYearsOld[1]);
+  else if (aYearsOnly) out.age = Number(aYearsOnly[1]);
+  else if (out.weight_kg == null && out.height_cm == null) {
+    // Only accept a bare number as age when there's no other numeric noise.
+    const bare = raw.match(/\b(\d{1,3})\b/);
+    if (bare) {
+      const n = Number(bare[1]);
+      if (n >= 1 && n <= 120) out.age = n;
+    }
+  }
+
+  // Sanity-clip absurd values.
+  if (out.age != null && (out.age < 1 || out.age > 120)) delete out.age;
+  if (out.height_cm != null && (out.height_cm < 50 || out.height_cm > 250)) delete out.height_cm;
+  if (out.weight_kg != null && (out.weight_kg < 20 || out.weight_kg > 300)) delete out.weight_kg;
+
+  return out;
 }
 
 /** Q5 — Primary health goal. Returns { goal }. */

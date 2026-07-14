@@ -39,17 +39,6 @@ export async function startLab(bot, chatId, session) {
   await send(bot, chatId, t(lang, "lab_prompt"), { keyboard: labStartKeyboard(lang), markdown: true });
 }
 
-// Handler for the "📎 Upload Image" button on the lab prompt.
-// - Web chat: intercepted by the frontend to open a native file picker before
-//   the callback is even sent; this handler is a no-op fallback there.
-// - Telegram / WhatsApp: bots can't trigger the client's file picker, so we
-//   just remind the user to use the built-in attach control.
-export async function handleUploadLabButton(bot, chatId, session) {
-  const lang = langOf(session);
-  session.state = "lab";
-  await send(bot, chatId, t(lang, "upload_lab_hint"), { keyboard: labStartKeyboard(lang), markdown: true });
-}
-
 export async function labText(bot, chatId, session, text, msg) {
   const lang = langOf(session);
 

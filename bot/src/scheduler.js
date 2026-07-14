@@ -26,11 +26,16 @@ import {
   dueReminders,
   logDailyMessage,
   markReminderFired,
+  getUserHabitById,
+  updateUserHabit,
+  upsertHabitCheckIn,
 } from "./supabase.js";
 import { send } from "./utils.js";
 import { t } from "./i18n.js";
 import { composeDailyMessage } from "./composer.js";
 import { config } from "./config.js";
+import { hbDailyKeyboard } from "./keyboards.js";
+import { formatTime12h } from "./flows/habitbuilder.js";
 
 const TZ_OFFSET = parseInt(process.env.REMINDER_TZ_OFFSET || "5", 10); // PKT default
 
@@ -74,9 +79,25 @@ async function fireDueReminders(bots, usersById) {
     const chat = chatIdFor(u);
     if (!bot || !chat) continue;
     const lang = u.language || "en";
-    const templateKey = `reminder_template_${r.category}`;
-    const body = t(lang, templateKey, { name: r.label || "" });
     try {
+      // Habit Builder daily check-in: rotating variation + inline Yes/Not
+      // Today/Stop Reminders keyboard. Falls back to the generic template
+      // path if the habit row can't be loaded (e.g. removed between the
+      // dueReminders read and now).
+      if (r.category === "habit_daily") {
+        const rendered = await renderHabitCheckIn(r, lang);
+        if (rendered) {
+          await send(bot, chat, rendered.text, {
+            keyboard: rendered.keyboard,
+            markdown: true,
+          });
+          const nextIso = bumpNextFire(r);
+          await markReminderFired(r.id, nextIso);
+          continue;
+        }
+      }
+      const templateKey = `reminder_template_${r.category}`;
+      const body = t(lang, templateKey, { name: r.label || "" });
       await send(bot, chat, body, { markdown: true });
       const nextIso = bumpNextFire(r);
       await markReminderFired(r.id, nextIso);
@@ -84,6 +105,59 @@ async function fireDueReminders(bots, usersById) {
       console.error("reminder send/mark:", e?.message);
     }
   }
+}
+
+// Habit Builder daily check-in renderer. Picks the next variation (1/2/3)
+// without repeating yesterday's, seeds a habit_check_ins row with the sent
+// timestamp, and returns text + inline keyboard for send(). Returns null if
+// the habit row is missing or its reminders have been disabled.
+async function renderHabitCheckIn(reminderRow, lang) {
+  const habit = await getUserHabitById(reminderRow.target_id).catch(() => null);
+  if (!habit) return null;
+  if (habit.reminder_status !== "enabled") return null;
+
+  const questionKey = `bm_habit_q_${habit.habit_type}`;
+  const questionArgs = {};
+  if (habit.habit_type === "water") questionArgs.target = habit.target_value ?? "";
+  if (habit.habit_type === "sleep") questionArgs.target = formatTime12h(habit.target_time || "");
+  const question = t(lang, questionKey, questionArgs);
+
+  const variation = pickVariation(habit);
+  let text;
+  if (variation === 3) {
+    const streak = habit.current_streak || 0;
+    const key = streak > 0 ? "bm_habit_daily_v3" : "bm_habit_daily_v3_zero";
+    text = t(lang, key, { question, streak, name: habit.habit_name || "" });
+  } else {
+    text = t(lang, `bm_habit_daily_v${variation}`, { question });
+  }
+
+  const nowIso = new Date().toISOString();
+  const today = todayLocalDate();
+  await upsertHabitCheckIn({
+    user_habit_id: habit.id,
+    user_id: habit.user_id,
+    log_date: today,
+    reminder_sent_at: nowIso,
+    message_variation_id: variation,
+  }).catch((e) => console.error("upsert habit_check_in:", e?.message));
+  await updateUserHabit(habit.id, { last_variation: variation }).catch(() => {});
+
+  return { text, keyboard: hbDailyKeyboard(lang, habit.id) };
+}
+
+// Rotate 1 → 2 → 3 → 1 …, but never send the same variation two days in a
+// row. Deterministic enough to be readable, random enough that fresh users
+// don't always start with variation 1.
+function pickVariation(habit) {
+  const last = habit.last_variation;
+  if (!last) return 1 + Math.floor(Math.random() * 3);
+  return (last % 3) + 1;
+}
+
+function todayLocalDate() {
+  const d = new Date(Date.now() + TZ_OFFSET * 3600 * 1000);
+  return d.toISOString().slice(0, 10);
 }
 
 function bumpNextFire(r) {
