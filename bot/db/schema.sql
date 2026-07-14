@@ -137,7 +137,17 @@ alter table public.doctors add column if not exists referral_code     text uniqu
 alter table public.doctors add column if not exists is_patient        boolean default false;
 alter table public.doctors add column if not exists last_login        timestamptz;
 -- If any legacy row has `code` set but not `referral_code`, mirror it.
-update public.doctors set referral_code = code where referral_code is null and code is not null;
+-- `code` won't exist on a fresh install — wrap in an existence check so the
+-- migration is safe to run against both new and legacy databases.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+     where table_schema = 'public' and table_name = 'doctors' and column_name = 'code'
+  ) then
+    execute 'update public.doctors set referral_code = code where referral_code is null and code is not null';
+  end if;
+end $$;
 
 -- ---------- Columns added over time (safe to re-run) ----------
 alter table public.users add column if not exists source            text default 'telegram';
