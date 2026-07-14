@@ -140,7 +140,9 @@ alter table public.doctors add column if not exists patient_profile_id uuid refe
 alter table public.doctors add column if not exists last_login         timestamptz;
 -- If any legacy row has `code` set but not `referral_code`, mirror it.
 -- `code` won't exist on a fresh install — wrap in an existence check so the
--- migration is safe to run against both new and legacy databases.
+-- migration is safe to run against both new and legacy databases. Also drop
+-- the legacy NOT NULL constraint so new doctor rows can be inserted with
+-- only `referral_code` populated.
 do $$
 begin
   if exists (
@@ -148,6 +150,7 @@ begin
      where table_schema = 'public' and table_name = 'doctors' and column_name = 'code'
   ) then
     execute 'update public.doctors set referral_code = code where referral_code is null and code is not null';
+    execute 'alter table public.doctors alter column code drop not null';
   end if;
 end $$;
 

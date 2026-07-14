@@ -364,8 +364,15 @@ export async function handleMessage(bot, msg) {
 
   // Not onboarded yet → (re)start onboarding for any input.
   // A greeting word picks the matching welcome scenario; any other text
-  // falls back to the English welcome banner.
-  if (!session.user.onboarded && session.state !== "onboarding") {
+  // falls back to the English welcome banner. Doctor onboarding branches
+  // (doctor_onboarding, doctor_patient_onboarding) are also considered
+  // in-progress onboarding — otherwise their typed replies would restart
+  // the whole welcome/language flow.
+  const inOnboardingState =
+    session.state === "onboarding" ||
+    session.state === "doctor_onboarding" ||
+    session.state === "doctor_patient_onboarding";
+  if (!session.user.onboarded && !inOnboardingState) {
     return startOnboarding(bot, chatId, session, greeting || "eng");
   }
 
