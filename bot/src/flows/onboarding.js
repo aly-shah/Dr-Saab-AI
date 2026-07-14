@@ -295,6 +295,10 @@ export async function startPatientBranchForDoctor(bot, chatId, session) {
 
 // Handle the diabetes-type answer for a doctor who elected dual use. After
 // this the doctor's profile carries a diabetes_status like a patient's.
+// The optional `session.data.afterPatientBranch` flag steers the landing:
+//   - undefined (fresh onboarding) → doctor menu
+//   - "myhealth" (deferred patient onboarding from Doctor Menu → My Health)
+//     → hand off directly to startMyHealth
 export async function doctorPatientBranchCallback(bot, chatId, session, data) {
   const [kind, value] = data.split(":");
   if (kind !== "dt" || session.step !== "diabetes_type") return;
@@ -313,8 +317,14 @@ export async function doctorPatientBranchCallback(bot, chatId, session, data) {
     onboarded: true,
   };
   session.user = await updateUser(session.user.id, patch);
+  const after = session?.data?.afterPatientBranch;
   resetFlow(chatId);
   await refreshKB(session.user).catch(() => {});
+
+  if (after === "myhealth") {
+    const { startMyHealth } = await import("./myhealth.js");
+    return startMyHealth(bot, chatId, session);
+  }
   const lang = langOf(session);
   const name = sanitizeMd(session.user.name || "");
   return send(bot, chatId, t(lang, "doc_menu_title", { name }), {

@@ -173,11 +173,13 @@ export function profileKeyboard(lang) {
 // ===================================================================
 // ❤️ My Health (spec "Main Menu Revision v2.1", 2026-07)
 // ===================================================================
-// Not-started screen — a single "Start" button (no submenus).
+// Not-started screen — Start plus a My Doctor entry (Doctor & Referral v1.0
+// requires the item under My Health regardless of profile-setup progress).
 export function myHealthStartKeyboard(lang) {
   return {
     inline_keyboard: [
       [{ text: t(lang, "btn_mh_start"), callback_data: "mh:start" }],
+      [{ text: t(lang, "btn_my_doctor"), callback_data: "mydoc:open" }],
       [{ text: t(lang, "btn_back"), callback_data: "menu" }],
     ],
   };
@@ -483,6 +485,18 @@ export function docYesNoKeyboard(lang) {
 // Back-to-doctor-menu button used by Reports / Referral Code screens.
 export function doctorBackKeyboard(lang) {
   return { inline_keyboard: [[{ text: t(lang, "btn_back"), callback_data: "doc:menu" }]] };
+}
+
+// Reports timeframe picker — spec Reporting Engine calls out weekly + monthly.
+export function doctorReportsWindowKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [{ text: t(lang, "btn_doc_rep_weekly"),  callback_data: "doc:reports_weekly" }],
+      [{ text: t(lang, "btn_doc_rep_monthly"), callback_data: "doc:reports_monthly" }],
+      [{ text: t(lang, "btn_doc_rep_all"),     callback_data: "doc:reports_all" }],
+      [{ text: t(lang, "btn_back"),            callback_data: "doc:menu" }],
+    ],
+  };
 }
 
 // Patient-side: "My Doctor" screens.

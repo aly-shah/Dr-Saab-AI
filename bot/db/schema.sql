@@ -115,16 +115,17 @@ create table if not exists public.patient_kb (
 -- the users row that holds their Telegram/WhatsApp identity (a doctor uses
 -- the exact same channel as a patient — user_type='doctor' switches the menu).
 create table if not exists public.doctors (
-  id                uuid primary key default gen_random_uuid(),
-  user_id           uuid references public.users(id) on delete cascade,
-  name              text not null,
-  email             text,
-  specialization    text,
-  practice_location text,
-  referral_code     text unique not null,
-  is_patient        boolean default false,     -- true if the doctor also uses DrSaab for personal health
-  last_login        timestamptz,
-  created_at        timestamptz default now()
+  id                  uuid primary key default gen_random_uuid(),
+  user_id             uuid references public.users(id) on delete cascade,
+  name                text not null,
+  email               text,
+  specialization      text,
+  practice_location   text,
+  referral_code       text unique not null,
+  is_patient          boolean default false,   -- true if the doctor also uses DrSaab for personal health
+  patient_profile_id  uuid references public.users(id) on delete set null, -- patient profile row when is_patient=true
+  last_login          timestamptz,
+  created_at          timestamptz default now()
 );
 create index if not exists doctors_user_idx on public.doctors(user_id);
 
@@ -134,8 +135,9 @@ alter table public.doctors add column if not exists email             text;
 alter table public.doctors add column if not exists specialization    text;
 alter table public.doctors add column if not exists practice_location text;
 alter table public.doctors add column if not exists referral_code     text unique;
-alter table public.doctors add column if not exists is_patient        boolean default false;
-alter table public.doctors add column if not exists last_login        timestamptz;
+alter table public.doctors add column if not exists is_patient         boolean default false;
+alter table public.doctors add column if not exists patient_profile_id uuid references public.users(id) on delete set null;
+alter table public.doctors add column if not exists last_login         timestamptz;
 -- If any legacy row has `code` set but not `referral_code`, mirror it.
 -- `code` won't exist on a fresh install — wrap in an existence check so the
 -- migration is safe to run against both new and legacy databases.
@@ -206,6 +208,9 @@ alter table public.users add column if not exists doctor_id            uuid refe
 alter table public.users add column if not exists doctor_referral_code text;
 alter table public.users add column if not exists doctor_link_status   text;   -- 'active' | 'removed'
 alter table public.users add column if not exists doctor_linked_date   timestamptz;
+-- `linked_date` alias per spec column naming (v1.0). Kept in sync at write time
+-- so downstream tools that reference the spec column name keep working.
+alter table public.users add column if not exists linked_date          timestamptz;
 
 -- keep updated_at fresh on users
 create or replace function public.touch_updated_at()

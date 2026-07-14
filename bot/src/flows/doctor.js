@@ -11,6 +11,7 @@ import { resetFlow } from "../session.js";
 import {
   doctorMenuKeyboard,
   doctorBackKeyboard,
+  doctorReportsWindowKeyboard,
   myDoctorNoneKeyboard,
   myDoctorLinkedKeyboard,
   myDoctorConfirmKeyboard,
@@ -47,12 +48,38 @@ export async function showDoctorMenu(bot, chatId, session) {
 export async function doctorCallback(bot, chatId, session, data) {
   const action = data.split(":")[1];
   if (action === "menu")     return showDoctorMenu(bot, chatId, session);
-  if (action === "reports")  return showPatientReports(bot, chatId, session);
+  if (action === "reports")  return showReportsWindowPicker(bot, chatId, session);
   if (action === "referral") return showReferralCode(bot, chatId, session);
-  if (action === "myhealth") {
-    // "My Health" from the doctor menu reuses the patient My Health module.
-    return startMyHealth(bot, chatId, session);
+  if (action === "myhealth") return openDoctorMyHealth(bot, chatId, session);
+  if (action === "reports_weekly")  return showPatientReports(bot, chatId, session, "weekly");
+  if (action === "reports_monthly") return showPatientReports(bot, chatId, session, "monthly");
+  if (action === "reports_all")     return showPatientReports(bot, chatId, session, "all");
+}
+
+// Spec: "If the doctor has not completed patient onboarding, launch it.
+// Otherwise open the standard patient menus." Doctors who picked "No" to
+// dual-use during onboarding have no diabetes_status set — we ask it here
+// (a one-question patient onboarding) and mark is_patient=true so the
+// doctors row reflects the change before the health-profile flow starts.
+async function openDoctorMyHealth(bot, chatId, session) {
+  const u = session.user;
+  const needsPatientOnboarding = !u.diabetes_status;
+  if (needsPatientOnboarding) {
+    // Lazy import to avoid a circular dep with onboarding.js.
+    const { startPatientBranchForDoctor } = await import("./onboarding.js");
+    // Flip is_patient on the doctors row so aggregated views know the doctor
+    // is also a patient. Best-effort — failure shouldn't block the flow.
+    try {
+      const doc = await getDoctorByUserId(u.id);
+      if (doc) await updateDoctor(doc.id, { is_patient: true, patient_profile_id: u.id });
+    } catch { /* non-fatal */ }
+    // Signal the callback handler to land in My Health (not the doctor menu)
+    // after the diabetes-type answer, since that's what the doctor tapped.
+    if (!session.data) session.data = {};
+    session.data.afterPatientBranch = "myhealth";
+    return startPatientBranchForDoctor(bot, chatId, session);
   }
+  return startMyHealth(bot, chatId, session);
 }
 
 // ===================================================================
@@ -97,7 +124,28 @@ function computeSmi(p) {
   return valid.reduce((a, b) => a + b, 0) / valid.length;
 }
 
-async function showPatientReports(bot, chatId, session) {
+// Show the timeframe picker (Weekly / Monthly / All-time) — spec Reporting
+// Engine. If nobody's linked yet, skip straight to the empty state.
+async function showReportsWindowPicker(bot, chatId, session) {
+  const lang = langOf(session);
+  const doc = await getDoctorByUserId(session.user.id).catch(() => null);
+  if (!doc) return showDoctorMenu(bot, chatId, session);
+  const patients = await doctorPatientStats(doc.id).catch(() => []);
+  if (!patients.length) {
+    return send(bot, chatId, t(lang, "doc_reports_empty", { code: doc.referral_code || "—" }), {
+      keyboard: doctorBackKeyboard(lang),
+      markdown: true,
+    });
+  }
+  return send(bot, chatId, t(lang, "doc_reports_pick_window"), {
+    keyboard: doctorReportsWindowKeyboard(lang),
+    markdown: true,
+  });
+}
+
+// `window`: 'weekly' | 'monthly' | 'all'. Defaults to weekly so a doctor who
+// somehow lands here via a legacy button still gets a bounded, useful view.
+async function showPatientReports(bot, chatId, session, window = "weekly") {
   const lang = langOf(session);
   const doc = await getDoctorByUserId(session.user.id).catch(() => null);
   const patients = doc ? await doctorPatientStats(doc.id).catch(() => []) : [];
@@ -110,6 +158,14 @@ async function showPatientReports(bot, chatId, session) {
     });
   }
 
+  const windowLabelKey = window === "monthly"
+    ? "doc_reports_window_monthly"
+    : window === "all"
+      ? "doc_reports_window_all"
+      : "doc_reports_window_weekly";
+  const windowLine = t(lang, windowLabelKey);
+  const windowDays = window === "monthly" ? 30 : window === "all" ? Infinity : 7;
+
   const engagements = patients.map((p) => p.engagement_score).filter((n) => typeof n === "number");
   const avgEngagement = engagements.length ? engagements.reduce((a, b) => a + b, 0) / engagements.length : null;
 
@@ -120,14 +176,19 @@ async function showPatientReports(bot, chatId, session) {
   const weights = patients.map((p) => Number(p.weight_kg)).filter((n) => Number.isFinite(n));
 
   // Activity/adherence: MVP proxy — % of patients with any recent activity
-  // (last_log_date within 7 days). Real adherence engine can plug in later.
+  // in the chosen window. Real adherence engine can plug in later.
   const now = Date.now();
-  const activeLast7 = patients.filter((p) => {
+  const windowMs = Number.isFinite(windowDays) ? windowDays * 86400000 : Infinity;
+  const activeInWindow = patients.filter((p) => {
     if (!p.last_log_date) return false;
     const ts = new Date(p.last_log_date).getTime();
-    return Number.isFinite(ts) && now - ts <= 7 * 86400000;
+    if (!Number.isFinite(ts)) return false;
+    return windowMs === Infinity ? true : (now - ts) <= windowMs;
   }).length;
-  const activityPct = patients.length ? Math.round((activeLast7 / patients.length) * 100) : 0;
+  const activityPct = patients.length ? Math.round((activeInWindow / patients.length) * 100) : 0;
+  const activityLabel = windowDays === Infinity
+    ? `${activityPct}% ever logged`
+    : `${activityPct}% logged in last ${windowDays} days`;
 
   // Adherence approximated from consistency_score for now — same rationale as
   // SMI: use a signal we already collect until a dedicated metric exists.
@@ -140,12 +201,14 @@ async function showPatientReports(bot, chatId, session) {
   const redLines = [];
   const actionLines = [];
 
-  if (activityPct >= 60) greenLines.push(`• ${activeLast7}/${patients.length} patients logged in the last 7 days`);
+  if (activityPct >= 60) greenLines.push(`• ${activeInWindow}/${patients.length} patients active in this window`);
   if (avgEngagement != null && avgEngagement >= 60) greenLines.push(`• Engagement average is ${Math.round(avgEngagement)} — healthy`);
   if (avgConsistency != null && avgConsistency >= 60) greenLines.push(`• Medication adherence tracking is strong`);
 
-  const stale = patients.filter((p) => !p.last_log_date || (now - new Date(p.last_log_date).getTime()) > 14 * 86400000);
-  if (stale.length) redLines.push(`• ${stale.length} patient(s) haven't logged in 2+ weeks`);
+  // Stale = no log in double the window (or 14+ days for all-time).
+  const staleThreshMs = Number.isFinite(windowDays) ? windowDays * 2 * 86400000 : 14 * 86400000;
+  const stale = patients.filter((p) => !p.last_log_date || (now - new Date(p.last_log_date).getTime()) > staleThreshMs);
+  if (stale.length) redLines.push(`• ${stale.length} patient(s) haven't logged recently`);
   const highA1c = patients.filter((p) => typeof p.latest_hba1c === "number" && p.latest_hba1c >= 8.5);
   if (highA1c.length) redLines.push(`• ${highA1c.length} patient(s) with HbA1c ≥ 8.5%`);
   if (avgEngagement != null && avgEngagement < 40) redLines.push(`• Engagement average is low (${Math.round(avgEngagement)})`);
@@ -158,20 +221,23 @@ async function showPatientReports(bot, chatId, session) {
   const red = redLines.length ? redLines.join("\n") : t(lang, "doc_reports_red_default");
   const actions = actionLines.length ? actionLines.join("\n") : t(lang, "doc_reports_actions_default");
 
-  const body = t(lang, "doc_reports_title") + "\n\n" + t(lang, "doc_reports_body", {
+  const body = t(lang, "doc_reports_title") + "\n" + windowLine + "\n\n" + t(lang, "doc_reports_body", {
     patients: patients.length,
     engagement: engagementLabel(avgEngagement) + (avgEngagement != null ? ` (${Math.round(avgEngagement)})` : ""),
     smi: avgSmi != null ? `${Math.round(avgSmi)}/100` : "—",
     hba1c: fmtAvg(hba1cs, 1, "%"),
     weight: fmtAvg(weights, 1, " kg"),
-    activity: `${activityPct}% logged in last 7 days`,
+    activity: activityLabel,
     adherence: avgConsistency != null ? `${Math.round(avgConsistency)}/100` : "—",
     green,
     red,
     actions,
   });
 
-  return send(bot, chatId, body, { keyboard: doctorBackKeyboard(lang), markdown: true });
+  return send(bot, chatId, body, {
+    keyboard: doctorReportsWindowKeyboard(lang),
+    markdown: true,
+  });
 }
 
 // ===================================================================
@@ -247,11 +313,13 @@ export async function myDoctorCallback(bot, chatId, session, data) {
   if (action === "confirm") {
     const pending = session.data?.pendingDoctor;
     if (!pending) return showMyDoctor(bot, chatId, session);
+    const nowIso = new Date().toISOString();
     session.user = await updateUser(session.user.id, {
       doctor_id: pending.id,
       doctor_referral_code: pending.referral_code,
       doctor_link_status: "active",
-      doctor_linked_date: new Date().toISOString(),
+      doctor_linked_date: nowIso,
+      linked_date: nowIso, // spec-named alias, kept in sync
     });
     session.data.pendingDoctor = null;
     resetFlow(chatId);

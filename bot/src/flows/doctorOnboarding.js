@@ -168,6 +168,9 @@ async function finishDoctorSetup(bot, chatId, session, continueAsPatient) {
     practice_location: d.practice_location,
     referral_code: referralCode,
     is_patient: !!d.is_patient,
+    // When the doctor opts into personal DrSaab use, their patient profile
+    // lives on the same users row — mirror that here per the v1.0 spec.
+    patient_profile_id: d.is_patient ? userId : null,
     last_login: new Date().toISOString(),
   });
 

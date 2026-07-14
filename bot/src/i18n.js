@@ -170,6 +170,13 @@ const STR = {
 
     // Patient reports (aggregated)
     doc_reports_title: "📊 *Practice Overview*",
+    doc_reports_pick_window: "📊 *Practice Overview*\n\nWhich timeframe would you like to see?",
+    doc_reports_window_weekly: "📅 Weekly summary — last 7 days",
+    doc_reports_window_monthly: "📅 Monthly summary — last 30 days",
+    doc_reports_window_all: "📊 All-time summary",
+    btn_doc_rep_weekly: "📅 Weekly",
+    btn_doc_rep_monthly: "📅 Monthly",
+    btn_doc_rep_all: "📊 All-time",
     doc_reports_empty: "No patients are linked to your practice yet.\n\nShare your referral code *{code}* — once patients add it under ❤️ My Health → My Doctor, their aggregated insights will appear here.",
     doc_reports_body:
       "*Connected patients:* {patients}\n*Engagement:* {engagement}\n*Average SMI:* {smi}\n\n📈 *Trends*\n• HbA1c average: {hba1c}\n• Weight average: {weight}\n• Activity: {activity}\n• Medication adherence: {adherence}\n\n🟢 *Green flags*\n{green}\n\n🔴 *Red flags*\n{red}\n\n💡 *Suggested actions*\n{actions}",
@@ -1394,6 +1401,13 @@ const STR = {
     doc_referral_body: "یہ کوڈ اپنے مریضوں کو دیں تاکہ وہ اپنی DrSaab پروفائل آپ کی پریکٹس سے منسلک کر سکیں:\n\n*{code}*\n\nیہ کوڈ مستقل ہے — یہاں ہمیشہ یہی نظر آئے گا۔",
 
     doc_reports_title: "📊 *پریکٹس کا جائزہ*",
+    doc_reports_pick_window: "📊 *پریکٹس کا جائزہ*\n\nآپ کون سا وقتی خلاصہ دیکھنا چاہیں گے؟",
+    doc_reports_window_weekly: "📅 ہفتہ وار خلاصہ — پچھلے 7 دن",
+    doc_reports_window_monthly: "📅 ماہانہ خلاصہ — پچھلے 30 دن",
+    doc_reports_window_all: "📊 مکمل خلاصہ",
+    btn_doc_rep_weekly: "📅 ہفتہ وار",
+    btn_doc_rep_monthly: "📅 ماہانہ",
+    btn_doc_rep_all: "📊 مکمل",
     doc_reports_empty: "ابھی آپ کی پریکٹس سے کوئی مریض منسلک نہیں۔\n\nاپنا ریفرل کوڈ *{code}* شیئر کریں — جیسے ہی مریض ❤️ میری صحت → میرا ڈاکٹر میں یہ کوڈ ڈالیں گے، ان کی مجموعی معلومات یہاں ظاہر ہوں گی۔",
     doc_reports_body:
       "*منسلک مریض:* {patients}\n*مصروفیت:* {engagement}\n*اوسط SMI:* {smi}\n\n📈 *رجحانات*\n• HbA1c اوسط: {hba1c}\n• وزن اوسط: {weight}\n• جسمانی سرگرمی: {activity}\n• ادویات کا تسلسل: {adherence}\n\n🟢 *مثبت اشارے*\n{green}\n\n🔴 *خطرے کے اشارے*\n{red}\n\n💡 *تجویز کردہ اقدامات*\n{actions}",
@@ -2166,6 +2180,13 @@ const STR = {
     doc_referral_body: "Ye code apne patients ke saath share karein taake wo apni DrSaab profile aap ki practice se link kar sakein:\n\n*{code}*\n\nYe code permanent hai — yahan hamesha yehi nazar aayega.",
 
     doc_reports_title: "📊 *Practice Overview*",
+    doc_reports_pick_window: "📊 *Practice Overview*\n\nKaunsa timeframe dekhna chahenge?",
+    doc_reports_window_weekly: "📅 Weekly summary — pichhle 7 din",
+    doc_reports_window_monthly: "📅 Monthly summary — pichhle 30 din",
+    doc_reports_window_all: "📊 All-time summary",
+    btn_doc_rep_weekly: "📅 Weekly",
+    btn_doc_rep_monthly: "📅 Monthly",
+    btn_doc_rep_all: "📊 All-time",
     doc_reports_empty: "Abhi aap ki practice se koi patient link nahi.\n\nApna referral code *{code}* share karein — jaise hi patients ❤️ My Health → My Doctor mein ye code enter karenge, un ki aggregated insights yahan aa jayengi.",
     doc_reports_body:
       "*Connected patients:* {patients}\n*Engagement:* {engagement}\n*Average SMI:* {smi}\n\n📈 *Trends*\n• HbA1c average: {hba1c}\n• Weight average: {weight}\n• Activity: {activity}\n• Medication adherence: {adherence}\n\n🟢 *Green flags*\n{green}\n\n🔴 *Red flags*\n{red}\n\n💡 *Suggested actions*\n{actions}",
