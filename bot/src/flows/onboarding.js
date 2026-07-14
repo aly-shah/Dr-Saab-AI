@@ -1,10 +1,11 @@
 import { t } from "../i18n.js";
 import { send, sanitizeMd, langOf } from "../utils.js";
-import { userTypeKeyboard, mainMenuKeyboardV2 } from "../keyboards.js";
+import { userTypeKeyboard, mainMenuKeyboardV2, diabetesTypeKeyboard } from "../keyboards.js";
 import { sendWelcomeWithLangPicker } from "../welcome.js";
 import { updateUser } from "../supabase.js";
 import { refreshKB } from "../kb.js";
 import { resetFlow } from "../session.js";
+import { startDoctorOnboarding } from "./doctorOnboarding.js";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -256,6 +257,11 @@ export async function onboardingCallback(bot, chatId, session, data) {
   if (kind === "ut" && session.step === "user_type") {
     // The five picks encode both user_type and diabetes_status; splitting them
     // back out keeps profile-menu routing (T1 community, etc.) working.
+    // "doctor" is a special case — hands off to a dedicated doctor onboarding
+    // flow rather than completing the patient profile here.
+    if (value === "doctor") {
+      return startDoctorOnboarding(bot, chatId, session);
+    }
     const map = {
       type1:       { user_type: "diabetes",    diabetes_type: "type1" },
       type2:       { user_type: "diabetes",    diabetes_type: "type2" },
@@ -269,4 +275,50 @@ export async function onboardingCallback(bot, chatId, session, data) {
     }
     return advance(bot, chatId, session);
   }
+}
+
+// Entry point used by the doctor onboarding flow when the doctor also wants
+// personal patient use. At this point the users row is already flagged as
+// user_type='doctor'; here we drive the patient-side questions (diabetes
+// status via user_type_picker) to enrich the same profile. The doctors row is
+// untouched — the doctor menu remains their landing screen.
+export async function startPatientBranchForDoctor(bot, chatId, session) {
+  const lang = langOf(session);
+  session.state = "doctor_patient_onboarding";
+  session.step = "diabetes_type";
+  if (!session.data) session.data = {};
+  return send(bot, chatId, t(lang, "ask_diabetes_type"), {
+    keyboard: diabetesTypeKeyboard(lang),
+    markdown: true,
+  });
+}
+
+// Handle the diabetes-type answer for a doctor who elected dual use. After
+// this the doctor's profile carries a diabetes_status like a patient's.
+export async function doctorPatientBranchCallback(bot, chatId, session, data) {
+  const [kind, value] = data.split(":");
+  if (kind !== "dt" || session.step !== "diabetes_type") return;
+
+  const map = {
+    type1:       { user_type: "diabetes",    diabetes_type: "type1" },
+    type2:       { user_type: "diabetes",    diabetes_type: "type2" },
+    gestational: { user_type: "diabetes",    diabetes_type: "gestational" },
+    notsure:     { user_type: "diabetes",    diabetes_type: "notsure" },
+  };
+  const m = map[value];
+  const patch = {
+    // Keep user_type = 'doctor' — that's what drives menu selection. Save the
+    // diabetes side onto diabetes_status so patient flows still work.
+    diabetes_status: m?.diabetes_type ?? null,
+    onboarded: true,
+  };
+  session.user = await updateUser(session.user.id, patch);
+  resetFlow(chatId);
+  await refreshKB(session.user).catch(() => {});
+  const lang = langOf(session);
+  const name = sanitizeMd(session.user.name || "");
+  return send(bot, chatId, t(lang, "doc_menu_title", { name }), {
+    keyboard: mainMenuKeyboardV2(lang, session.user),
+    markdown: true,
+  });
 }

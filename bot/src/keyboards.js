@@ -209,10 +209,13 @@ export function myHealthContextKeyboard(lang) {
 }
 
 // Returning-user summary card actions (spec 2026-07: Update / Main Menu).
+// "My Doctor" (Doctor & Referral module v1.0) is added between so patients
+// can link, change, or remove their doctor from within My Health.
 export function myHealthSummaryKeyboard(lang) {
   return {
     inline_keyboard: [
       [{ text: t(lang, "btn_mh_update_profile"), callback_data: "mh:update_profile" }],
+      [{ text: t(lang, "btn_my_doctor"), callback_data: "mydoc:open" }],
       [{ text: t(lang, "btn_mh_main_menu"), callback_data: "menu" }],
     ],
   };
@@ -250,6 +253,7 @@ export function userTypeKeyboard(lang) {
     { text: t(lang, "ut_type2"),       callback_data: "ut:type2" },
     { text: t(lang, "ut_prediabetes"), callback_data: "ut:prediabetes" },
     { text: t(lang, "ut_healthier"),   callback_data: "ut:healthier" },
+    { text: t(lang, "ut_doctor"),      callback_data: "ut:doctor" },
   ]);
 }
 
@@ -429,6 +433,9 @@ export function understandKeyboard(lang) {
 // A single profile-based row is prepended above the defaults when the user's
 // onboarding selection matches one of the special-case profiles.
 export function mainMenuKeyboardV2(lang, user) {
+  // Doctors get their own three-item main menu (Doctor & Referral module).
+  // The patient menu is available from within "My Health".
+  if (user?.user_type === "doctor") return doctorMenuKeyboard(lang);
   const b = (key, action) => ({ text: t(lang, key), callback_data: `feat:${action}` });
   const rows = [];
   // ❤️ My Health sits at the top of the menu (spec v2.1, 2026-07).
@@ -445,6 +452,68 @@ export function mainMenuKeyboardV2(lang, user) {
   // keepEmoji: the main menu is designed to show its icons, so opt this
   // keyboard out of the send-time emoji stripper (see utils.cleanKeyboard).
   return { ...stack(rows), keepEmoji: true };
+}
+
+// ===================================================================
+// Doctor & Referral module (v1.0)
+// ===================================================================
+export function doctorMenuKeyboard(lang) {
+  const b = (key, action) => ({ text: t(lang, key), callback_data: `doc:${action}` });
+  return {
+    ...stack([
+      b("btn_doc_reports",  "reports"),
+      b("btn_doc_referral", "referral"),
+      b("btn_doc_myhealth", "myhealth"),
+    ]),
+    keepEmoji: true,
+  };
+}
+
+// Yes/No used by doctor onboarding (dual-use question). Distinct prefix so
+// it doesn't collide with the generic yesNoKeyboard.
+export function docYesNoKeyboard(lang) {
+  return {
+    inline_keyboard: [[
+      { text: t(lang, "btn_yes"), callback_data: "doc:patient_yes" },
+      { text: t(lang, "btn_no"),  callback_data: "doc:patient_no" },
+    ]],
+  };
+}
+
+// Back-to-doctor-menu button used by Reports / Referral Code screens.
+export function doctorBackKeyboard(lang) {
+  return { inline_keyboard: [[{ text: t(lang, "btn_back"), callback_data: "doc:menu" }]] };
+}
+
+// Patient-side: "My Doctor" screens.
+export function myDoctorNoneKeyboard(lang) {
+  return stack([
+    { text: t(lang, "btn_add_doctor"), callback_data: "mydoc:add" },
+    { text: t(lang, "btn_back"),       callback_data: "feat:myhealth" },
+  ]);
+}
+export function myDoctorLinkedKeyboard(lang) {
+  return stack([
+    { text: t(lang, "btn_change_doctor"), callback_data: "mydoc:change" },
+    { text: t(lang, "btn_remove_doctor"), callback_data: "mydoc:remove" },
+    { text: t(lang, "btn_back"),          callback_data: "feat:myhealth" },
+  ]);
+}
+export function myDoctorConfirmKeyboard(lang) {
+  return {
+    inline_keyboard: [[
+      { text: t(lang, "btn_confirm_link"), callback_data: "mydoc:confirm" },
+      { text: t(lang, "btn_cancel_link"),  callback_data: "mydoc:cancel" },
+    ]],
+  };
+}
+export function myDoctorRemoveConfirmKeyboard(lang) {
+  return {
+    inline_keyboard: [[
+      { text: t(lang, "btn_confirm_remove"), callback_data: "mydoc:remove_confirm" },
+      { text: t(lang, "btn_cancel_link"),    callback_data: "mydoc:cancel" },
+    ]],
+  };
 }
 
 // Maps a user's onboarding profile to the one condition-specific menu button

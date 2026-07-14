@@ -21,7 +21,23 @@ import {
 } from "./supabase.js";
 import { TIERS, normalizeTier } from "./tiers.js";
 
-import { startOnboarding, onboardingText, onboardingCallback } from "./flows/onboarding.js";
+import {
+  startOnboarding,
+  onboardingText,
+  onboardingCallback,
+  doctorPatientBranchCallback,
+} from "./flows/onboarding.js";
+import {
+  doctorOnboardingText,
+  doctorOnboardingCallback,
+} from "./flows/doctorOnboarding.js";
+import {
+  showDoctorMenu,
+  doctorCallback,
+  showMyDoctor,
+  myDoctorCallback,
+  myDoctorText,
+} from "./flows/doctor.js";
 import { detectGreetingScenario } from "./welcome.js";
 import {
   startGlucose,
@@ -93,9 +109,11 @@ function planName(lang, tier) {
 }
 
 async function showMenu(bot, chatId, session) {
+  // Doctors land on their own three-item menu (Doctor & Referral module).
+  if (session.user?.user_type === "doctor") return showDoctorMenu(bot, chatId, session);
   resetFlow(chatId);
   const lang = langOf(session);
-  await send(bot, chatId, t(lang, "menu_v2_title"), { keyboard: mainMenuKeyboardV2(lang, session.user), markdown: true });
+  await send(bot, chatId, t(lang, "menu_v2_title"), { keyboard: mainMenuKeyboardV2(lang, session.user), markdown: true, keepEmoji: true });
 }
 
 async function startCommand(bot, chatId, session, scenario = "eng") {
@@ -104,7 +122,7 @@ async function startCommand(bot, chatId, session, scenario = "eng") {
   await send(bot, chatId, t(lang, "welcome_back", { name: sanitizeMd(session.user.name || "") }), {
     markdown: true,
   });
-  await send(bot, chatId, t(lang, "menu_v2_title"), { keyboard: mainMenuKeyboardV2(lang, session.user), markdown: true });
+  await send(bot, chatId, t(lang, "menu_v2_title"), { keyboard: mainMenuKeyboardV2(lang, session.user), markdown: true, keepEmoji: true });
 }
 
 // Submenu show functions — each lands on its own keyboard, two-level cap.
@@ -327,6 +345,7 @@ export async function handleMessage(bot, msg) {
     "onboarding", "glucose", "medication", "health", "myhealth",
     "coach", "food", "fitness", "askdrsaab", "lab", "challenge_code", "profileq",
     "weight", "activity", "symptoms", "prediabetes", "betterme", "pregnancy",
+    "doctor_onboarding", "doctor_patient_onboarding", "my_doctor",
   ].includes(session.state);
   if (session.user.onboarded) {
     if (cmd === "/home" || (!inFlow && (word === "home" || word === "menu"))) {
@@ -360,6 +379,15 @@ export async function handleMessage(bot, msg) {
   switch (session.state) {
     case "onboarding":
       return onboardingText(bot, chatId, session, text);
+    case "doctor_onboarding":
+      return doctorOnboardingText(bot, chatId, session, text);
+    case "doctor_patient_onboarding":
+      // Typed reply inside the diabetes-type button screen — nudge them to tap.
+      return send(bot, chatId, t(langOf(session), "ask_diabetes_type"), {
+        markdown: true,
+      });
+    case "my_doctor":
+      return myDoctorText(bot, chatId, session, text);
     case "myhealth":
       return myHealthText(bot, chatId, session, text, msg);
     case "glucose":
@@ -423,6 +451,17 @@ export async function handleCallback(bot, query) {
   // Onboarding choice buttons (language/gender/diabetes/skip)
   if (session.state === "onboarding") {
     return onboardingCallback(bot, chatId, session, data);
+  }
+
+  // Doctor onboarding — only the "patient use?" yes/no answers are inline;
+  // everything else is typed and handled via handleMessage.
+  if (session.state === "doctor_onboarding") {
+    return doctorOnboardingCallback(bot, chatId, session, data);
+  }
+
+  // Doctor picked "dual use" — diabetes-type question drives this state.
+  if (session.state === "doctor_patient_onboarding") {
+    return doctorPatientBranchCallback(bot, chatId, session, data);
   }
 
   // Language change (from Profile or More → Language). Return the user to
@@ -635,6 +674,14 @@ export async function handleCallback(bot, query) {
   // Pregnancy Support sub-menu (spec 2026-07): progress / tips / checklist.
   if (data.startsWith("pg:")) {
     return dispatchPregnancy(bot, chatId, session, data.slice(3));
+  }
+
+  // Doctor & Referral module (v1.0)
+  if (data.startsWith("doc:")) {
+    return doctorCallback(bot, chatId, session, data);
+  }
+  if (data.startsWith("mydoc:")) {
+    return myDoctorCallback(bot, chatId, session, data);
   }
 
   // Profile-based main-menu item. Type 1 users land on the T1 Community

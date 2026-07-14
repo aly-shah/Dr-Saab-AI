@@ -148,6 +148,55 @@ const STR = {
     ut_prediabetes: "I have Prediabetes",
     ut_gestational: "I have Gestational Diabetes",
     ut_healthier: "I want to live healthier",
+    ut_doctor: "🩺 I'm a Doctor",
+
+    // ---------- Doctor onboarding (v1.0) ----------
+    doc_ask_specialty: "Great — let's set up your professional profile.\n\nWhat's your *medical specialty*? (e.g. Endocrinology, Family Medicine, Cardiology)",
+    doc_ask_location: "What's your *primary practice location*? (city, hospital or clinic name)",
+    doc_ask_email: "Please share your *professional email* — we'll use it for account recovery and doctor-only updates.",
+    doc_email_invalid: "That doesn't look like a valid email. Please send a full address like `name@clinic.com`.",
+    doc_ask_patient_use: "Would you also like to use DrSaab for *your own personal health*? You can switch to your doctor menu anytime.",
+    doc_setup_complete: "✅ Your doctor profile is ready, *Dr. {name}*.\n\nYour permanent referral code is *{code}*.\nShare it with patients so they can link their records to your practice.",
+
+    // Doctor main menu
+    doc_menu_title: "🩺 *Doctor Menu* — how can I help today, Dr. {name}?",
+    btn_doc_reports: "📊 Patient Reports",
+    btn_doc_referral: "🔑 Referral Code",
+    btn_doc_myhealth: "❤️ My Health",
+
+    // Referral code screen
+    doc_referral_title: "🔑 *Your Referral Code*",
+    doc_referral_body: "Share this code with your patients so they can link their DrSaab profile to your practice:\n\n*{code}*\n\nThe code is permanent — you'll always see the same one here.",
+
+    // Patient reports (aggregated)
+    doc_reports_title: "📊 *Practice Overview*",
+    doc_reports_empty: "No patients are linked to your practice yet.\n\nShare your referral code *{code}* — once patients add it under ❤️ My Health → My Doctor, their aggregated insights will appear here.",
+    doc_reports_body:
+      "*Connected patients:* {patients}\n*Engagement:* {engagement}\n*Average SMI:* {smi}\n\n📈 *Trends*\n• HbA1c average: {hba1c}\n• Weight average: {weight}\n• Activity: {activity}\n• Medication adherence: {adherence}\n\n🟢 *Green flags*\n{green}\n\n🔴 *Red flags*\n{red}\n\n💡 *Suggested actions*\n{actions}",
+    doc_reports_none: "—",
+    doc_reports_green_default: "• Patients logging consistently\n• Engagement holding steady",
+    doc_reports_red_default: "• Watch for patients missing check-ins",
+    doc_reports_actions_default: "• Encourage patients with low engagement to check in this week\n• Follow up with anyone whose HbA1c trend is rising",
+
+    // Patient-side: My Doctor
+    btn_my_doctor: "👨‍⚕️ My Doctor",
+    my_doctor_title_none: "👨‍⚕️ *My Doctor*\n\nYou haven't linked a doctor yet.\n\nEnter a *DS#XXXX* referral code from your doctor to connect.",
+    my_doctor_title_linked:
+      "👨‍⚕️ *My Doctor*\n\n*{name}*\nSpecialty: {specialty}\nLocation: {location}\nLinked: {linked}\n\nYou can change or remove your doctor at any time.",
+    btn_add_doctor: "➕ Add Doctor",
+    btn_change_doctor: "🔄 Change Doctor",
+    btn_remove_doctor: "❌ Remove Doctor",
+    my_doctor_ask_code: "Please enter your doctor's referral code (format: *DS#XXXX*).",
+    my_doctor_code_invalid: "That code doesn't look right. Please send a code in the format *DS#XXXX* (e.g. `DS#A7K9`).",
+    my_doctor_not_found: "I couldn't find a doctor with that code. Please double-check *DS#XXXX* and try again.",
+    my_doctor_confirm:
+      "I found this doctor:\n\n*{name}*\nSpecialty: {specialty}\nLocation: {location}\n\nDo you want to link your DrSaab profile to this doctor? Only aggregated insights are shared — never individual chats.",
+    btn_confirm_link: "✅ Yes, Link",
+    btn_cancel_link: "Cancel",
+    my_doctor_linked_ok: "✅ You're now linked to *Dr. {name}*.",
+    my_doctor_remove_confirm: "Remove *Dr. {name}* from your DrSaab profile? Your data stays with you — the doctor simply stops seeing your aggregated insights.",
+    btn_confirm_remove: "Yes, remove",
+    my_doctor_removed_ok: "✅ Doctor removed. You can link a new one anytime.",
 
     ask_age_v2: "Let's begin. When is your birthday?\nPlease share day, month and year (e.g. 12 March 1985).",
     ask_dob_missing:
@@ -1326,6 +1375,51 @@ const STR = {
     ut_prediabetes: "مجھے پری ذیابیطس ہے",
     ut_gestational: "مجھے حملاتی ذیابیطس ہے",
     ut_healthier: "میں صحت مند زندگی چاہتا/چاہتی ہوں",
+    ut_doctor: "🩺 میں ڈاکٹر ہوں",
+
+    // ---------- Doctor onboarding (v1.0) ----------
+    doc_ask_specialty: "بہت خوب — آئیے آپ کی پیشہ ورانہ پروفائل بناتے ہیں۔\n\nآپ کی *طبی تخصص* کیا ہے؟ (مثلاً اینڈوکرینولوجی، فیملی میڈیسن، کارڈیالوجی)",
+    doc_ask_location: "آپ کی *پرائمری پریکٹس لوکیشن* کیا ہے؟ (شہر، ہسپتال یا کلینک کا نام)",
+    doc_ask_email: "براہِ کرم اپنا *پیشہ ورانہ ای میل* بھیجیں — ہم اسے اکاؤنٹ ریکوری اور ڈاکٹر اپڈیٹس کے لیے استعمال کریں گے۔",
+    doc_email_invalid: "یہ درست ای میل نہیں لگ رہا۔ براہِ کرم مکمل پتہ بھیجیں جیسے `name@clinic.com`۔",
+    doc_ask_patient_use: "کیا آپ DrSaab کو *اپنی ذاتی صحت* کے لیے بھی استعمال کرنا چاہیں گے؟ آپ کسی بھی وقت ڈاکٹر مینو پر جا سکتے ہیں۔",
+    doc_setup_complete: "✅ آپ کی ڈاکٹر پروفائل تیار ہے، *ڈاکٹر {name}*۔\n\nآپ کا مستقل ریفرل کوڈ ہے *{code}*۔\nاپنے مریضوں کو یہ کوڈ دیں تاکہ وہ اپنا ریکارڈ آپ کی پریکٹس سے منسلک کر سکیں۔",
+
+    doc_menu_title: "🩺 *ڈاکٹر مینو* — آج کیسے مدد کروں، ڈاکٹر {name}؟",
+    btn_doc_reports: "📊 مریضوں کی رپورٹس",
+    btn_doc_referral: "🔑 ریفرل کوڈ",
+    btn_doc_myhealth: "❤️ میری صحت",
+
+    doc_referral_title: "🔑 *آپ کا ریفرل کوڈ*",
+    doc_referral_body: "یہ کوڈ اپنے مریضوں کو دیں تاکہ وہ اپنی DrSaab پروفائل آپ کی پریکٹس سے منسلک کر سکیں:\n\n*{code}*\n\nیہ کوڈ مستقل ہے — یہاں ہمیشہ یہی نظر آئے گا۔",
+
+    doc_reports_title: "📊 *پریکٹس کا جائزہ*",
+    doc_reports_empty: "ابھی آپ کی پریکٹس سے کوئی مریض منسلک نہیں۔\n\nاپنا ریفرل کوڈ *{code}* شیئر کریں — جیسے ہی مریض ❤️ میری صحت → میرا ڈاکٹر میں یہ کوڈ ڈالیں گے، ان کی مجموعی معلومات یہاں ظاہر ہوں گی۔",
+    doc_reports_body:
+      "*منسلک مریض:* {patients}\n*مصروفیت:* {engagement}\n*اوسط SMI:* {smi}\n\n📈 *رجحانات*\n• HbA1c اوسط: {hba1c}\n• وزن اوسط: {weight}\n• جسمانی سرگرمی: {activity}\n• ادویات کا تسلسل: {adherence}\n\n🟢 *مثبت اشارے*\n{green}\n\n🔴 *خطرے کے اشارے*\n{red}\n\n💡 *تجویز کردہ اقدامات*\n{actions}",
+    doc_reports_none: "—",
+    doc_reports_green_default: "• مریض باقاعدگی سے لاگ کر رہے ہیں\n• مصروفیت مستحکم ہے",
+    doc_reports_red_default: "• چیک اِن نہ کرنے والے مریضوں پر نظر رکھیں",
+    doc_reports_actions_default: "• کم مصروف مریضوں کو اس ہفتے چیک اِن کی ترغیب دیں\n• جن کی HbA1c ٹرینڈ بڑھ رہی ہو ان سے فالو اپ کریں",
+
+    btn_my_doctor: "👨‍⚕️ میرا ڈاکٹر",
+    my_doctor_title_none: "👨‍⚕️ *میرا ڈاکٹر*\n\nآپ نے ابھی کسی ڈاکٹر کو منسلک نہیں کیا۔\n\nاپنے ڈاکٹر کا *DS#XXXX* ریفرل کوڈ درج کر کے منسلک ہو جائیں۔",
+    my_doctor_title_linked:
+      "👨‍⚕️ *میرا ڈاکٹر*\n\n*{name}*\nتخصص: {specialty}\nمقام: {location}\nمنسلک: {linked}\n\nآپ کسی بھی وقت اپنا ڈاکٹر تبدیل یا ہٹا سکتے ہیں۔",
+    btn_add_doctor: "➕ ڈاکٹر شامل کریں",
+    btn_change_doctor: "🔄 ڈاکٹر تبدیل کریں",
+    btn_remove_doctor: "❌ ڈاکٹر ہٹائیں",
+    my_doctor_ask_code: "براہِ کرم اپنے ڈاکٹر کا ریفرل کوڈ درج کریں (فارمیٹ: *DS#XXXX*)۔",
+    my_doctor_code_invalid: "کوڈ صحیح نہیں لگ رہا۔ براہِ کرم *DS#XXXX* فارمیٹ میں بھیجیں (مثلاً `DS#A7K9`)۔",
+    my_doctor_not_found: "یہ کوڈ کسی ڈاکٹر سے میچ نہیں ہوا۔ براہِ کرم *DS#XXXX* دوبارہ چیک کریں۔",
+    my_doctor_confirm:
+      "یہ ڈاکٹر ملا ہے:\n\n*{name}*\nتخصص: {specialty}\nمقام: {location}\n\nکیا آپ اپنی DrSaab پروفائل اس ڈاکٹر سے منسلک کرنا چاہیں گے؟ صرف مجموعی معلومات شیئر ہوں گی — کبھی بھی انفرادی چیٹس نہیں۔",
+    btn_confirm_link: "✅ ہاں، منسلک کریں",
+    btn_cancel_link: "منسوخ",
+    my_doctor_linked_ok: "✅ آپ اب *ڈاکٹر {name}* سے منسلک ہیں۔",
+    my_doctor_remove_confirm: "*ڈاکٹر {name}* کو ہٹا دیں؟ آپ کا ڈیٹا آپ کے پاس ہی رہے گا — ڈاکٹر کو صرف مجموعی معلومات نظر آنا بند ہو جائیں گی۔",
+    btn_confirm_remove: "ہاں، ہٹائیں",
+    my_doctor_removed_ok: "✅ ڈاکٹر ہٹا دیا گیا۔ آپ کسی بھی وقت نیا شامل کر سکتے ہیں۔",
 
     ask_age_v2: "بہت خوب۔ آئیے شروع کرتے ہیں۔ آپ کی تاریخِ پیدائش کیا ہے؟\nبراہِ کرم دن، مہینہ اور سال بتائیں (مثلاً 12 مارچ 1985)۔",
     ask_dob_missing:
@@ -2053,6 +2147,51 @@ const STR = {
     ut_prediabetes: "Mujhe prediabetes hai",
     ut_gestational: "Mujhe Gestational diabetes hai",
     ut_healthier: "Main sehatmand zindagi chahta/chahti hoon",
+    ut_doctor: "🩺 Main Doctor hoon",
+
+    // ---------- Doctor onboarding (v1.0) ----------
+    doc_ask_specialty: "Bohat khoob — aaiye aap ka professional profile banate hain.\n\nAap ki *medical specialty* kya hai? (jaise Endocrinology, Family Medicine, Cardiology)",
+    doc_ask_location: "Aap ki *primary practice location* kya hai? (city, hospital ya clinic ka naam)",
+    doc_ask_email: "Barah-e-karam apna *professional email* bhejein — hum ise account recovery aur doctor-only updates ke liye use karenge.",
+    doc_email_invalid: "Ye valid email nahi lag raha. Poora address bhejein jaise `name@clinic.com`.",
+    doc_ask_patient_use: "Kya aap DrSaab ko *apni personal health* ke liye bhi use karna chahenge? Aap kisi bhi waqt apne doctor menu par ja sakte hain.",
+    doc_setup_complete: "✅ Aap ka doctor profile tayyar hai, *Dr. {name}*.\n\nAap ka permanent referral code hai *{code}*.\nApne patients ke saath share karein taake wo apna record aap ki practice se link kar sakein.",
+
+    doc_menu_title: "🩺 *Doctor Menu* — aaj kaise madad karoon, Dr. {name}?",
+    btn_doc_reports: "📊 Patient Reports",
+    btn_doc_referral: "🔑 Referral Code",
+    btn_doc_myhealth: "❤️ My Health",
+
+    doc_referral_title: "🔑 *Aap ka Referral Code*",
+    doc_referral_body: "Ye code apne patients ke saath share karein taake wo apni DrSaab profile aap ki practice se link kar sakein:\n\n*{code}*\n\nYe code permanent hai — yahan hamesha yehi nazar aayega.",
+
+    doc_reports_title: "📊 *Practice Overview*",
+    doc_reports_empty: "Abhi aap ki practice se koi patient link nahi.\n\nApna referral code *{code}* share karein — jaise hi patients ❤️ My Health → My Doctor mein ye code enter karenge, un ki aggregated insights yahan aa jayengi.",
+    doc_reports_body:
+      "*Connected patients:* {patients}\n*Engagement:* {engagement}\n*Average SMI:* {smi}\n\n📈 *Trends*\n• HbA1c average: {hba1c}\n• Weight average: {weight}\n• Activity: {activity}\n• Medication adherence: {adherence}\n\n🟢 *Green flags*\n{green}\n\n🔴 *Red flags*\n{red}\n\n💡 *Suggested actions*\n{actions}",
+    doc_reports_none: "—",
+    doc_reports_green_default: "• Patients regular log kar rahe hain\n• Engagement stable hai",
+    doc_reports_red_default: "• Check-in miss karne wale patients par nazar rakhein",
+    doc_reports_actions_default: "• Kam engaged patients ko is hafte check-in ki taraf motivate karein\n• Jin ki HbA1c trend barh rahi hai un se follow up karein",
+
+    btn_my_doctor: "👨‍⚕️ Mera Doctor",
+    my_doctor_title_none: "👨‍⚕️ *Mera Doctor*\n\nAap ne abhi koi doctor link nahi kiya.\n\nApne doctor ka *DS#XXXX* referral code daal kar link ho jayen.",
+    my_doctor_title_linked:
+      "👨‍⚕️ *Mera Doctor*\n\n*{name}*\nSpecialty: {specialty}\nLocation: {location}\nLinked: {linked}\n\nAap kisi bhi waqt doctor change ya remove kar sakte hain.",
+    btn_add_doctor: "➕ Doctor Add karein",
+    btn_change_doctor: "🔄 Doctor Change karein",
+    btn_remove_doctor: "❌ Doctor Hataayen",
+    my_doctor_ask_code: "Barah-e-karam apne doctor ka referral code enter karein (format: *DS#XXXX*).",
+    my_doctor_code_invalid: "Ye code sahi nahi lag raha. Format *DS#XXXX* mein bhejein (jaise `DS#A7K9`).",
+    my_doctor_not_found: "Is code se koi doctor match nahi hua. *DS#XXXX* dobara check karein.",
+    my_doctor_confirm:
+      "Ye doctor mila hai:\n\n*{name}*\nSpecialty: {specialty}\nLocation: {location}\n\nKya aap apni DrSaab profile is doctor se link karna chahenge? Sirf aggregated insights share hongi — kabhi bhi individual chats nahi.",
+    btn_confirm_link: "✅ Haan, Link karein",
+    btn_cancel_link: "Cancel",
+    my_doctor_linked_ok: "✅ Aap ab *Dr. {name}* se linked hain.",
+    my_doctor_remove_confirm: "*Dr. {name}* ko hataa dein? Aap ka data aap ke paas hi rahega — sirf doctor ko aggregated insights nazar aana band ho jayen gi.",
+    btn_confirm_remove: "Haan, hataayen",
+    my_doctor_removed_ok: "✅ Doctor hata diya. Aap kisi bhi waqt naya add kar sakte hain.",
 
     ask_age_v2: "Bohat khoob. Aaiye shuru karte hain. Aap ki date of birth kya hai?\nDay, month aur year zaroori hain (misaal: 12 March 1985).",
     ask_dob_missing:

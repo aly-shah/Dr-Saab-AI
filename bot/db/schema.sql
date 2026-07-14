@@ -110,13 +110,34 @@ create table if not exists public.patient_kb (
   updated_at    timestamptz default now()
 );
 
--- ---------- Doctors / referral codes (created in the admin dashboard) ----------
+-- ---------- Doctors / referral codes ----------
+-- Row represents a healthcare professional using DrSaab. `user_id` links to
+-- the users row that holds their Telegram/WhatsApp identity (a doctor uses
+-- the exact same channel as a patient — user_type='doctor' switches the menu).
 create table if not exists public.doctors (
-  id          uuid primary key default gen_random_uuid(),
-  name        text not null,
-  code        text unique not null,
-  created_at  timestamptz default now()
+  id                uuid primary key default gen_random_uuid(),
+  user_id           uuid references public.users(id) on delete cascade,
+  name              text not null,
+  email             text,
+  specialization    text,
+  practice_location text,
+  referral_code     text unique not null,
+  is_patient        boolean default false,     -- true if the doctor also uses DrSaab for personal health
+  last_login        timestamptz,
+  created_at        timestamptz default now()
 );
+create index if not exists doctors_user_idx on public.doctors(user_id);
+
+-- Backwards-compat: preserve legacy `code` column for any historical rows.
+alter table public.doctors add column if not exists user_id           uuid references public.users(id) on delete cascade;
+alter table public.doctors add column if not exists email             text;
+alter table public.doctors add column if not exists specialization    text;
+alter table public.doctors add column if not exists practice_location text;
+alter table public.doctors add column if not exists referral_code     text unique;
+alter table public.doctors add column if not exists is_patient        boolean default false;
+alter table public.doctors add column if not exists last_login        timestamptz;
+-- If any legacy row has `code` set but not `referral_code`, mirror it.
+update public.doctors set referral_code = code where referral_code is null and code is not null;
 
 -- ---------- Columns added over time (safe to re-run) ----------
 alter table public.users add column if not exists source            text default 'telegram';
@@ -168,6 +189,13 @@ alter table public.users add column if not exists pref_rem_blood_sugar     boole
 alter table public.users add column if not exists pref_rem_med_consistency boolean default true;
 alter table public.users add column if not exists pref_rem_goals           boolean default true;
 alter table public.users add column if not exists pref_rem_coaching        boolean default true;
+
+-- Doctor & Referral module (v1.0). A patient links to their doctor by
+-- entering a DS#XXXX referral code; the link is opt-in and can be removed.
+alter table public.users add column if not exists doctor_id            uuid references public.doctors(id) on delete set null;
+alter table public.users add column if not exists doctor_referral_code text;
+alter table public.users add column if not exists doctor_link_status   text;   -- 'active' | 'removed'
+alter table public.users add column if not exists doctor_linked_date   timestamptz;
 
 -- keep updated_at fresh on users
 create or replace function public.touch_updated_at()

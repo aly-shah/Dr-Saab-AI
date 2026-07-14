@@ -571,6 +571,50 @@ async function makeSupabaseBackend() {
       if (error) throw error;
       return data;
     },
+
+    // ===== Doctor & Referral module (v1.0) =====
+    async getDoctorByUserId(userId) {
+      const { data, error } = await db.from("doctors").select("*").eq("user_id", userId).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    async getDoctorByReferralCode(code) {
+      const { data, error } = await db.from("doctors").select("*").eq("referral_code", code).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    async getDoctorById(id) {
+      const { data, error } = await db.from("doctors").select("*").eq("id", id).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    async createDoctor(fields) {
+      const { data, error } = await db.from("doctors").insert(fields).select("*").single();
+      if (error) throw error;
+      return data;
+    },
+    async updateDoctor(doctorId, patch) {
+      const { data, error } = await db.from("doctors").update(patch).eq("id", doctorId).select("*").single();
+      if (error) throw error;
+      return data;
+    },
+    async doctorReferralCodeExists(code) {
+      const { data, error } = await db.from("doctors").select("id").eq("referral_code", code).maybeSingle();
+      if (error) throw error;
+      return !!data;
+    },
+    // Aggregate stats across every patient currently linked to this doctor.
+    // MVP: patient count + engagement + trend snapshots. Detailed per-patient
+    // drill-down is intentionally out of scope.
+    async doctorPatientStats(doctorId) {
+      const { data: patients, error: pe } = await db
+        .from("users")
+        .select("id, name, latest_hba1c, weight_kg, engagement_score, consistency_score, motivation_score, risk_score, total_checkins, last_log_date, created_at")
+        .eq("doctor_id", doctorId)
+        .eq("doctor_link_status", "active");
+      if (pe) throw pe;
+      return patients || [];
+    },
   };
 }
 
@@ -1422,6 +1466,55 @@ async function makePostgresBackend() {
       const { rows } = await pool.query(sql, [userId]);
       return rows[0] || null;
     },
+
+    // ===== Doctor & Referral module (v1.0) =====
+    async getDoctorByUserId(userId) {
+      const { rows } = await pool.query("select * from doctors where user_id = $1", [userId]);
+      return rows[0] || null;
+    },
+    async getDoctorByReferralCode(code) {
+      const { rows } = await pool.query("select * from doctors where referral_code = $1", [code]);
+      return rows[0] || null;
+    },
+    async getDoctorById(id) {
+      const { rows } = await pool.query("select * from doctors where id = $1", [id]);
+      return rows[0] || null;
+    },
+    async createDoctor(fields) {
+      const keys = Object.keys(fields);
+      const cols = keys.join(", ");
+      const ph = keys.map((_, i) => `$${i + 1}`).join(", ");
+      const { rows } = await pool.query(
+        `insert into doctors (${cols}) values (${ph}) returning *`,
+        Object.values(fields)
+      );
+      return rows[0];
+    },
+    async updateDoctor(doctorId, patch) {
+      const keys = Object.keys(patch);
+      if (!keys.length) return this.getDoctorById(doctorId);
+      const set = keys.map((k, i) => `${k} = $${i + 1}`).join(", ");
+      const vals = keys.map((k) => patch[k]);
+      const { rows } = await pool.query(
+        `update doctors set ${set} where id = $${vals.length + 1} returning *`,
+        [...vals, doctorId]
+      );
+      return rows[0] || null;
+    },
+    async doctorReferralCodeExists(code) {
+      const { rows } = await pool.query("select 1 from doctors where referral_code = $1", [code]);
+      return rows.length > 0;
+    },
+    async doctorPatientStats(doctorId) {
+      const { rows } = await pool.query(
+        `select id, name, latest_hba1c, weight_kg, engagement_score, consistency_score,
+                motivation_score, risk_score, total_checkins, last_log_date, created_at
+           from users
+          where doctor_id = $1 and doctor_link_status = 'active'`,
+        [doctorId]
+      );
+      return rows;
+    },
   };
 }
 
@@ -1447,12 +1540,14 @@ function makeMemoryBackend() {
   const healthMetrics = [];
   const lifestyle = new Map();
   const healthGoals = [];
+  const doctorsById = new Map();
   let condSeq = 1;
   let metricSeq = 1;
   let hgSeq = 1;
   let seq = 1;
   let reqSeq = 1;
   let medSeq = 1;
+  let doctorSeq = 1;
   let remSeq = 1;
   let goalSeq = 1;
 
@@ -1861,6 +1956,47 @@ function makeMemoryBackend() {
           .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))[0] || null
       );
     },
+
+    // ===== Doctor & Referral module (v1.0) =====
+    async getDoctorByUserId(userId) {
+      return doctorsById && [...doctorsById.values()].find((d) => d.user_id === userId) || null;
+    },
+    async getDoctorByReferralCode(code) {
+      return doctorsById && [...doctorsById.values()].find((d) => d.referral_code === code) || null;
+    },
+    async getDoctorById(id) {
+      return doctorsById ? doctorsById.get(id) || null : null;
+    },
+    async createDoctor(fields) {
+      const row = { id: "dr" + doctorSeq++, created_at: nowISO(), ...fields };
+      doctorsById.set(row.id, row);
+      return row;
+    },
+    async updateDoctor(doctorId, patch) {
+      const existing = doctorsById.get(doctorId);
+      if (!existing) return null;
+      const merged = { ...existing, ...patch };
+      doctorsById.set(doctorId, merged);
+      return merged;
+    },
+    async doctorReferralCodeExists(code) {
+      return !![...doctorsById.values()].find((d) => d.referral_code === code);
+    },
+    async doctorPatientStats(doctorId) {
+      const out = [];
+      for (const u of usersById.values()) {
+        if (u.doctor_id === doctorId && u.doctor_link_status === "active") {
+          out.push({
+            id: u.id, name: u.name, latest_hba1c: u.latest_hba1c, weight_kg: u.weight_kg,
+            engagement_score: u.engagement_score, consistency_score: u.consistency_score,
+            motivation_score: u.motivation_score, risk_score: u.risk_score,
+            total_checkins: u.total_checkins, last_log_date: u.last_log_date,
+            created_at: u.created_at,
+          });
+        }
+      }
+      return out;
+    },
   };
 }
 
@@ -2122,3 +2258,12 @@ export const upsertWinLogForDate = (userId, date, fields) =>
   backend.upsertWinLogForDate ? backend.upsertWinLogForDate(userId, date, fields) : Promise.resolve(null);
 export const bumpWinCounter = (userId, kind) =>
   backend.bumpWinCounter ? backend.bumpWinCounter(userId, kind) : Promise.resolve(null);
+
+// --- Doctor & Referral module (v1.0) ---
+export const getDoctorByUserId = (userId) => backend.getDoctorByUserId(userId);
+export const getDoctorByReferralCode = (code) => backend.getDoctorByReferralCode(code);
+export const getDoctorById = (id) => backend.getDoctorById(id);
+export const createDoctor = (fields) => backend.createDoctor(fields);
+export const updateDoctor = (doctorId, patch) => backend.updateDoctor(doctorId, patch);
+export const doctorReferralCodeExists = (code) => backend.doctorReferralCodeExists(code);
+export const doctorPatientStats = (doctorId) => backend.doctorPatientStats(doctorId);
