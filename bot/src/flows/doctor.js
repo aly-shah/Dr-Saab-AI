@@ -12,6 +12,7 @@ import {
   doctorMenuKeyboard,
   doctorBackKeyboard,
   doctorReportsWindowKeyboard,
+  patientMenuForDoctorKeyboard,
   myDoctorNoneKeyboard,
   myDoctorLinkedKeyboard,
   myDoctorConfirmKeyboard,
@@ -33,11 +34,26 @@ import { startMyHealth } from "./myhealth.js";
 // ===================================================================
 export async function showDoctorMenu(bot, chatId, session) {
   resetFlow(chatId);
+  session.patientMode = false;
   const lang = langOf(session);
   const name = sanitizeMd(session.user.name || "");
   return send(bot, chatId, t(lang, "doc_menu_title", { name }), {
-    keyboard: doctorMenuKeyboard(lang),
+    keyboard: doctorMenuKeyboard(lang, session.user),
     markdown: true,
+  });
+}
+
+// Flip the doctor into patient mode and land them on the patient main menu.
+// Only reachable via the doc:switch_patient button, which the keyboard only
+// renders when the doctor has a diabetes_status (i.e. is_patient=true).
+async function showDoctorPatientMenu(bot, chatId, session) {
+  resetFlow(chatId);
+  session.patientMode = true;
+  const lang = langOf(session);
+  return send(bot, chatId, t(lang, "menu_v2_title"), {
+    keyboard: patientMenuForDoctorKeyboard(lang, session.user),
+    markdown: true,
+    keepEmoji: true,
   });
 }
 
@@ -51,6 +67,7 @@ export async function doctorCallback(bot, chatId, session, data) {
   if (action === "reports")  return showReportsWindowPicker(bot, chatId, session);
   if (action === "referral") return showReferralCode(bot, chatId, session);
   if (action === "myhealth") return openDoctorMyHealth(bot, chatId, session);
+  if (action === "switch_patient") return showDoctorPatientMenu(bot, chatId, session);
   if (action === "reports_weekly")  return showPatientReports(bot, chatId, session, "weekly");
   if (action === "reports_monthly") return showPatientReports(bot, chatId, session, "monthly");
   if (action === "reports_all")     return showPatientReports(bot, chatId, session, "all");

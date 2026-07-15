@@ -437,7 +437,7 @@ export function understandKeyboard(lang) {
 export function mainMenuKeyboardV2(lang, user) {
   // Doctors get their own three-item main menu (Doctor & Referral module).
   // The patient menu is available from within "My Health".
-  if (user?.user_type === "doctor") return doctorMenuKeyboard(lang);
+  if (user?.user_type === "doctor") return doctorMenuKeyboard(lang, user);
   const b = (key, action) => ({ text: t(lang, key), callback_data: `feat:${action}` });
   const rows = [];
   // ❤️ My Health sits at the top of the menu (spec v2.1, 2026-07).
@@ -459,16 +459,39 @@ export function mainMenuKeyboardV2(lang, user) {
 // ===================================================================
 // Doctor & Referral module (v1.0)
 // ===================================================================
-export function doctorMenuKeyboard(lang) {
+export function doctorMenuKeyboard(lang, user) {
   const b = (key, action) => ({ text: t(lang, key), callback_data: `doc:${action}` });
-  return {
-    ...stack([
-      b("btn_doc_reports",  "reports"),
-      b("btn_doc_referral", "referral"),
-      b("btn_doc_myhealth", "myhealth"),
-    ]),
-    keepEmoji: true,
-  };
+  const rows = [
+    b("btn_doc_reports",  "reports"),
+    b("btn_doc_referral", "referral"),
+    b("btn_doc_myhealth", "myhealth"),
+  ];
+  // Dual-use doctors (Yes to personal-health, or later opted in via My Health)
+  // get a bottom button to jump into their patient menu.
+  if (user?.diabetes_status) {
+    rows.push(b("btn_doc_switch_patient", "switch_patient"));
+  }
+  return { ...stack(rows), keepEmoji: true };
+}
+
+// Patient main menu shown to a doctor who tapped "Switch to Patient Menu".
+// Same items a normal patient sees, plus a bottom button to switch back to
+// the doctor menu. Kept separate from mainMenuKeyboardV2 so that keyboard
+// stays the canonical patient menu for actual patients.
+export function patientMenuForDoctorKeyboard(lang, user) {
+  const b = (key, action) => ({ text: t(lang, key), callback_data: `feat:${action}` });
+  const rows = [b("btn_myhealth", "myhealth")];
+  const profileBtn = profileMenuButton(lang, user);
+  if (profileBtn) rows.push(profileBtn);
+  rows.push(
+    b("btn_checkin", "checkin"),
+    b("btn_foodhelp", "foodhelp"),
+    b("btn_checkreport", "lab"),
+    b("btn_askdrsaab", "askdrsaab"),
+    b("btn_more", "more"),
+    { text: t(lang, "btn_doc_switch_doctor"), callback_data: "doc:menu" },
+  );
+  return { ...stack(rows), keepEmoji: true };
 }
 
 // Yes/No used by doctor onboarding (dual-use question). Distinct prefix so
@@ -537,7 +560,10 @@ function profileMenuButton(lang, user) {
   const b = (key, action) => ({ text: t(lang, key), callback_data: `pfl:${action}` });
   const ut = user?.user_type;
   const dt = user?.diabetes_status;
-  if (ut === "diabetes" && dt === "type1") return b("btn_p_type1", "type1");
+  // Doctors in patient mode carry user_type='doctor' but diabetes_status
+  // captures the patient-side condition — match on the condition alone for
+  // them so the profile-specific row still surfaces.
+  if (dt === "type1" && (ut === "diabetes" || ut === "doctor")) return b("btn_p_type1", "type1");
   if (ut === "prediabetes") return b("btn_p_prediabetes", "prediabetes");
   if (ut === "healthier") return b("btn_p_healthier", "healthier");
   return null;

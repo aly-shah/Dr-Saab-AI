@@ -3,6 +3,7 @@ import { send, sanitizeMd, langOf } from "./utils.js";
 import {
   mainMenuKeyboard,
   mainMenuKeyboardV2,
+  patientMenuForDoctorKeyboard,
   checkInKeyboard,
   foodHelpKeyboard,
   moreKeyboard,
@@ -109,11 +110,17 @@ function planName(lang, tier) {
 }
 
 async function showMenu(bot, chatId, session) {
-  // Doctors land on their own three-item menu (Doctor & Referral module).
-  if (session.user?.user_type === "doctor") return showDoctorMenu(bot, chatId, session);
+  // Doctors default to their own three-item menu, but if they've toggled into
+  // patient mode (session.patientMode) show the patient menu with a
+  // Switch-to-Doctor button at the bottom.
+  const isDoctor = session.user?.user_type === "doctor";
+  if (isDoctor && !session.patientMode) return showDoctorMenu(bot, chatId, session);
   resetFlow(chatId);
   const lang = langOf(session);
-  await send(bot, chatId, t(lang, "menu_v2_title"), { keyboard: mainMenuKeyboardV2(lang, session.user), markdown: true, keepEmoji: true });
+  const keyboard = isDoctor
+    ? patientMenuForDoctorKeyboard(lang, session.user)
+    : mainMenuKeyboardV2(lang, session.user);
+  await send(bot, chatId, t(lang, "menu_v2_title"), { keyboard, markdown: true, keepEmoji: true });
 }
 
 async function startCommand(bot, chatId, session, scenario = "eng") {
