@@ -1,7 +1,6 @@
 import { t, LANGUAGES } from "./i18n.js";
-import { send, sanitizeMd, langOf } from "./utils.js";
+import { send, sanitizeMd, langOf, isPremium } from "./utils.js";
 import {
-  mainMenuKeyboard,
   mainMenuKeyboardV2,
   patientMenuForDoctorKeyboard,
   checkInKeyboard,
@@ -11,6 +10,7 @@ import {
   languageKeyboard,
   backKeyboard,
   subscriptionKeyboard,
+  saveReadingOfferKeyboard,
 } from "./keyboards.js";
 import { getSession, resetFlow, clearSession } from "./session.js";
 import {
@@ -19,8 +19,18 @@ import {
   recordMessage,
   deleteUser,
   setAccountStatus,
+  latestMetrics,
 } from "./supabase.js";
 import { TIERS, normalizeTier } from "./tiers.js";
+import {
+  INTENT,
+  resolveIntent,
+  isGlobalIntent,
+  isQuestion,
+  isFoodQuestion,
+  detectReadingInQuestion,
+  logShortcutEvent,
+} from "./shortcuts.js";
 
 import {
   startOnboarding,
@@ -167,6 +177,226 @@ function showSupport(bot, chatId, session) {
     keyboard: backKeyboard(lang),
     markdown: true,
   });
+}
+
+// ==================================================================
+// Universal shortcut router (spec 2026-07)
+// ==================================================================
+// State names of active flows that hold captured-but-unsaved answers.
+// When a global shortcut interrupts one of these, we snapshot the
+// state so the user can `resume` shortly after.
+const RESUMABLE_STATES = new Set([
+  "glucose",
+  "medication",
+  "weight",
+  "activity",
+  "symptoms",
+  "wellbeing",
+  "health",
+  "myhealth",
+  "lab",
+  "prediabetes",
+  "betterme",
+  "pregnancy",
+  "profileq",
+  "my_doctor",
+  "challenge_hba1c_baseline",
+]);
+
+const PAUSED_TTL_MS = 15 * 60 * 1000;
+
+function isInResumableFlow(session) {
+  return RESUMABLE_STATES.has(session.state);
+}
+
+// Snapshot the current flow before a global shortcut takes over so
+// the user can restore it with `resume`. Called only when we're
+// leaving a data-entry state that had already collected input.
+function pauseActiveFlow(session) {
+  if (!isInResumableFlow(session)) return null;
+  session.pausedFlow = {
+    state: session.state,
+    step: session.step,
+    data: { ...(session.data || {}) },
+    at: Date.now(),
+  };
+  return session.pausedFlow;
+}
+
+// Human label for the flow that got paused (used in the ack message).
+function pausedFlowLabel(lang, pf) {
+  const key = {
+    glucose: "shortcut_flow_glucose",
+    medication: "shortcut_flow_med",
+    weight: "shortcut_flow_weight",
+    activity: "shortcut_flow_activity",
+    symptoms: "shortcut_flow_symptoms",
+    wellbeing: "shortcut_flow_wellbeing",
+    health: "shortcut_flow_health",
+    myhealth: "shortcut_flow_myhealth",
+    lab: "shortcut_flow_lab",
+    my_doctor: "shortcut_flow_mydoc",
+  }[pf?.state];
+  const localised = key ? t(lang, key) : null;
+  return localised && !localised.startsWith(key) ? localised : (pf?.state || "");
+}
+
+// Restore a paused flow. Returns true if a resume actually happened.
+async function resumePausedFlow(bot, chatId, session) {
+  const pf = session.pausedFlow;
+  const lang = langOf(session);
+  if (!pf || Date.now() - pf.at > PAUSED_TTL_MS) {
+    session.pausedFlow = null;
+    await send(bot, chatId, t(lang, "shortcut_no_paused_flow"), { markdown: true });
+    return false;
+  }
+  session.state = pf.state;
+  session.step = pf.step;
+  session.data = { ...pf.data };
+  session.pausedFlow = null;
+  await send(bot, chatId, t(lang, "shortcut_resumed", { flow: pausedFlowLabel(lang, pf) }), {
+    markdown: true,
+  });
+  return true;
+}
+
+// Quick Shortcuts help card — shown by the `help` shortcut and by the
+// `commands` alias, per §8 of the spec.
+async function showQuickShortcuts(bot, chatId, session, entryPoint = "help_command") {
+  const lang = langOf(session);
+  const body = `${t(lang, "quick_shortcuts_title")}\n\n${t(lang, "quick_shortcuts_body")}`;
+  logShortcutEvent("shortcut_help_viewed", { entry_point: entryPoint, user_id: session.user?.id });
+  await send(bot, chatId, body, {
+    keyboard: mainMenuKeyboardV2(lang, session.user),
+    markdown: true,
+    keepEmoji: true,
+  });
+}
+
+// HBA1C_SHOW intent — retrieve the latest stored HbA1c rather than
+// starting a report upload. Falls back to an upload-prompt if none.
+async function showLatestHba1c(bot, chatId, session) {
+  const lang = langOf(session);
+  const u = session.user || {};
+  let value = null;
+  let dateBucket = u.hba1c_date_bucket || null;
+
+  if (typeof u.latest_hba1c === "number") {
+    value = u.latest_hba1c;
+  } else {
+    const metrics = await latestMetrics(u.id).catch(() => []);
+    const hit = (metrics || []).find((m) => m.metric_type === "hba1c");
+    if (hit && typeof hit.value === "number") {
+      value = hit.value;
+      dateBucket = hit.measurement_date || dateBucket;
+    }
+  }
+
+  if (value == null) {
+    return send(bot, chatId, t(lang, "shortcut_hba1c_none"), {
+      keyboard: backKeyboard(lang),
+      markdown: true,
+    });
+  }
+  const date = dateBucket ? ` _(as of ${String(dateBucket).slice(0, 10)})_` : "";
+  return send(bot, chatId, t(lang, "shortcut_hba1c_latest", { value, date }), {
+    keyboard: backKeyboard(lang),
+    markdown: true,
+  });
+}
+
+// Sugar-with-value flow: pre-parse the reading, start the glucose flow
+// with the value already captured, then ask for the missing timing
+// context (fasting / random / pre-meal / post-meal / bedtime).
+async function startGlucoseWithValue(bot, chatId, session, structured) {
+  const lang = langOf(session);
+  session.state = "glucose";
+  session.step = "await_context";
+  session.data = { ...(session.data || {}), pendingSugar: structured };
+  return send(bot, chatId, t(lang, "shortcut_sugar_needs_context", { value: structured.value }), {
+    keyboard: backKeyboard(lang),
+    markdown: true,
+  });
+}
+
+// Route a resolved intent to the appropriate handler. Global intents
+// wipe the current flow; sugar/med intents also replace it (per §7).
+async function routeIntent(bot, chatId, session, resolved) {
+  const lang = langOf(session);
+  const intent = resolved.intent;
+  const isDoctor = session.user?.user_type === "doctor";
+  const role = isDoctor ? "doctor" : "patient";
+
+  logShortcutEvent("shortcut_executed", {
+    canonical_intent: intent,
+    match_type: resolved.matchType,
+    active_flow: session.state,
+    role,
+    user_id: session.user?.id,
+  });
+
+  // Pause any active flow before a global takeover so the user can
+  // resume. CANCEL and RESUME don't need a snapshot — cancel discards,
+  // resume operates on the existing snapshot. Everything else that
+  // interrupts a data-entry state gets one.
+  const wasInFlow = isInResumableFlow(session);
+  const skipPause = intent === INTENT.CANCEL || intent === INTENT.RESUME;
+  if (wasInFlow && isGlobalIntent(intent) && !skipPause) {
+    const paused = pauseActiveFlow(session);
+    resetFlow(chatId);
+    if (paused) {
+      await send(
+        bot,
+        chatId,
+        t(lang, "shortcut_flow_paused", { flow: pausedFlowLabel(lang, paused) }),
+        { markdown: true },
+      );
+    }
+  }
+
+  switch (intent) {
+    case INTENT.MENU:
+      return showMenu(bot, chatId, session);
+    case INTENT.HELP:
+      return showQuickShortcuts(bot, chatId, session);
+    case INTENT.HEALTH:
+      return startMyHealth(bot, chatId, session);
+    case INTENT.SUGAR_LOG:
+      if (resolved.structured?.kind === "glucose") {
+        return startGlucoseWithValue(bot, chatId, session, resolved.structured);
+      }
+      if (resolved.structured?.kind === "hba1c") {
+        // Pre-parsed HbA1c value from the sugar detector — the user
+        // likely wants to add it to their record. Route into the lab
+        // flow with the raw text so its parser handles the save.
+        return startLab(bot, chatId, session);
+      }
+      return startGlucose(bot, chatId, session);
+    case INTENT.MEDICATION:
+      return startMedication(bot, chatId, session);
+    case INTENT.FOOD_HELP:
+      return showFoodHelp(bot, chatId, session);
+    case INTENT.REPORT:
+      return startLab(bot, chatId, session);
+    case INTENT.PROGRESS:
+      return showSummary(bot, chatId, session);
+    case INTENT.CHALLENGE:
+      return showChallenges(bot, chatId, session);
+    case INTENT.DOCTOR:
+      // AC-07: doctors land on their own menu; patients land on My Doctor.
+      if (isDoctor && !session.patientMode) return showDoctorMenu(bot, chatId, session);
+      return showMyDoctor(bot, chatId, session);
+    case INTENT.HBA1C_SHOW:
+      return showLatestHba1c(bot, chatId, session);
+    case INTENT.CANCEL:
+      resetFlow(chatId);
+      await send(bot, chatId, t(lang, "cancelled"));
+      return showMenu(bot, chatId, session);
+    case INTENT.RESUME:
+      return resumePausedFlow(bot, chatId, session);
+    default:
+      return showMenu(bot, chatId, session);
+  }
 }
 
 function showProfile(bot, chatId, session) {
@@ -347,32 +577,101 @@ export async function handleMessage(bot, msg) {
   }
   if (cmd === "/cancel") {
     if (!session.user.onboarded) return startOnboarding(bot, chatId, session, "eng");
+    resetFlow(chatId);
     await send(bot, chatId, t(langOf(session), "cancelled"));
     return showMenu(bot, chatId, session);
   }
 
-  // Common commands (proposal §3.1) — slash always; plain words only when the
-  // user is NOT mid-flow, so "help"/"menu" inside a coach chat stay as content.
-  const word = (text || "").trim().toLowerCase();
-  const inFlow = [
-    "onboarding", "glucose", "medication", "health", "myhealth",
-    "coach", "food", "fitness", "askdrsaab", "lab", "challenge_code", "profileq",
-    "weight", "activity", "symptoms", "prediabetes", "betterme", "pregnancy",
-    "doctor_onboarding", "doctor_patient_onboarding", "my_doctor",
-    "challenge_hba1c_baseline",
-  ].includes(session.state);
-  if (session.user.onboarded) {
-    if (cmd === "/home" || (!inFlow && (word === "home" || word === "menu"))) {
-      return showMenu(bot, chatId, session);
-    }
-    if (cmd === "/help" || (!inFlow && word === "help")) {
-      return send(bot, chatId, t(langOf(session), "help_text"), {
-        keyboard: mainMenuKeyboard(langOf(session)),
-        markdown: true,
+  // /upgrade legacy slash — no plain-word equivalent, kept as a shortcut
+  // for users who remember it.
+  if (cmd === "/upgrade" && session.user.onboarded) {
+    return showSubscription(bot, chatId, session);
+  }
+
+  // Universal shortcut / smart-alias router (spec 2026-07).
+  //
+  // Layered routing per §5:
+  //   1. normalize
+  //   2. exact command match  (top-10 canonical shortcuts)
+  //   3. alias / phrase match (curated aliases + Roman Urdu + Urdu)
+  //   4. structured data      (e.g. "sugar 145" → glucose entry)
+  //   5. context-aware        (in-flow natural replies stay in the flow)
+  //   6. AI fallback          (idle idle+free-text → Ask DrSaab)
+  //
+  // Onboarding is intentionally excluded — a not-yet-onboarded user
+  // must complete the wizard before shortcuts become active.
+  const activeState = session.state;
+  const inResumableFlow = isInResumableFlow(session);
+  const inCoachlike = ["coach", "food", "fitness", "label", "analyze", "askdrsaab"].includes(activeState);
+
+  // The router accepts both bare words ("sugar") and the optional
+  // slash form ("/sugar"). Slash commands already consumed above
+  // (/start, /menu, /cancel, /upgrade) never reach this point.
+  if (session.user.onboarded && text) {
+    const resolved = resolveIntent(text, { inFlow: inResumableFlow || inCoachlike });
+    if (resolved) {
+      logShortcutEvent("shortcut_detected", {
+        canonical_intent: resolved.intent,
+        match_type: resolved.matchType,
+        confidence: resolved.confidence,
+        language: session.user?.language || "en",
+        message_text: text,
+        user_id: session.user?.id,
       });
+      // High-signal paths always route:
+      //   • structured   — data-entry with a numeric reading
+      //   • hba1c_show   — verbatim retrieval phrase
+      //   • exact/alias_full — the whole message equals an alias, no
+      //     ambiguity about intent (the user typed the shortcut).
+      if (
+        resolved.matchType === "structured" ||
+        resolved.matchType === "hba1c_show" ||
+        resolved.matchType === "exact" ||
+        resolved.matchType === "alias_full"
+      ) {
+        return routeIntent(bot, chatId, session, resolved);
+      }
+
+      // "partial" match — first token is a shortcut but there's more.
+      // Apply the coach / question guard so long sentences that just
+      // start with "food …" or "menu …" don't hijack the chat.
+      if (resolved.matchType === "partial" && resolved.confidence === "high") {
+        const trimmed = (text || "").trim();
+        const tokenCount = trimmed.split(/\s+/).length;
+        if (inCoachlike && tokenCount > 2) {
+          // stay in the coach; fall through
+        } else if (isQuestion(text)) {
+          // sounds like a question — Ask DrSaab handles it
+        } else {
+          return routeIntent(bot, chatId, session, resolved);
+        }
+      }
     }
-    if (cmd === "/upgrade" || (!inFlow && word === "upgrade")) {
-      return showSubscription(bot, chatId, session);
+
+    // §6 disambiguation rule 4 — food questions ("Can I eat biryani?")
+    // route to the Food Help coach conversationally rather than the
+    // generic Ask DrSaab, but only for paid users (Food Coach is a paid
+    // feature) and when we're not already inside another data-entry flow.
+    if (
+      !inResumableFlow &&
+      !inCoachlike &&
+      isFoodQuestion(text) &&
+      isPremium(session.user)
+    ) {
+      logShortcutEvent("shortcut_executed", {
+        canonical_intent: "FOOD_HELP",
+        match_type: "food_question",
+        active_flow: session.state,
+        role: session.user?.user_type === "doctor" ? "doctor" : "patient",
+        user_id: session.user?.id,
+      });
+      // Enter the food coach silently (skip the intro since the user
+      // already asked their question) and hand the message straight to
+      // coachText so the AI answers the biryani question in-flow.
+      session.state = "food";
+      session.history = [];
+      if (session.data) delete session.data.foodRestaurantId;
+      return coachText(bot, chatId, session, text, msg);
     }
   }
 
@@ -432,7 +731,9 @@ export async function handleMessage(bot, msg) {
     case "analyze":
       return coachText(bot, chatId, session, text, msg);
     case "askdrsaab":
-      return askDrsaabText(bot, chatId, session, text, msg);
+      await askDrsaabText(bot, chatId, session, text, msg);
+      await maybeOfferSaveReading(bot, chatId, session, text);
+      return;
     case "lab":
       return labText(bot, chatId, session, text, msg);
     case "challenge_code":
@@ -454,8 +755,25 @@ export async function handleMessage(bot, msg) {
       // question so users (esp. on WhatsApp) can ask anything without first
       // navigating into the Ask DrSaab section. Menu/help word commands are
       // handled above this switch and still open the menu.
-      return askDrsaabText(bot, chatId, session, text, msg);
+      await askDrsaabText(bot, chatId, session, text, msg);
+      await maybeOfferSaveReading(bot, chatId, session, text);
+      return;
   }
+}
+
+// §6 disambiguation rule 2: if the user asks a clinical question that
+// contains a numeric reading (e.g. "is sugar 145 bad?"), Ask DrSaab
+// answers first — and only then do we offer to save the value.
+async function maybeOfferSaveReading(bot, chatId, session, text) {
+  if (!isQuestion(text)) return;
+  const reading = detectReadingInQuestion(text);
+  if (!reading) return;
+  if (reading.kind !== "glucose" && reading.kind !== "hba1c") return;
+  const lang = langOf(session);
+  await send(bot, chatId, t(lang, "shortcut_confirm_log_sugar", { value: reading.value }), {
+    keyboard: saveReadingOfferKeyboard(lang, reading.kind, reading.value),
+    markdown: true,
+  });
 }
 
 export async function handleCallback(bot, query) {
@@ -504,6 +822,28 @@ export async function handleCallback(bot, query) {
   }
 
   if (data === "menu") return showMenu(bot, chatId, session);
+
+  // Save-reading offer after a clinical question (§6 rule 2). Yes routes
+  // into the appropriate flow with the value pre-parsed; No is silent.
+  if (data.startsWith("saveq:")) {
+    const [, kind, valueStr, ans] = data.split(":");
+    const value = parseFloat(valueStr);
+    logShortcutEvent("shortcut_confirmed", {
+      suggested_intent: kind === "hba1c" ? "HBA1C_LOG" : "SUGAR_LOG",
+      user_confirmation: ans,
+      user_id: session.user?.id,
+    });
+    if (ans === "no" || !Number.isFinite(value)) {
+      return;
+    }
+    if (kind === "glucose") {
+      return startGlucoseWithValue(bot, chatId, session, { value, kind: "glucose" });
+    }
+    if (kind === "hba1c") {
+      return startLab(bot, chatId, session);
+    }
+    return;
+  }
 
   // ❤️ My Health — start / confirm (ok/edit/skip) / glucose-context picker.
   if (data.startsWith("mh:")) return myHealthCallback(bot, chatId, session, data);

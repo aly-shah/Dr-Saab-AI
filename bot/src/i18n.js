@@ -324,6 +324,33 @@ const STR = {
     help_text:
       "🤖 *DrSaab Help*\n\nYou can just chat with me, or use these:\n• *Menu / Home* — open the main menu\n• *Back* — go back\n• *Cancel* — stop the current step\n• *Upgrade* — see plans\n• *Help* — show this message\n\nTry logging a sugar reading (e.g. `130 fasting`), ask me a question, or tap a menu option.",
 
+    // ---- Quick Shortcuts (universal shortcut system, spec 2026-07) ----
+    quick_shortcuts_title: "⚡ *Quick Shortcuts*",
+    quick_shortcuts_body:
+      "Type any of these anytime:\n\n📋 *menu* – Open the Main Menu\n❓ *help* – See how DrSaab works\n❤️ *health* – View your health summary\n🩸 *sugar* – Log blood sugar\n💊 *meds* – Check in your medicines\n🍽️ *food* – Get food help\n📄 *report* – Upload a health report\n🎯 *progress* – View goals and progress\n🏆 *challenge* – View or join challenges\n🩺 *doctor* – Doctor and referral options\n\n💬 Or just ask naturally — for example:\n_\"Can I eat biryani?\"_\n_\"My sugar is 145.\"_\n_\"Show my latest HbA1c.\"_",
+    shortcut_sugar_needs_context:
+      "Got it — I saw *{value}*. Was this *fasting*, *random*, *before a meal*, *after a meal*, or *bedtime*? Reply with the timing so I can log it correctly.",
+    shortcut_flow_paused:
+      "Paused your *{flow}* check-in — your answers so far are safe. Type *resume* to continue where you left off.",
+    shortcut_no_paused_flow: "You don't have a paused check-in to resume.",
+    shortcut_resumed: "Resuming your *{flow}* check-in. ↩️",
+    shortcut_hba1c_none:
+      "I don't have a stored HbA1c for you yet. Tap *report* or send a lab report and I'll extract it.",
+    shortcut_hba1c_latest:
+      "🧪 *Your latest HbA1c*: *{value}%*{date}\n\nTap *report* to upload a new lab result, or ask me anything about it.",
+    shortcut_confirm_log_sugar:
+      "Would you like me to save *{value}* as a blood-sugar reading? Reply *yes* to log it, or ask a question.",
+    shortcut_flow_glucose: "blood sugar",
+    shortcut_flow_med: "medication",
+    shortcut_flow_weight: "weight",
+    shortcut_flow_activity: "activity",
+    shortcut_flow_symptoms: "symptoms",
+    shortcut_flow_wellbeing: "wellbeing",
+    shortcut_flow_health: "health",
+    shortcut_flow_myhealth: "My Health",
+    shortcut_flow_lab: "lab report",
+    shortcut_flow_mydoc: "doctor link",
+
     // ---- menu buttons (new features) ----
     btn_goals: "🎯 My Goals",
     btn_challenges: "🏆 Challenges",
@@ -1750,6 +1777,31 @@ const STR = {
     btn_executive: "⭐ ایگزیکٹو سروسز",
     help_text:
       "🤖 *DrSaab مدد*\n\nآپ مجھ سے بات کر سکتے ہیں یا یہ استعمال کریں:\n• *Menu / Home* — مرکزی مینو\n• *Back* — واپس\n• *Cancel* — موجودہ مرحلہ روکیں\n• *Upgrade* — پلانز دیکھیں\n• *Help* — یہ پیغام\n\nشوگر لاگ کریں (مثلاً `130 fasting`)، سوال پوچھیں، یا مینو منتخب کریں۔",
+    quick_shortcuts_title: "⚡ *فوری شارٹ کٹس*",
+    quick_shortcuts_body:
+      "کبھی بھی ان میں سے کوئی بھی ٹائپ کریں:\n\n📋 *menu* – مرکزی مینو کھولیں\n❓ *help* – DrSaab کا استعمال دیکھیں\n❤️ *health* – اپنی صحت کا خلاصہ دیکھیں\n🩸 *sugar* – بلڈ شوگر لاگ کریں\n💊 *meds* – اپنی دوائیں چیک اِن کریں\n🍽️ *food* – کھانے میں مدد لیں\n📄 *report* – ہیلتھ رپورٹ اپلوڈ کریں\n🎯 *progress* – اہداف اور پیش رفت دیکھیں\n🏆 *challenge* – چیلنجز میں شامل ہوں یا دیکھیں\n🩺 *doctor* – ڈاکٹر اور ریفرل کے آپشنز\n\n💬 یا سیدھا بات کریں — مثلاً:\n_\"کیا میں بریانی کھا سکتا ہوں؟\"_\n_\"میری شوگر 145 ہے۔\"_\n_\"میرا تازہ HbA1c دکھاؤ۔\"_",
+    shortcut_sugar_needs_context:
+      "سمجھ گیا — میں نے *{value}* دیکھی۔ یہ *fasting*، *random*، *کھانے سے پہلے*، *کھانے کے بعد*، یا *سونے سے پہلے* تھی؟ ٹائمنگ بتائیں تاکہ میں صحیح لاگ کر سکوں۔",
+    shortcut_flow_paused:
+      "آپ کا *{flow}* چیک اِن روک دیا — آپ کے جوابات محفوظ ہیں۔ جاری رکھنے کے لیے *resume* لکھیں۔",
+    shortcut_no_paused_flow: "دوبارہ شروع کرنے کے لیے کوئی روکا ہوا چیک اِن نہیں ہے۔",
+    shortcut_resumed: "آپ کا *{flow}* چیک اِن پھر شروع کر رہے ہیں۔ ↩️",
+    shortcut_hba1c_none:
+      "ابھی آپ کا محفوظ HbA1c نہیں ہے۔ *report* دبائیں یا لیب رپورٹ بھیجیں، میں اسے نکال لوں گا۔",
+    shortcut_hba1c_latest:
+      "🧪 *آپ کا تازہ HbA1c*: *{value}%*{date}\n\nنئی لیب رپورٹ اپلوڈ کرنے کے لیے *report* دبائیں، یا مجھ سے کچھ بھی پوچھیں۔",
+    shortcut_confirm_log_sugar:
+      "کیا میں *{value}* کو بلڈ شوگر ریڈنگ کے طور پر محفوظ کر لوں؟ لاگ کرنے کے لیے *yes* لکھیں، یا سوال پوچھیں۔",
+    shortcut_flow_glucose: "بلڈ شوگر",
+    shortcut_flow_med: "دوائی",
+    shortcut_flow_weight: "وزن",
+    shortcut_flow_activity: "سرگرمی",
+    shortcut_flow_symptoms: "علامات",
+    shortcut_flow_wellbeing: "طبیعت",
+    shortcut_flow_health: "صحت",
+    shortcut_flow_myhealth: "میری صحت",
+    shortcut_flow_lab: "لیب رپورٹ",
+    shortcut_flow_mydoc: "ڈاکٹر لنک",
     goals_title: "🎯 *میرے اہداف*",
     goals_none: "آپ نے ابھی کوئی ہدف مقرر نہیں کیا۔ شروع کرنے کے لیے *ہدف شامل کریں* دبائیں۔",
     goals_current: "آپ کا موجودہ ہدف: *{goal}*",
@@ -2715,6 +2767,31 @@ const STR = {
     btn_executive: "⭐ Executive Services",
     help_text:
       "🤖 *DrSaab Help*\n\nAap mujh se baat kar saktay hain ya yeh use karein:\n• *Menu / Home* — main menu\n• *Back* — wapas\n• *Cancel* — mojooda step roken\n• *Upgrade* — plans dekhein\n• *Help* — yeh message\n\nSugar log karein (e.g. `130 fasting`), sawal poochein, ya menu select karein.",
+    quick_shortcuts_title: "⚡ *Quick Shortcuts*",
+    quick_shortcuts_body:
+      "Kabhi bhi in mein se koi bhi type karein:\n\n📋 *menu* – Main Menu kholein\n❓ *help* – DrSaab ka use dekhein\n❤️ *health* – Apni health ka summary dekhein\n🩸 *sugar* – Blood sugar log karein\n💊 *meds* – Apni medicines check-in karein\n🍽️ *food* – Khane mein madad lein\n📄 *report* – Health report upload karein\n🎯 *progress* – Goals aur progress dekhein\n🏆 *challenge* – Challenges dekhein ya join karein\n🩺 *doctor* – Doctor aur referral options\n\n💬 Ya seedha baat karein — jaise:\n_\"Kya main biryani kha sakta hoon?\"_\n_\"Meri sugar 145 hai.\"_\n_\"Mera latest HbA1c dikhao.\"_",
+    shortcut_sugar_needs_context:
+      "Samajh gaya — maine *{value}* dekha. Yeh *fasting*, *random*, *khane se pehle*, *khane ke baad*, ya *sone se pehle* thi? Timing bataein taake sahi log kar sakoon.",
+    shortcut_flow_paused:
+      "Aap ka *{flow}* check-in rok diya — aap ke jawab mehfooz hain. Jaari rakhne ke liye *resume* likhein.",
+    shortcut_no_paused_flow: "Dobara shuru karne ke liye koi paused check-in nahi hai.",
+    shortcut_resumed: "Aap ka *{flow}* check-in phir shuru kar rahe hain. ↩️",
+    shortcut_hba1c_none:
+      "Abhi aap ka save shuda HbA1c nahi hai. *report* daabein ya lab report bhejein, main nikaal lounga.",
+    shortcut_hba1c_latest:
+      "🧪 *Aap ka latest HbA1c*: *{value}%*{date}\n\nNayi lab report upload karne ke liye *report* daabein, ya mujh se kuch bhi poochein.",
+    shortcut_confirm_log_sugar:
+      "Kya main *{value}* ko blood sugar reading ke tor par save kar loon? Log karne ke liye *yes* likhein, ya sawal poochein.",
+    shortcut_flow_glucose: "blood sugar",
+    shortcut_flow_med: "medicine",
+    shortcut_flow_weight: "weight",
+    shortcut_flow_activity: "activity",
+    shortcut_flow_symptoms: "symptoms",
+    shortcut_flow_wellbeing: "wellbeing",
+    shortcut_flow_health: "health",
+    shortcut_flow_myhealth: "My Health",
+    shortcut_flow_lab: "lab report",
+    shortcut_flow_mydoc: "doctor link",
     goals_title: "🎯 *Mere Goals*",
     goals_none: "Aap ne abhi koi goal set nahi kiya. Shuru karne ke liye *Goal shamil karein* dabayein.",
     goals_current: "Aap ka mojooda goal: *{goal}*",

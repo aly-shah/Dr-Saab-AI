@@ -106,9 +106,36 @@ export async function glucoseText(bot, chatId, session, text) {
     });
   }
 
+  // Structured-shortcut entry: the user typed "My sugar is 145" and
+  // the shortcut router seeded session.data.pendingSugar. We accepted
+  // the value; only the timing context is missing. Combine "the value
+  // we already have" with "the timing they just typed" into a single
+  // parseGlucose input so downstream logic is unchanged.
+  if (session.step === "await_context" && session.data?.pendingSugar) {
+    const pending = session.data.pendingSugar;
+    const combined = `${text || ""} ${pending.value}`.trim();
+    const parsedFromCombo = parseGlucose(combined);
+    if (parsedFromCombo) {
+      session.step = null;
+      session.data.pendingSugar = null;
+      return finishGlucoseLog(bot, chatId, session, parsedFromCombo);
+    }
+    // No timing word detected — nudge again but don't drop the value.
+    return send(bot, chatId, t(lang, "shortcut_sugar_needs_context", { value: pending.value }), {
+      markdown: true,
+    });
+  }
+
   const parsed = parseGlucose(text);
   if (!parsed) return send(bot, chatId, t(lang, "bs_invalid"), { markdown: true });
+  return finishGlucoseLog(bot, chatId, session, parsed);
+}
 
+// Save a parsed reading, score it and drive the appropriate follow-up
+// (first-time reminder offer vs. terminal confirmation). Shared by the
+// normal glucose flow and the shortcut-seeded "sugar 145 fasting" path.
+async function finishGlucoseLog(bot, chatId, session, parsed) {
+  const lang = langOf(session);
   const isFirst = (await countGlucose(session.user.id).catch(() => 0)) === 0;
 
   await addGlucoseFull(session.user.id, {
@@ -128,7 +155,6 @@ export async function glucoseText(bot, chatId, session, text) {
     value_mgdl: parsed.value_mgdl, measure_kind: parsed.measure_kind,
   }).catch(() => {});
 
-  // TODO: rotate through 20 variations per confirmation type
   const feedback = glucoseFeedback(lang, parsed.value_mgdl, parsed.measure_kind);
 
   if (isFirst) {
@@ -140,7 +166,6 @@ export async function glucoseText(bot, chatId, session, text) {
       markdown: true,
     });
   } else {
-    // Terminal path — attach Back-to-menu button to the last message.
     if (feedback) {
       await send(bot, chatId, t(lang, "bs_confirm"), { markdown: true });
       await send(bot, chatId, feedback, { keyboard: backKeyboard(lang), markdown: true });

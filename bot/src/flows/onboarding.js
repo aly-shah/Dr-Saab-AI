@@ -174,6 +174,14 @@ async function finish(bot, chatId, session) {
   const name = sanitizeMd(updated.name || "");
   const doneKey = name ? "profile_complete_v2" : "profile_complete_v2_noname";
   await send(bot, chatId, t(lang, doneKey, { name }), { markdown: true });
+  // §8 onboarding explainer — introduce the 10 Quick Shortcuts once, so
+  // the user knows they can type them anywhere from the very first message.
+  await send(
+    bot,
+    chatId,
+    `${t(lang, "quick_shortcuts_title")}\n\n${t(lang, "quick_shortcuts_body")}`,
+    { markdown: true, keepEmoji: true },
+  );
   await send(bot, chatId, t(lang, "menu_v2_title"), {
     keyboard: mainMenuKeyboardV2(lang, updated),
     markdown: true,
