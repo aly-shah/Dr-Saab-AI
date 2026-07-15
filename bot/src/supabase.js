@@ -572,6 +572,122 @@ async function makeSupabaseBackend() {
       return data;
     },
 
+    // ===== Challenges v1.0 (2026-07) =====
+    async listActiveChallengeDefs() {
+      const { data } = await db.from("challenge_definitions").select("*")
+        .eq("is_active", true).order("challenge_code");
+      return data || [];
+    },
+    async getChallengeDefByCode(code) {
+      const { data } = await db.from("challenge_definitions").select("*")
+        .eq("challenge_code", code).maybeSingle();
+      return data || null;
+    },
+    async getChallengeDefById(id) {
+      const { data } = await db.from("challenge_definitions").select("*")
+        .eq("id", id).maybeSingle();
+      return data || null;
+    },
+    async getActiveUserChallenge(userId, challengeId) {
+      const { data } = await db.from("user_challenges").select("*")
+        .eq("user_id", userId).eq("challenge_id", challengeId)
+        .in("status", ["joined", "active", "awaiting_final_result"])
+        .order("joined_at", { ascending: false }).limit(1).maybeSingle();
+      return data || null;
+    },
+    async createUserChallenge(fields) {
+      const { data, error } = await db.from("user_challenges").insert(fields).select("*").single();
+      if (error) throw error;
+      return data;
+    },
+    async updateUserChallenge(userChallengeId, patch) {
+      const { data, error } = await db.from("user_challenges").update(patch)
+        .eq("id", userChallengeId).select("*").single();
+      if (error) throw error;
+      return data;
+    },
+    async getUserChallengeById(id) {
+      const { data } = await db.from("user_challenges").select("*").eq("id", id).maybeSingle();
+      return data || null;
+    },
+    async listUserChallengesActive(userId) {
+      const { data } = await db.from("user_challenges").select("*")
+        .eq("user_id", userId)
+        .in("status", ["joined", "active", "awaiting_final_result"])
+        .order("start_date", { ascending: false, nullsFirst: false })
+        .order("started_at", { ascending: false });
+      return data || [];
+    },
+    async listUserChallengesHistory(userId) {
+      const { data } = await db.from("user_challenges").select("*")
+        .eq("user_id", userId)
+        .in("status", ["completed", "withdrawn_by_user", "expired_incomplete", "disqualified"])
+        .order("end_date", { ascending: false, nullsFirst: false })
+        .order("started_at", { ascending: false });
+      return data || [];
+    },
+    async listCohortResults(challengeId) {
+      const { data } = await db.from("user_challenges").select("*")
+        .eq("challenge_id", challengeId)
+        .in("status", ["active", "awaiting_final_result", "completed"]);
+      return data || [];
+    },
+    async listChallengeEventsForDay(userChallengeId, eventDate) {
+      const { data } = await db.from("challenge_events").select("*")
+        .eq("user_challenge_id", userChallengeId).eq("event_date", eventDate);
+      return data || [];
+    },
+    async insertChallengeEvent(fields) {
+      const { data, error } = await db.from("challenge_events").insert(fields).select("*").single();
+      if (error) throw error;
+      return data;
+    },
+    async listUcActiveByUser(userId) {
+      const { data } = await db.from("user_challenges").select("*")
+        .eq("user_id", userId)
+        .in("status", ["active", "awaiting_final_result", "joined"]);
+      return data || [];
+    },
+    async listChallengesEndingSoon(withinDays) {
+      // Rows still needing a final HbA1c result — used by scheduler to
+      // send the final-result prompt.
+      const cutoff = new Date(Date.now() + withinDays * 86400000).toISOString().slice(0, 10);
+      const { data } = await db.from("user_challenges").select("*")
+        .in("status", ["active", "awaiting_final_result"])
+        .lte("end_date", cutoff);
+      return data || [];
+    },
+    async listChallengesToExpire(cutoffDate) {
+      const { data } = await db.from("user_challenges").select("*")
+        .in("status", ["active", "awaiting_final_result"])
+        .lt("end_date", cutoffDate);
+      return data || [];
+    },
+    async enqueueChallengeDoctorNotification(fields) {
+      const { data, error } = await db.from("challenge_doctor_notifications")
+        .insert(fields).select("*").single();
+      if (error) throw error;
+      return data;
+    },
+    async listDueChallengeDoctorNotifications(nowIso) {
+      const { data } = await db.from("challenge_doctor_notifications").select("*")
+        .is("sent_at", null).lte("scheduled_for", nowIso).limit(100);
+      return data || [];
+    },
+    async markChallengeDoctorNotificationSent(id) {
+      await db.from("challenge_doctor_notifications").update({ sent_at: new Date().toISOString() })
+        .eq("id", id);
+    },
+    async countChallengeEventsInDays(userChallengeId, eventType, days) {
+      const since = daysAgoISO(days).slice(0, 10);
+      const { count } = await db.from("challenge_events")
+        .select("id", { count: "exact", head: true })
+        .eq("user_challenge_id", userChallengeId)
+        .eq("event_type", eventType)
+        .gte("event_date", since);
+      return count || 0;
+    },
+
     // ===== Doctor & Referral module (v1.0) =====
     async getDoctorByUserId(userId) {
       const { data, error } = await db.from("doctors").select("*").eq("user_id", userId).maybeSingle();
@@ -1467,6 +1583,180 @@ async function makePostgresBackend() {
       return rows[0] || null;
     },
 
+    // ===== Challenges v1.0 (2026-07) =====
+    async listActiveChallengeDefs() {
+      const { rows } = await pool.query(
+        "select * from challenge_definitions where is_active order by challenge_code"
+      );
+      return rows;
+    },
+    async getChallengeDefByCode(code) {
+      const { rows } = await pool.query(
+        "select * from challenge_definitions where challenge_code = $1", [code]
+      );
+      return rows[0] || null;
+    },
+    async getChallengeDefById(id) {
+      const { rows } = await pool.query(
+        "select * from challenge_definitions where id = $1", [id]
+      );
+      return rows[0] || null;
+    },
+    async getActiveUserChallenge(userId, challengeId) {
+      const { rows } = await pool.query(
+        `select * from user_challenges
+         where user_id = $1 and challenge_id = $2
+           and status in ('joined','active','awaiting_final_result')
+         order by joined_at desc nulls last, started_at desc limit 1`,
+        [userId, challengeId]
+      );
+      return rows[0] || null;
+    },
+    async createUserChallenge(fields) {
+      const keys = Object.keys(fields);
+      const cols = keys.join(", ");
+      const ph = keys.map((_, i) => `$${i + 1}`).join(", ");
+      const { rows } = await pool.query(
+        `insert into user_challenges (${cols}) values (${ph}) returning *`,
+        Object.values(fields)
+      );
+      return rows[0];
+    },
+    async updateUserChallenge(userChallengeId, patch) {
+      const keys = Object.keys(patch);
+      if (!keys.length) return this.getUserChallengeById(userChallengeId);
+      const set = keys.map((k, i) => `${k} = $${i + 1}`).join(", ");
+      const vals = keys.map((k) => patch[k]);
+      const { rows } = await pool.query(
+        `update user_challenges set ${set} where id = $${vals.length + 1} returning *`,
+        [...vals, userChallengeId]
+      );
+      return rows[0] || null;
+    },
+    async getUserChallengeById(id) {
+      const { rows } = await pool.query("select * from user_challenges where id = $1", [id]);
+      return rows[0] || null;
+    },
+    async listUserChallengesActive(userId) {
+      const { rows } = await pool.query(
+        `select uc.*, cd.name as def_name, cd.challenge_type as def_type,
+                cd.duration_days as def_duration_days, cd.scoring_config as def_scoring_config
+           from user_challenges uc
+           left join challenge_definitions cd on cd.id = uc.challenge_id
+          where uc.user_id = $1
+            and uc.status in ('joined','active','awaiting_final_result')
+          order by uc.start_date desc nulls last, uc.started_at desc`,
+        [userId]
+      );
+      return rows;
+    },
+    async listUserChallengesHistory(userId) {
+      const { rows } = await pool.query(
+        `select uc.*, cd.name as def_name, cd.challenge_type as def_type,
+                cd.duration_days as def_duration_days
+           from user_challenges uc
+           left join challenge_definitions cd on cd.id = uc.challenge_id
+          where uc.user_id = $1
+            and uc.status in ('completed','withdrawn_by_user','expired_incomplete','disqualified')
+          order by uc.end_date desc nulls last, uc.started_at desc`,
+        [userId]
+      );
+      return rows;
+    },
+    async listCohortResults(challengeId) {
+      const { rows } = await pool.query(
+        `select uc.*, u.name as _user_name
+           from user_challenges uc
+           left join users u on u.id = uc.user_id
+          where uc.challenge_id = $1
+            and uc.status in ('active','awaiting_final_result','completed')`,
+        [challengeId]
+      );
+      return rows;
+    },
+    async listChallengeEventsForDay(userChallengeId, eventDate) {
+      const { rows } = await pool.query(
+        `select * from challenge_events
+         where user_challenge_id = $1 and event_date = $2::date`,
+        [userChallengeId, eventDate]
+      );
+      return rows;
+    },
+    async insertChallengeEvent(fields) {
+      const keys = Object.keys(fields);
+      const cols = keys.join(", ");
+      const ph = keys.map((_, i) => `$${i + 1}`).join(", ");
+      const { rows } = await pool.query(
+        `insert into challenge_events (${cols}) values (${ph}) returning *`,
+        Object.values(fields)
+      );
+      return rows[0];
+    },
+    async listUcActiveByUser(userId) {
+      const { rows } = await pool.query(
+        `select uc.*, cd.challenge_type as def_type, cd.duration_days as def_duration_days,
+                cd.scoring_config as def_scoring_config, cd.name as def_name
+           from user_challenges uc
+           left join challenge_definitions cd on cd.id = uc.challenge_id
+          where uc.user_id = $1
+            and uc.status in ('active','awaiting_final_result','joined')`,
+        [userId]
+      );
+      return rows;
+    },
+    async listChallengesEndingSoon(withinDays) {
+      const { rows } = await pool.query(
+        `select * from user_challenges
+         where status in ('active','awaiting_final_result')
+           and end_date is not null
+           and end_date <= (current_date + ($1 || ' days')::interval)`,
+        [String(withinDays)]
+      );
+      return rows;
+    },
+    async listChallengesToExpire(cutoffDate) {
+      const { rows } = await pool.query(
+        `select * from user_challenges
+         where status in ('active','awaiting_final_result')
+           and end_date is not null and end_date < $1::date`,
+        [cutoffDate]
+      );
+      return rows;
+    },
+    async enqueueChallengeDoctorNotification(fields) {
+      const keys = Object.keys(fields);
+      const cols = keys.join(", ");
+      const ph = keys.map((_, i) => `$${i + 1}`).join(", ");
+      const { rows } = await pool.query(
+        `insert into challenge_doctor_notifications (${cols}) values (${ph}) returning *`,
+        Object.values(fields)
+      );
+      return rows[0];
+    },
+    async listDueChallengeDoctorNotifications(nowIso) {
+      const { rows } = await pool.query(
+        `select * from challenge_doctor_notifications
+         where sent_at is null and scheduled_for <= $1
+         order by scheduled_for limit 100`,
+        [nowIso]
+      );
+      return rows;
+    },
+    async markChallengeDoctorNotificationSent(id) {
+      await pool.query(
+        "update challenge_doctor_notifications set sent_at = now() where id = $1", [id]
+      );
+    },
+    async countChallengeEventsInDays(userChallengeId, eventType, days) {
+      const { rows } = await pool.query(
+        `select count(*)::int as n from challenge_events
+         where user_challenge_id = $1 and event_type = $2
+           and event_date >= current_date - ($3 || ' days')::interval`,
+        [userChallengeId, eventType, String(days)]
+      );
+      return rows[0]?.n || 0;
+    },
+
     // ===== Doctor & Referral module (v1.0) =====
     async getDoctorByUserId(userId) {
       const { rows } = await pool.query("select * from doctors where user_id = $1", [userId]);
@@ -1957,6 +2247,51 @@ function makeMemoryBackend() {
       );
     },
 
+    // ===== Challenges v1.0 (in-memory stubs — data resets on restart) =====
+    async listActiveChallengeDefs() { return []; },
+    async getChallengeDefByCode() { return null; },
+    async getChallengeDefById() { return null; },
+    async getActiveUserChallenge() { return null; },
+    async createUserChallenge(fields) {
+      const row = { id: "uc" + (seq++), created_at: nowISO(), ...fields };
+      challenges.push(row);
+      return row;
+    },
+    async updateUserChallenge(id, patch) {
+      const row = challenges.find((c) => c.id === id);
+      if (!row) return null;
+      Object.assign(row, patch, { updated_at: nowISO() });
+      return row;
+    },
+    async getUserChallengeById(id) { return challenges.find((c) => c.id === id) || null; },
+    async listUserChallengesActive(userId) {
+      return challenges.filter((c) =>
+        c.user_id === userId &&
+        ["joined", "active", "awaiting_final_result"].includes(c.status)
+      );
+    },
+    async listUserChallengesHistory(userId) {
+      return challenges.filter((c) =>
+        c.user_id === userId &&
+        ["completed", "withdrawn_by_user", "expired_incomplete", "disqualified"].includes(c.status)
+      );
+    },
+    async listCohortResults() { return []; },
+    async listChallengeEventsForDay() { return []; },
+    async insertChallengeEvent(fields) { return { id: "ev" + (seq++), ...fields }; },
+    async listUcActiveByUser(userId) {
+      return challenges.filter((c) =>
+        c.user_id === userId &&
+        ["active", "awaiting_final_result", "joined"].includes(c.status)
+      );
+    },
+    async listChallengesEndingSoon() { return []; },
+    async listChallengesToExpire() { return []; },
+    async enqueueChallengeDoctorNotification(fields) { return { id: "n" + (seq++), ...fields }; },
+    async listDueChallengeDoctorNotifications() { return []; },
+    async markChallengeDoctorNotificationSent() { /* no-op */ },
+    async countChallengeEventsInDays() { return 0; },
+
     // ===== Doctor & Referral module (v1.0) =====
     async getDoctorByUserId(userId) {
       return doctorsById && [...doctorsById.values()].find((d) => d.user_id === userId) || null;
@@ -2258,6 +2593,46 @@ export const upsertWinLogForDate = (userId, date, fields) =>
   backend.upsertWinLogForDate ? backend.upsertWinLogForDate(userId, date, fields) : Promise.resolve(null);
 export const bumpWinCounter = (userId, kind) =>
   backend.bumpWinCounter ? backend.bumpWinCounter(userId, kind) : Promise.resolve(null);
+
+// --- Challenges v1.0 (2026-07) ---
+export const listActiveChallengeDefs = () =>
+  backend.listActiveChallengeDefs ? backend.listActiveChallengeDefs() : Promise.resolve([]);
+export const getChallengeDefByCode = (code) =>
+  backend.getChallengeDefByCode ? backend.getChallengeDefByCode(code) : Promise.resolve(null);
+export const getChallengeDefById = (id) =>
+  backend.getChallengeDefById ? backend.getChallengeDefById(id) : Promise.resolve(null);
+export const getActiveUserChallenge = (userId, challengeId) =>
+  backend.getActiveUserChallenge ? backend.getActiveUserChallenge(userId, challengeId) : Promise.resolve(null);
+export const createUserChallenge = (fields) =>
+  backend.createUserChallenge ? backend.createUserChallenge(fields) : Promise.resolve(null);
+export const updateUserChallenge = (id, patch) =>
+  backend.updateUserChallenge ? backend.updateUserChallenge(id, patch) : Promise.resolve(null);
+export const getUserChallengeById = (id) =>
+  backend.getUserChallengeById ? backend.getUserChallengeById(id) : Promise.resolve(null);
+export const listUserChallengesActive = (userId) =>
+  backend.listUserChallengesActive ? backend.listUserChallengesActive(userId) : Promise.resolve([]);
+export const listUserChallengesHistory = (userId) =>
+  backend.listUserChallengesHistory ? backend.listUserChallengesHistory(userId) : Promise.resolve([]);
+export const listCohortResults = (challengeId) =>
+  backend.listCohortResults ? backend.listCohortResults(challengeId) : Promise.resolve([]);
+export const listChallengeEventsForDay = (ucId, date) =>
+  backend.listChallengeEventsForDay ? backend.listChallengeEventsForDay(ucId, date) : Promise.resolve([]);
+export const insertChallengeEvent = (fields) =>
+  backend.insertChallengeEvent ? backend.insertChallengeEvent(fields) : Promise.resolve(null);
+export const listUcActiveByUser = (userId) =>
+  backend.listUcActiveByUser ? backend.listUcActiveByUser(userId) : Promise.resolve([]);
+export const listChallengesEndingSoon = (days) =>
+  backend.listChallengesEndingSoon ? backend.listChallengesEndingSoon(days) : Promise.resolve([]);
+export const listChallengesToExpire = (cutoff) =>
+  backend.listChallengesToExpire ? backend.listChallengesToExpire(cutoff) : Promise.resolve([]);
+export const enqueueChallengeDoctorNotification = (fields) =>
+  backend.enqueueChallengeDoctorNotification ? backend.enqueueChallengeDoctorNotification(fields) : Promise.resolve(null);
+export const listDueChallengeDoctorNotifications = (nowIso = new Date().toISOString()) =>
+  backend.listDueChallengeDoctorNotifications ? backend.listDueChallengeDoctorNotifications(nowIso) : Promise.resolve([]);
+export const markChallengeDoctorNotificationSent = (id) =>
+  backend.markChallengeDoctorNotificationSent ? backend.markChallengeDoctorNotificationSent(id) : Promise.resolve();
+export const countChallengeEventsInDays = (ucId, eventType, days) =>
+  backend.countChallengeEventsInDays ? backend.countChallengeEventsInDays(ucId, eventType, days) : Promise.resolve(0);
 
 // --- Doctor & Referral module (v1.0) ---
 export const getDoctorByUserId = (userId) => backend.getDoctorByUserId(userId);

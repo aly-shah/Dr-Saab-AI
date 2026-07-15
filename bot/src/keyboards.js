@@ -116,6 +116,99 @@ export function challengesKeyboard(lang) {
   ]);
 }
 
+// ===================================================================
+// Challenges v1.0 (2026-07) — spec keyboards. Callback prefix `chal:`
+// (distinct from the legacy `chl:` module above, which stays wired for
+// backwards-compat so any old deep link keeps working).
+// ===================================================================
+
+// Main hub — Active / Join / Rankings / History / Back.
+export function chalMainKeyboard(lang) {
+  const b = (key, action) => ({ text: t(lang, key), callback_data: `chal:${action}` });
+  return stack([
+    b("btn_chal_active",   "active"),
+    b("btn_chal_join",     "browse"),
+    b("btn_chal_rankings", "rankings"),
+    b("btn_chal_history",  "history"),
+    { text: t(lang, "btn_back"), callback_data: "menu" },
+  ]);
+}
+
+// Available challenges picker (spec §5).
+export function chalAvailableKeyboard(lang) {
+  const b = (code, key) => ({ text: t(lang, key), callback_data: `chal:def:${code}` });
+  return stack([
+    b("hba1c_90d",         "chal_type_hba1c"),
+    b("activity_30d",      "chal_type_activity"),
+    b("healthy_plate_30d", "chal_type_healthy_plate"),
+    { text: t(lang, "btn_back"), callback_data: "chal:menu" },
+  ]);
+}
+
+// Challenge intro card — Join / How It Works / Back (spec §6.2, §7.1, §8.1).
+export function chalIntroKeyboard(lang, code) {
+  return stack([
+    { text: t(lang, "btn_chal_join_now"), callback_data: `chal:join:${code}` },
+    { text: t(lang, "btn_chal_how"),      callback_data: `chal:how:${code}` },
+    { text: t(lang, "btn_back"),          callback_data: "chal:browse" },
+  ]);
+}
+
+// "How It Works" back button — returns to the challenge intro.
+export function chalHowBackKeyboard(lang, code) {
+  return { inline_keyboard: [[
+    { text: t(lang, "btn_back"), callback_data: `chal:def:${code}` },
+  ]]};
+}
+
+// HbA1c baseline collection — Upload / Enter / Cancel (spec §6.4 step 1).
+export function chalHba1cCollectKeyboard(lang) {
+  return stack([
+    { text: t(lang, "btn_chal_upload"), callback_data: "chal:hba1c_upload_hint" },
+    { text: t(lang, "btn_chal_enter"),  callback_data: "chal:hba1c_enter_hint" },
+    { text: t(lang, "btn_chal_cancel"), callback_data: "chal:menu" },
+  ]);
+}
+
+// HbA1c reuse dialog — Yes / Add Another / Cancel (spec §6.4).
+export function chalHba1cReuseKeyboard(lang) {
+  return stack([
+    { text: t(lang, "btn_chal_reuse_yes"),     callback_data: "chal:hba1c_reuse_yes" },
+    { text: t(lang, "btn_chal_reuse_another"), callback_data: "chal:hba1c_reuse_no" },
+    { text: t(lang, "btn_chal_cancel"),        callback_data: "chal:menu" },
+  ]);
+}
+
+// Final-result prompt (HbA1c end) — Upload / Enter / Remind Me Later.
+export function chalHba1cFinalKeyboard(lang) {
+  return stack([
+    { text: t(lang, "btn_chal_upload"),       callback_data: "chal:hba1c_final_upload_hint" },
+    { text: t(lang, "btn_chal_enter"),        callback_data: "chal:hba1c_final_enter_hint" },
+    { text: t(lang, "btn_chal_remind_later"), callback_data: "chal:hba1c_final_later" },
+  ]);
+}
+
+// Rankings picker — one row per currently-active challenge def.
+export function chalRankingsPickerKeyboard(lang, defs) {
+  const rows = (defs || []).map((d) => [{
+    text: t(lang, {
+      hba1c: "chal_type_hba1c",
+      activity: "chal_type_activity",
+      healthy_plate: "chal_type_healthy_plate",
+    }[d.challenge_type] || "btn_chal_rankings"),
+    callback_data: `chal:rank:${d.challenge_code}`,
+  }]);
+  rows.push([{ text: t(lang, "btn_back"), callback_data: "chal:menu" }]);
+  return { inline_keyboard: rows };
+}
+
+// Back-to-Challenges button used at flow endpoints.
+export function chalBackKeyboard(lang) {
+  return { inline_keyboard: [[
+    { text: t(lang, "btn_back"), callback_data: "chal:menu" },
+  ]]};
+}
+
 // Background-profile drip question: answer by typing, or Skip.
 export function profileqKeyboard(lang) {
   return {
@@ -449,6 +542,7 @@ export function mainMenuKeyboardV2(lang, user) {
     b("btn_foodhelp", "foodhelp"),
     b("btn_checkreport", "lab"),
     b("btn_askdrsaab", "askdrsaab"),
+    b("btn_challenges", "challenges"),
     b("btn_more", "more"),
   );
   // keepEmoji: the main menu is designed to show its icons, so opt this
@@ -488,6 +582,7 @@ export function patientMenuForDoctorKeyboard(lang, user) {
     b("btn_foodhelp", "foodhelp"),
     b("btn_checkreport", "lab"),
     b("btn_askdrsaab", "askdrsaab"),
+    b("btn_challenges", "challenges"),
     b("btn_more", "more"),
     { text: t(lang, "btn_doc_switch_doctor"), callback_data: "doc:menu" },
   );
@@ -865,14 +960,17 @@ export function pdCravingsJunkKeyboard(lang) {
 // Beat the Cravings: one-change commitment picker.
 export function pdCravingsCommitKeyboard(lang) {
   const b = (key, val) => ({ text: t(lang, key), callback_data: `pd:commit:${val}` });
-  return stack([
-    b("btn_pd_commit_less_soda",     "less_soda"),
-    b("btn_pd_commit_weekend_only",  "weekend_only"),
-    b("btn_pd_commit_water",         "water"),
-    b("btn_pd_commit_less_fast",     "less_fast"),
-    b("btn_pd_commit_skip_chips",    "skip_chips"),
-    b("btn_pd_commit_other",         "other"),
-  ]);
+  return {
+    ...stack([
+      b("btn_pd_commit_skip_sugary", "skip_sugary"),
+      b("btn_pd_commit_skip_junk",   "skip_junk"),
+      b("btn_pd_commit_walk10",      "walk10"),
+      b("btn_pd_commit_one_plate",   "one_plate"),
+      b("btn_pd_commit_wait10",      "wait10"),
+      b("btn_pd_commit_other",       "other"),
+    ]),
+    keepEmoji: true,
+  };
 }
 
 // Return-to-menu after a cravings step or a final message.

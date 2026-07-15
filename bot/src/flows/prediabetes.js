@@ -62,11 +62,11 @@ const JUNK_LABELS = {
 };
 
 const COMMIT_LABELS = {
-  less_soda: "btn_pd_commit_less_soda",
-  weekend_only: "btn_pd_commit_weekend_only",
-  water: "btn_pd_commit_water",
-  less_fast: "btn_pd_commit_less_fast",
-  skip_chips: "btn_pd_commit_skip_chips",
+  skip_sugary: "btn_pd_commit_skip_sugary",
+  skip_junk:   "btn_pd_commit_skip_junk",
+  walk10:      "btn_pd_commit_walk10",
+  one_plate:   "btn_pd_commit_one_plate",
+  wait10:      "btn_pd_commit_wait10",
 };
 
 const GYM_GOAL_LABELS = {
@@ -391,7 +391,7 @@ export async function dispatchPrediabetes(bot, chatId, session, action) {
       session.step = "crav_commit_other";
       return send(bot, chatId, t(lang, "pd_crav_commit_other_q"), { markdown: true });
     }
-    return finishCravings(bot, chatId, session, t(lang, COMMIT_LABELS[val] || "btn_pd_commit_water"));
+    return finishCravings(bot, chatId, session, t(lang, COMMIT_LABELS[val] || "btn_pd_commit_walk10"));
   }
 
   return showPrediabetes(bot, chatId, session);

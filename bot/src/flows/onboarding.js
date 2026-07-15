@@ -177,6 +177,7 @@ async function finish(bot, chatId, session) {
   await send(bot, chatId, t(lang, "menu_v2_title"), {
     keyboard: mainMenuKeyboardV2(lang, updated),
     markdown: true,
+    keepEmoji: true,
   });
 }
 

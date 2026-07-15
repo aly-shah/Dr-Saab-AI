@@ -932,3 +932,148 @@ create unique index if not exists win_challenge_log_user_date_key
   on public.win_challenge_log(user_id, challenge_date);
 create index if not exists win_challenge_log_user_recent_idx
   on public.win_challenge_log(user_id, challenge_date desc);
+
+-- ============================================================
+-- Challenges module (spec v1.0, 2026-07)
+-- ------------------------------------------------------------
+-- Standardised community challenges (HbA1c 90d, Activity 30d, Healthy Plate
+-- 30d). DrSaab owns the rules; every participant follows the same duration
+-- and scoring. Rankings blend the challenge outcome (70%) with verified
+-- DrSaab participation (30%), normalised inside the active cohort.
+--
+-- Tables:
+--   challenge_definitions              — static challenge templates
+--   user_challenges (extended)         — one row per user × joined challenge,
+--                                        holds baseline/final/scores/rank
+--   challenge_events                   — audit log of every meaningful action
+--   challenge_doctor_notifications     — queue of doctor updates, rate-limited
+-- ============================================================
+
+create table if not exists public.challenge_definitions (
+  id                       uuid primary key default gen_random_uuid(),
+  challenge_code           text unique not null,   -- hba1c_90d | activity_30d | healthy_plate_30d
+  name                     text not null,
+  challenge_type           text not null,          -- hba1c | activity | healthy_plate
+  description              text,
+  duration_days            int  not null,
+  enrollment_start         date,                   -- null = always open
+  enrollment_end           date,
+  challenge_start          date,                   -- null = rolling per-user (join = start)
+  challenge_end            date,
+  is_active                boolean default true,
+  minimum_qualifying_value numeric,                -- e.g. activity min-minutes = 20
+  scoring_config           jsonb default '{}'::jsonb,
+  created_at               timestamptz default now(),
+  updated_at               timestamptz default now()
+);
+create index if not exists challenge_definitions_active_idx
+  on public.challenge_definitions(is_active, challenge_type);
+drop trigger if exists challenge_definitions_touch on public.challenge_definitions;
+create trigger challenge_definitions_touch before update on public.challenge_definitions
+  for each row execute function public.touch_updated_at();
+
+-- Extend the legacy user_challenges row with challenge_v2 columns. Every
+-- alter is idempotent so this migration replays cleanly.
+alter table public.user_challenges add column if not exists challenge_id            uuid references public.challenge_definitions(id) on delete set null;
+alter table public.user_challenges add column if not exists doctor_id               uuid references public.doctors(id) on delete set null;
+alter table public.user_challenges add column if not exists public_display_name     text;
+alter table public.user_challenges add column if not exists leaderboard_opt_in      boolean default true;
+alter table public.user_challenges add column if not exists start_date              date;
+alter table public.user_challenges add column if not exists end_date                date;
+alter table public.user_challenges add column if not exists baseline_value          numeric;
+alter table public.user_challenges add column if not exists baseline_unit           text;
+alter table public.user_challenges add column if not exists baseline_date           date;
+alter table public.user_challenges add column if not exists final_value             numeric;
+alter table public.user_challenges add column if not exists final_unit              text;
+alter table public.user_challenges add column if not exists final_date              date;
+alter table public.user_challenges add column if not exists outcome_value           numeric;   -- change / active days / plate count
+alter table public.user_challenges add column if not exists outcome_score           numeric;
+alter table public.user_challenges add column if not exists participation_score     numeric;
+alter table public.user_challenges add column if not exists participation_points    int default 0;
+alter table public.user_challenges add column if not exists final_score             numeric;
+alter table public.user_challenges add column if not exists rank                    int;
+alter table public.user_challenges add column if not exists percentile              numeric;
+alter table public.user_challenges add column if not exists baseline_band           text;      -- '<7' | '7-8.9' | '9-10.9' | '11+'
+alter table public.user_challenges add column if not exists completed_at            timestamptz;
+alter table public.user_challenges add column if not exists withdrawn_at            timestamptz;
+alter table public.user_challenges add column if not exists last_participation_at   timestamptz;
+alter table public.user_challenges add column if not exists doctor_notified_start   boolean default false;
+alter table public.user_challenges add column if not exists doctor_notified_end     boolean default false;
+alter table public.user_challenges add column if not exists final_prompt_sent_at    timestamptz;
+alter table public.user_challenges add column if not exists updated_at              timestamptz default now();
+
+create index if not exists user_challenges_status_idx on public.user_challenges(status);
+create index if not exists user_challenges_cohort_idx on public.user_challenges(challenge_id, status);
+create index if not exists user_challenges_doctor_idx on public.user_challenges(doctor_id, status);
+drop trigger if exists user_challenges_touch on public.user_challenges;
+create trigger user_challenges_touch before update on public.user_challenges
+  for each row execute function public.touch_updated_at();
+
+-- Every meaningful action toward a joined challenge lands here. Dedupes by
+-- (user_challenge_id, event_type, event_date) at the app layer so the daily
+-- caps from spec §10 can enforce "max one scored entry per day".
+create table if not exists public.challenge_events (
+  id                    uuid primary key default gen_random_uuid(),
+  user_challenge_id     uuid references public.user_challenges(id) on delete cascade,
+  user_id               uuid references public.users(id) on delete cascade,
+  event_type            text not null,
+  event_date            date not null,
+  source_kind           text,                    -- glucose | medication | activity | wellbeing | meal | lab | manual | system
+  source_id             uuid,                    -- optional link to originating log row
+  outcome_delta         numeric,                 -- e.g. +1 active day, +1 healthy plate, HbA1c value
+  participation_points  int default 0,
+  verified              boolean default true,
+  metadata              jsonb,
+  created_at            timestamptz default now()
+);
+create index if not exists challenge_events_uc_idx
+  on public.challenge_events(user_challenge_id, event_date desc);
+create index if not exists challenge_events_user_idx
+  on public.challenge_events(user_id, created_at desc);
+
+-- Rate-limited doctor updates. Rows are created by the challenge engine and
+-- delivered by the scheduler (which respects the "one combined message per
+-- user per day" rule from spec §12.3).
+create table if not exists public.challenge_doctor_notifications (
+  id                 uuid primary key default gen_random_uuid(),
+  doctor_id          uuid references public.doctors(id) on delete cascade,
+  user_id            uuid references public.users(id) on delete cascade,
+  user_challenge_id  uuid references public.user_challenges(id) on delete cascade,
+  notification_type  text not null,              -- joined | weekly_update | completed | incomplete
+  payload            jsonb,
+  scheduled_for      timestamptz not null,
+  sent_at            timestamptz,
+  created_at         timestamptz default now()
+);
+create index if not exists chal_dr_notif_due_idx
+  on public.challenge_doctor_notifications(sent_at, scheduled_for);
+create index if not exists chal_dr_notif_doctor_idx
+  on public.challenge_doctor_notifications(doctor_id, notification_type, created_at desc);
+
+-- ---------- Seed initial challenges ----------
+insert into public.challenge_definitions
+  (challenge_code, name, challenge_type, description, duration_days, minimum_qualifying_value, scoring_config)
+select v.challenge_code, v.name, v.challenge_type, v.description, v.duration_days, v.min_val, v.cfg::jsonb
+from (values
+  ('hba1c_90d',
+   '90-Day HbA1c Challenge',
+   'hba1c',
+   'Reduce HbA1c over 90 days with verified starting + final results.',
+   90, null::numeric,
+   '{"needs_baseline":true,"final_input":"required","primary_metric":"hba1c_change","final_prompt_days_before":7}'),
+  ('activity_30d',
+   '30-Day Activity Challenge',
+   'activity',
+   'Complete the highest number of qualifying active days over 30 days.',
+   30, 20,
+   '{"needs_baseline":false,"final_input":"automatic","primary_metric":"active_days","min_minutes":20}'),
+  ('healthy_plate_30d',
+   '30-Day Healthy Plate Challenge',
+   'healthy_plate',
+   'Record the highest number of Healthy Plates over 30 days.',
+   30, null,
+   '{"needs_baseline":false,"final_input":"automatic","primary_metric":"healthy_plates","daily_cap":2}')
+) as v(challenge_code, name, challenge_type, description, duration_days, min_val, cfg)
+where not exists (
+  select 1 from public.challenge_definitions where challenge_code = v.challenge_code
+);

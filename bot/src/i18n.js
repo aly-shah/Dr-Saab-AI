@@ -446,6 +446,176 @@ const STR = {
     my_challenges_none: "You haven't joined any challenge yet.",
     btn_my_challenges: "📋 My challenges",
 
+    // ==================================================================
+    // Challenges v1.0 (spec 2026-07) — full module (new `chal_*` prefix)
+    // ==================================================================
+    chal_menu_title: "🏆 *Challenges*",
+    chal_menu_intro:
+      "Join a challenge, build consistency and see how your progress compares with the DrSaab community.\n\nChoose an option:",
+    btn_chal_active: "🔥 Active Challenges",
+    btn_chal_join: "➕ Join a Challenge",
+    btn_chal_rankings: "🏆 Rankings",
+    btn_chal_history: "🏅 My Challenge History",
+
+    chal_available_title: "🏆 *Choose a Challenge*",
+    chal_available_intro:
+      "Everyone follows the same rules. Join, use DrSaab normally and see how much progress you can make.",
+    chal_type_hba1c: "🎯 90-Day HbA1c Challenge",
+    chal_type_activity: "🚶 30-Day Activity Challenge",
+    chal_type_healthy_plate: "📸 30-Day Healthy Plate Challenge",
+
+    // -------- HbA1c challenge (§6) --------
+    chal_hba1c_intro_title: "🎯 *90-Day HbA1c Challenge*",
+    chal_hba1c_intro_body:
+      "Join other DrSaab users working to improve their HbA1c over the next 90 days.\n\nYour ranking will consider:\n🧪 How much your HbA1c improves\n📱 How consistently you use DrSaab\n\nReady to join?",
+    chal_hba1c_how_title: "ℹ️ *How It Works*",
+    chal_hba1c_how_body:
+      "1️⃣ Add your latest HbA1c result\n2️⃣ Keep using DrSaab during the next 90 days\n3️⃣ Add a new HbA1c result near the end\n4️⃣ See your improvement and final ranking\n\nYour public ranking will never show your starting or final HbA1c numbers.",
+
+    chal_hba1c_collect_title:
+      "🧪 Send your latest HbA1c result to set your starting number.",
+    chal_hba1c_collect_body:
+      "You can upload your report or type the result.\n\nExample: *8.2%*",
+    chal_hba1c_reuse:
+      "🧪 I found a recent HbA1c result in your health records:\n\n*HbA1c: {value}%*\n*Test date: {date}*\n\nUse this as your starting result?",
+    chal_hba1c_reuse_no_date:
+      "🧪 I found a recent HbA1c result in your health records:\n\n*HbA1c: {value}%*\n\nUse this as your starting result?",
+    chal_hba1c_invalid:
+      "That does not look like a valid HbA1c result.\n\nPlease enter the percentage shown on your report.\n\nExample: *8.2%*",
+    chal_hba1c_baseline_stale_warning:
+      "_Tip: for the best comparison, your starting HbA1c should be from the last 30 days._",
+
+    chal_hba1c_confirm_title: "🎯 *You're In!*",
+    chal_hba1c_confirm_body:
+      "Starting HbA1c: *{baseline}%*\nChallenge duration: *90 days*\nEnd date: *{end_date}*\n\nKeep using DrSaab to check in, log activity, analyze meals and manage your health.\n\nNear the end of the challenge, I'll ask for your latest HbA1c result.",
+    chal_hba1c_confirm_doctor_footer:
+      "Your challenge progress will also be available to *Dr. {doctor}*.",
+
+    chal_hba1c_final_prompt_title:
+      "🧪 Your HbA1c Challenge is approaching the finish line.",
+    chal_hba1c_final_prompt_body:
+      "Upload your latest report or type your new HbA1c result so I can calculate your progress and ranking.",
+    chal_hba1c_final_saved_title: "🎯 *Your HbA1c Challenge Result*",
+    chal_hba1c_final_saved_body:
+      "Starting HbA1c: *{baseline}%*\nFinal HbA1c: *{final}%*\nChange: *{change} percentage points*\nFinal rank: *{rank} of {total}*",
+    chal_hba1c_supportive_improved:
+      "That's real progress — well done for staying consistent. Keep the habits going. 💚",
+    chal_hba1c_supportive_flat:
+      "Holding steady is still a win. Small changes compound — keep going. 💚",
+    chal_hba1c_supportive_up:
+      "HbA1c can move for many reasons. This is not a failure — let's keep working on the habits that help most.",
+
+    btn_chal_join_now: "✅ Join Challenge",
+    btn_chal_how: "ℹ️ How It Works",
+    btn_chal_upload: "📎 Upload Report",
+    btn_chal_enter: "⌨️ Enter Result",
+    btn_chal_cancel: "❌ Cancel",
+    btn_chal_reuse_yes: "✅ Yes, Use This",
+    btn_chal_reuse_another: "🔄 Add Another Result",
+    btn_chal_remind_later: "Remind Me Later",
+
+    // -------- Activity challenge (§7) --------
+    chal_activity_intro_title: "🚶 *30-Day Activity Challenge*",
+    chal_activity_intro_body:
+      "Move regularly for the next 30 days and climb the DrSaab challenge rankings.\n\nYour ranking will consider:\n🚶 Number of active days\n⏱️ Activity duration\n📱 Consistency on DrSaab\n\nReady to join?",
+    chal_activity_how_title: "ℹ️ *How It Works*",
+    chal_activity_how_body:
+      "Log your walks, workouts, swimming, sports or other physical activity through DrSaab.\n\nAn activity must last at least *20 minutes* to count.\n\nOnly one active day counts towards the ranking each day, even if you complete more than one activity.",
+    chal_activity_join_title: "🚀 *You're In!*",
+    chal_activity_join_body:
+      "The 30-Day Activity Challenge begins today.\n\nLog your activity through DrSaab and your score will update automatically.\n\nMinimum qualifying activity: *20 minutes*\nEnd date: *{end_date}*",
+    chal_activity_progress:
+      "🚶 *Activity Challenge Progress*\n\nActive days: *{active_days}*\nTotal activity minutes: *{minutes}*\nCurrent streak: *{streak} days*\nChallenge day: *{day} of 30*\nCurrent rank: *{rank} of {total}*",
+
+    // -------- Healthy Plate challenge (§8) --------
+    chal_hp_intro_title: "📸 *30-Day Healthy Plate Challenge*",
+    chal_hp_intro_body:
+      "Share your meals with DrSaab and see how many healthier plates you can build over the next 30 days.\n\nYour ranking will consider:\n🥗 Number of Healthy Plates\n📸 Meal-logging consistency\n📱 Overall DrSaab participation\n\nReady to join?",
+    chal_hp_how_title: "ℹ️ *How It Works*",
+    chal_hp_how_body:
+      "1️⃣ Send a meal photo or description\n2️⃣ DrSaab analyzes the meal\n3️⃣ Meals classified as a Healthy Plate count automatically\n4️⃣ Keep going for 30 days and see your final rank\n\nYou do not need to log every meal.",
+    chal_hp_join_title: "🥗 *You're In!*",
+    chal_hp_join_body:
+      "The 30-Day Healthy Plate Challenge begins today.\n\nSend DrSaab a photo or description of your meals. Meals classified as a Healthy Plate will count automatically.\n\nEnd date: *{end_date}*",
+    chal_hp_meal_hit:
+      "🟢 *Healthy Plate!*\n\nThis meal counts towards your challenge.\n\nHealthy Plates: *{count}*\nCurrent rank: *{rank} of {total}*",
+    chal_hp_meal_miss:
+      "🟡 This meal does not count as a Healthy Plate yet, but it still helps us understand your eating habits.",
+
+    // -------- Rankings / leaderboard (§11) --------
+    chal_rankings_title: "🏆 *{name} Rankings*",
+    chal_rankings_empty: "_Rankings will appear here once other users join. Keep going!_",
+    chal_rankings_row: "{rank}. {name} — {outcome}",
+    chal_rankings_you_suffix: "  ← *you*",
+    chal_rankings_you_position: "\nYour position: *{rank} of {total}*",
+    chal_rankings_hba1c_note:
+      "_Ranked within your baseline band ({band}). Public rankings never show your HbA1c numbers._",
+    chal_rankings_pick_intro: "Pick a challenge to see the rankings:",
+    chal_rankings_none_active: "Rankings will appear once you join a challenge.",
+
+    // -------- History (§4) --------
+    chal_history_title: "🏅 *My Challenge History*",
+    chal_history_empty: "You haven't completed any challenges yet.",
+    chal_history_row_completed: "• *{name}* — {outcome} (rank {rank}/{total})",
+    chal_history_row_incomplete: "• *{name}* — {status}",
+    chal_history_status_expired: "no final result",
+    chal_history_status_withdrawn: "withdrew",
+    chal_history_status_disqualified: "removed",
+
+    // -------- Active challenges list --------
+    chal_active_title: "🔥 *Active Challenges*",
+    chal_active_none:
+      "You have no active challenges. Tap *Join a Challenge* to get started.",
+    chal_active_line_hba1c:
+      "🎯 *90-Day HbA1c Challenge* — day {day}/{total}",
+    chal_active_line_activity:
+      "🚶 *30-Day Activity Challenge* — day {day}/{total} · {active_days} active day(s)",
+    chal_active_line_healthy_plate:
+      "📸 *30-Day Healthy Plate Challenge* — day {day}/{total} · {count} Healthy Plate(s)",
+    chal_active_awaiting_hba1c:
+      "🎯 *90-Day HbA1c Challenge* — waiting for your final result",
+
+    // -------- Doctor notifications (§12) --------
+    chal_dr_joined:
+      "🏆 *Patient Joined a Challenge*\n\nPatient: *{patient}*\nChallenge: *{challenge}*\nStart date: *{start}*\nEnd date: *{end}*",
+    chal_dr_weekly:
+      "📊 *Weekly Challenge Update*\n\nPatient: *{patient}*\nChallenge: *{challenge}*\nProgress: *{progress}*\nParticipation: *{participation}*\nCurrent rank/percentile: *{rank}*\nStatus: *{status}*",
+    chal_dr_completed:
+      "🏁 *Challenge Completed*\n\nPatient: *{patient}*\nChallenge: *{challenge}*\nResult: *{outcome}*\nFinal rank: *{rank}*",
+    chal_dr_incomplete:
+      "⏰ *Challenge Ended Without Result*\n\nPatient: *{patient}*\nChallenge: *{challenge}*\nOutcome: {reason}",
+
+    // -------- Reminders (§13) --------
+    chal_reminder_activity:
+      "🚶 You've completed *{active_days} active days* so far.\n\nA 20-minute walk today can keep your challenge moving. 💪",
+    chal_reminder_healthy_plate:
+      "🥗 You're at *{count} Healthy Plates*.\n\nSend your next meal whenever you're ready. 📸",
+    chal_reminder_hba1c:
+      "🎯 Your HbA1c Challenge is still moving forward.\n\nFocus on the next helpful choice today — not a perfect 90 days.",
+    reminder_template_challenge_final_result_prompt:
+      "🧪 Your HbA1c Challenge is nearing the finish line — send your latest HbA1c result when you can.",
+    reminder_template_challenge_checkin:
+      "🏆 Keep your challenge moving today — a small log, check-in or meal all count.",
+
+    // -------- Result formatting helpers --------
+    chal_outcome_hba1c_change: "↓ {change} percentage points",
+    chal_outcome_hba1c_up:     "↑ {change} percentage points",
+    chal_outcome_active_days:  "{value} active day(s)",
+    chal_outcome_plates:       "{value} Healthy Plate(s)",
+
+    chal_join_already:
+      "You've already joined the *{name}*. Tap 🔥 Active Challenges to see your progress.",
+    chal_start_generic_confirm:
+      "✅ You're in! Keep using DrSaab normally — I'll count everything that qualifies.",
+    chal_error_no_defs:
+      "No challenges are open right now. Check back soon!",
+    chal_ineligible_hba1c:
+      "The HbA1c Challenge is designed for people with prediabetes or diabetes. Tap another challenge or check back later.",
+    chal_baseline_band_lt7:     "Below 7.0%",
+    chal_baseline_band_7_8_9:   "7.0%–8.9%",
+    chal_baseline_band_9_10_9:  "9.0%–10.9%",
+    chal_baseline_band_11_plus: "11.0% and above",
+
     // ---- Executive Services ----
     exec_title: "⭐ *Executive Services*",
     exec_intro: "High-touch support for Executive Coach members. Choose a service and our team will follow up.",
@@ -1030,12 +1200,12 @@ const STR = {
       "After watching the video, what changes do you think you could realistically make over the next few weeks?",
     // Step 5 — one small change
     pd_crav_commit_q: "If you had to make just one small change this week, what feels realistic?",
-    btn_pd_commit_less_soda: "One less soft drink each day",
-    btn_pd_commit_weekend_only: "Soft drinks only on weekends",
-    btn_pd_commit_water: "Replace one sugary drink with water",
-    btn_pd_commit_less_fast: "Fast food one less time each week",
-    btn_pd_commit_skip_chips: "Skip chips during the week",
-    btn_pd_commit_other: "Something else",
+    btn_pd_commit_skip_sugary: "🥤 Skip sugary drinks",
+    btn_pd_commit_skip_junk:   "🍟 Skip one junk snack a day",
+    btn_pd_commit_walk10:      "🚶 Walk 10 minutes after dinner",
+    btn_pd_commit_one_plate:   "🍽️ Stick to one plate",
+    btn_pd_commit_wait10:      "⏰ Wait 10 minutes before snacking",
+    btn_pd_commit_other:       "Something else",
     pd_crav_commit_other_q: "Great — what one small change feels realistic this week?",
     // Step 6 — closing
     pd_crav_done:
@@ -1637,6 +1807,166 @@ const STR = {
     challenges_title: "🏆 *چیلنجز*",
     exec_title: "⭐ *ایگزیکٹو سروسز*",
 
+    // ==================================================================
+    // Challenges v1.0 — Urdu
+    // ==================================================================
+    chal_menu_title: "🏆 *چیلنجز*",
+    chal_menu_intro:
+      "کسی چیلنج میں شامل ہوں، تسلسل قائم رکھیں اور دیکھیں کہ آپ کی پیش رفت ڈاکٹر صاحب کمیونٹی کے مقابلے میں کہاں ہے۔\n\nایک آپشن منتخب کریں:",
+    btn_chal_active: "🔥 فعال چیلنجز",
+    btn_chal_join: "➕ چیلنج میں شامل ہوں",
+    btn_chal_rankings: "🏆 درجہ بندی",
+    btn_chal_history: "🏅 میری چیلنج ہسٹری",
+
+    chal_available_title: "🏆 *چیلنج منتخب کریں*",
+    chal_available_intro:
+      "سب کے لیے قوانین یکساں ہیں۔ شامل ہوں، ڈاکٹر صاحب کو معمول کے مطابق استعمال کریں اور اپنی پیش رفت دیکھیں۔",
+    chal_type_hba1c: "🎯 90 دن کا HbA1c چیلنج",
+    chal_type_activity: "🚶 30 دن کا سرگرمی چیلنج",
+    chal_type_healthy_plate: "📸 30 دن کا صحت مند پلیٹ چیلنج",
+
+    chal_hba1c_intro_title: "🎯 *90 دن کا HbA1c چیلنج*",
+    chal_hba1c_intro_body:
+      "دیگر ڈاکٹر صاحب صارفین کے ساتھ اگلے 90 دن اپنا HbA1c بہتر بنانے کی کوشش کریں۔\n\nآپ کی درجہ بندی میں دیکھا جائے گا:\n🧪 آپ کا HbA1c کتنا بہتر ہوا\n📱 آپ نے کتنی مستقل مزاجی سے ڈاکٹر صاحب استعمال کیا\n\nشامل ہونے کے لیے تیار ہیں؟",
+    chal_hba1c_how_title: "ℹ️ *یہ کیسے کام کرتا ہے*",
+    chal_hba1c_how_body:
+      "1️⃣ اپنا تازہ ترین HbA1c شامل کریں\n2️⃣ اگلے 90 دن ڈاکٹر صاحب استعمال کرتے رہیں\n3️⃣ آخر کے قریب نیا HbA1c شامل کریں\n4️⃣ اپنی بہتری اور حتمی درجہ دیکھیں\n\nآپ کی عوامی درجہ بندی میں HbA1c کے اصل اعداد کبھی ظاہر نہیں ہوں گے۔",
+
+    chal_hba1c_collect_title:
+      "🧪 اپنا شروعاتی نمبر مقرر کرنے کے لیے تازہ HbA1c بھیجیں۔",
+    chal_hba1c_collect_body:
+      "آپ رپورٹ اپلوڈ کر سکتے ہیں یا نتیجہ لکھ سکتے ہیں۔\n\nمثال: *8.2%*",
+    chal_hba1c_reuse:
+      "🧪 مجھے آپ کے صحت ریکارڈ میں حالیہ HbA1c ملا:\n\n*HbA1c: {value}%*\n*ٹیسٹ کی تاریخ: {date}*\n\nاسے شروعاتی نتیجہ کے طور پر استعمال کریں؟",
+    chal_hba1c_reuse_no_date:
+      "🧪 مجھے آپ کے صحت ریکارڈ میں حالیہ HbA1c ملا:\n\n*HbA1c: {value}%*\n\nاسے شروعاتی نتیجہ کے طور پر استعمال کریں؟",
+    chal_hba1c_invalid:
+      "یہ HbA1c نتیجہ درست نہیں لگتا۔\n\nبراہِ کرم اپنی رپورٹ پر لکھا فیصد درج کریں۔\n\nمثال: *8.2%*",
+    chal_hba1c_baseline_stale_warning:
+      "_مشورہ: بہترین موازنے کے لیے شروعاتی HbA1c پچھلے 30 دن کا ہونا چاہیے۔_",
+
+    chal_hba1c_confirm_title: "🎯 *آپ شامل ہو گئے!*",
+    chal_hba1c_confirm_body:
+      "شروعاتی HbA1c: *{baseline}%*\nچیلنج کی مدت: *90 دن*\nآخری تاریخ: *{end_date}*\n\nڈاکٹر صاحب کو معمول کے مطابق استعمال کرتے رہیں۔\n\nچیلنج کے اختتام کے قریب میں آپ سے تازہ HbA1c پوچھوں گا۔",
+    chal_hba1c_confirm_doctor_footer:
+      "آپ کی چیلنج پیش رفت *ڈاکٹر {doctor}* کو بھی نظر آئے گی۔",
+
+    chal_hba1c_final_prompt_title:
+      "🧪 آپ کا HbA1c چیلنج تقریباً مکمل ہونے والا ہے۔",
+    chal_hba1c_final_prompt_body:
+      "براہِ کرم اپنی تازہ HbA1c رپورٹ اپلوڈ کریں یا نتیجہ لکھیں تاکہ میں پیش رفت اور درجہ حساب کر سکوں۔",
+    chal_hba1c_final_saved_title: "🎯 *آپ کے HbA1c چیلنج کا نتیجہ*",
+    chal_hba1c_final_saved_body:
+      "شروعاتی HbA1c: *{baseline}%*\nحتمی HbA1c: *{final}%*\nتبدیلی: *{change} فیصد پوائنٹس*\nحتمی درجہ: *{rank} از {total}*",
+    chal_hba1c_supportive_improved:
+      "یہ حقیقی پیش رفت ہے — تسلسل قائم رکھنے پر شاباش۔ عادات جاری رکھیں۔ 💚",
+    chal_hba1c_supportive_flat:
+      "استقامت خود ایک کامیابی ہے۔ چھوٹی تبدیلیاں مل کر بڑا فرق لاتی ہیں۔ 💚",
+    chal_hba1c_supportive_up:
+      "HbA1c کئی وجوہات سے بدلتا ہے۔ یہ ناکامی نہیں — آئیے مفید عادات پر مل کر کام کریں۔",
+
+    btn_chal_join_now: "✅ چیلنج میں شامل ہوں",
+    btn_chal_how: "ℹ️ یہ کیسے کام کرتا ہے",
+    btn_chal_upload: "📎 رپورٹ اپلوڈ کریں",
+    btn_chal_enter: "⌨️ نتیجہ درج کریں",
+    btn_chal_cancel: "❌ منسوخ",
+    btn_chal_reuse_yes: "✅ ہاں، یہی استعمال کریں",
+    btn_chal_reuse_another: "🔄 نیا نتیجہ شامل کریں",
+    btn_chal_remind_later: "بعد میں یاد دلائیں",
+
+    chal_activity_intro_title: "🚶 *30 دن کا سرگرمی چیلنج*",
+    chal_activity_intro_body:
+      "اگلے 30 دن باقاعدگی سے حرکت کریں اور ڈاکٹر صاحب کی درجہ بندی میں اوپر آئیں۔\n\nآپ کی درجہ بندی میں دیکھا جائے گا:\n🚶 فعال دنوں کی تعداد\n⏱️ سرگرمی کا دورانیہ\n📱 ڈاکٹر صاحب پر تسلسل\n\nشامل ہونے کے لیے تیار ہیں؟",
+    chal_activity_how_title: "ℹ️ *یہ کیسے کام کرتا ہے*",
+    chal_activity_how_body:
+      "ڈاکٹر صاحب کے ذریعے چہل قدمی، ورزش، سوئمنگ، کھیل یا کوئی بھی جسمانی سرگرمی لاگ کریں۔\n\nسرگرمی کم از کم *20 منٹ* کی ہونی چاہیے۔\n\nہر دن صرف ایک فعال دن گنتی میں آئے گا، چاہے آپ ایک سے زائد سرگرمیاں کر لیں۔",
+    chal_activity_join_title: "🚀 *آپ شامل ہو گئے!*",
+    chal_activity_join_body:
+      "30 دن کا سرگرمی چیلنج آج سے شروع ہوتا ہے۔\n\nڈاکٹر صاحب کے ذریعے سرگرمی لاگ کریں، اسکور خود بخود اپڈیٹ ہوگا۔\n\nکم از کم اہل سرگرمی: *20 منٹ*\nآخری تاریخ: *{end_date}*",
+    chal_activity_progress:
+      "🚶 *سرگرمی چیلنج پیش رفت*\n\nفعال دن: *{active_days}*\nکل منٹ: *{minutes}*\nموجودہ سلسلہ: *{streak} دن*\nچیلنج کا دن: *{day} از 30*\nموجودہ درجہ: *{rank} از {total}*",
+
+    chal_hp_intro_title: "📸 *30 دن کا صحت مند پلیٹ چیلنج*",
+    chal_hp_intro_body:
+      "اپنے کھانوں کی تفصیل ڈاکٹر صاحب سے شیئر کریں اور دیکھیں 30 دن میں آپ کتنی صحت مند پلیٹیں بنا سکتے ہیں۔\n\nآپ کی درجہ بندی میں دیکھا جائے گا:\n🥗 صحت مند پلیٹوں کی تعداد\n📸 کھانے لاگ کرنے کی مستقل مزاجی\n📱 مجموعی ڈاکٹر صاحب استعمال\n\nشامل ہونے کے لیے تیار ہیں؟",
+    chal_hp_how_title: "ℹ️ *یہ کیسے کام کرتا ہے*",
+    chal_hp_how_body:
+      "1️⃣ کھانے کی تصویر یا تفصیل بھیجیں\n2️⃣ ڈاکٹر صاحب کھانا تجزیہ کرے گا\n3️⃣ صحت مند پلیٹیں خود بخود گنتی میں آئیں گی\n4️⃣ 30 دن تک جاری رکھیں اور حتمی درجہ دیکھیں\n\nہر کھانا لاگ کرنا ضروری نہیں۔",
+    chal_hp_join_title: "🥗 *آپ شامل ہو گئے!*",
+    chal_hp_join_body:
+      "30 دن کا صحت مند پلیٹ چیلنج آج سے شروع ہوتا ہے۔\n\nاپنے کھانوں کی تصویر یا تفصیل بھیجیں۔ صحت مند پلیٹیں خود بخود گنتی میں آئیں گی۔\n\nآخری تاریخ: *{end_date}*",
+    chal_hp_meal_hit:
+      "🟢 *صحت مند پلیٹ!*\n\nیہ کھانا آپ کے چیلنج میں شامل ہو گیا۔\n\nصحت مند پلیٹیں: *{count}*\nموجودہ درجہ: *{rank} از {total}*",
+    chal_hp_meal_miss:
+      "🟡 یہ کھانا فی الحال صحت مند پلیٹ کے طور پر نہیں گنا گیا، لیکن اس سے مجھے آپ کی خوراک سمجھنے میں مدد ملتی ہے۔",
+
+    chal_rankings_title: "🏆 *{name} درجہ بندی*",
+    chal_rankings_empty: "_دیگر شرکاء کے آنے پر یہاں درجہ بندی نظر آئے گی۔ جاری رکھیں!_",
+    chal_rankings_row: "{rank}. {name} — {outcome}",
+    chal_rankings_you_suffix: "  ← *آپ*",
+    chal_rankings_you_position: "\nآپ کا مقام: *{rank} از {total}*",
+    chal_rankings_hba1c_note:
+      "_درجہ بندی آپ کے ابتدائی بینڈ ({band}) میں کی گئی ہے۔ HbA1c اعداد عوامی طور پر ظاہر نہیں ہوتے۔_",
+    chal_rankings_pick_intro: "درجہ بندی دیکھنے کے لیے چیلنج منتخب کریں:",
+    chal_rankings_none_active: "چیلنج میں شامل ہونے کے بعد درجہ بندی نظر آئے گی۔",
+
+    chal_history_title: "🏅 *میری چیلنج ہسٹری*",
+    chal_history_empty: "آپ نے ابھی تک کوئی چیلنج مکمل نہیں کیا۔",
+    chal_history_row_completed: "• *{name}* — {outcome} (درجہ {rank}/{total})",
+    chal_history_row_incomplete: "• *{name}* — {status}",
+    chal_history_status_expired: "حتمی نتیجہ نہیں",
+    chal_history_status_withdrawn: "الگ ہو گئے",
+    chal_history_status_disqualified: "نکال دیا گیا",
+
+    chal_active_title: "🔥 *فعال چیلنجز*",
+    chal_active_none:
+      "کوئی فعال چیلنج نہیں۔ *چیلنج میں شامل ہوں* پر ٹیپ کریں۔",
+    chal_active_line_hba1c: "🎯 *90 دن کا HbA1c چیلنج* — دن {day}/{total}",
+    chal_active_line_activity:
+      "🚶 *30 دن کا سرگرمی چیلنج* — دن {day}/{total} · {active_days} فعال دن",
+    chal_active_line_healthy_plate:
+      "📸 *30 دن کا صحت مند پلیٹ چیلنج* — دن {day}/{total} · {count} صحت مند پلیٹ",
+    chal_active_awaiting_hba1c:
+      "🎯 *90 دن کا HbA1c چیلنج* — حتمی نتیجے کا انتظار",
+
+    chal_dr_joined:
+      "🏆 *مریض چیلنج میں شامل ہو گیا*\n\nمریض: *{patient}*\nچیلنج: *{challenge}*\nشروع: *{start}*\nاختتام: *{end}*",
+    chal_dr_weekly:
+      "📊 *ہفتہ وار چیلنج اپڈیٹ*\n\nمریض: *{patient}*\nچیلنج: *{challenge}*\nپیش رفت: *{progress}*\nشرکت: *{participation}*\nموجودہ درجہ: *{rank}*\nحیثیت: *{status}*",
+    chal_dr_completed:
+      "🏁 *چیلنج مکمل ہو گیا*\n\nمریض: *{patient}*\nچیلنج: *{challenge}*\nنتیجہ: *{outcome}*\nحتمی درجہ: *{rank}*",
+    chal_dr_incomplete:
+      "⏰ *چیلنج نتیجے کے بغیر ختم*\n\nمریض: *{patient}*\nچیلنج: *{challenge}*\nوجہ: {reason}",
+
+    chal_reminder_activity:
+      "🚶 اب تک *{active_days} فعال دن* مکمل ہو چکے ہیں۔\n\nآج 20 منٹ کی چہل قدمی چیلنج کو جاری رکھ سکتی ہے۔ 💪",
+    chal_reminder_healthy_plate:
+      "🥗 آپ کے پاس *{count} صحت مند پلیٹیں* ہیں۔\n\nجب چاہیں اگلا کھانا بھیج دیں۔ 📸",
+    chal_reminder_hba1c:
+      "🎯 آپ کا HbA1c چیلنج جاری ہے۔\n\nآج کے لیے صرف اگلے مفید انتخاب پر توجہ دیں — 90 دن کی کاملیت پر نہیں۔",
+    reminder_template_challenge_final_result_prompt:
+      "🧪 آپ کا HbA1c چیلنج قریب اختتام ہے — جب ممکن ہو تازہ HbA1c بھیج دیں۔",
+    reminder_template_challenge_checkin:
+      "🏆 آج اپنا چیلنج جاری رکھیں — چھوٹا سا لاگ، چیک اِن یا کھانا بھی گنتی میں آتا ہے۔",
+
+    chal_outcome_hba1c_change: "↓ {change} فیصد پوائنٹس",
+    chal_outcome_hba1c_up:     "↑ {change} فیصد پوائنٹس",
+    chal_outcome_active_days:  "{value} فعال دن",
+    chal_outcome_plates:       "{value} صحت مند پلیٹیں",
+
+    chal_join_already:
+      "آپ پہلے ہی *{name}* میں شامل ہیں۔ 🔥 فعال چیلنجز پر ٹیپ کر کے پیش رفت دیکھیں۔",
+    chal_start_generic_confirm:
+      "✅ آپ شامل ہو گئے! ڈاکٹر صاحب کو معمول کے مطابق استعمال کریں — اہل سرگرمیاں خود شامل ہوں گی۔",
+    chal_error_no_defs:
+      "ابھی کوئی چیلنج کھلا نہیں ہے۔ جلد چیک کریں!",
+    chal_ineligible_hba1c:
+      "HbA1c چیلنج پری ڈایابیٹیز یا ذیابیطس والوں کے لیے ہے۔ کوئی دوسرا چیلنج منتخب کریں یا بعد میں دیکھیں۔",
+    chal_baseline_band_lt7:     "7.0% سے کم",
+    chal_baseline_band_7_8_9:   "7.0%–8.9%",
+    chal_baseline_band_9_10_9:  "9.0%–10.9%",
+    chal_baseline_band_11_plus: "11.0% یا زیادہ",
+
     // ===== More section v2 (2026-07 spec) =====
     more_subtitle: "براہِ کرم درج ذیل میں سے ایک منتخب کریں:",
     btn_more_subscription_v2: "💳 میری سبسکرپشن",
@@ -1835,12 +2165,12 @@ const STR = {
     pd_crav_reflection_q:
       "ویڈیو دیکھنے کے بعد آپ کے خیال میں آنے والے ہفتوں میں کون سی حقیقی تبدیلیاں کر سکتے ہیں؟",
     pd_crav_commit_q: "اگر اِس ہفتے صرف ایک چھوٹی تبدیلی کرنی ہو، تو کیا حقیقت پسندانہ لگتا ہے؟",
-    btn_pd_commit_less_soda: "روز ایک میٹھا مشروب کم",
-    btn_pd_commit_weekend_only: "میٹھے مشروبات صرف ویک اینڈ پر",
-    btn_pd_commit_water: "ایک میٹھے مشروب کی جگہ پانی",
-    btn_pd_commit_less_fast: "ہفتے میں فاسٹ فوڈ ایک بار کم",
-    btn_pd_commit_skip_chips: "ہفتے میں چپس نہ کھانا",
-    btn_pd_commit_other: "کچھ اور",
+    btn_pd_commit_skip_sugary: "🥤 میٹھے مشروبات چھوڑ دیں",
+    btn_pd_commit_skip_junk:   "🍟 دن میں ایک جنک اسنیک چھوڑ دیں",
+    btn_pd_commit_walk10:      "🚶 کھانے کے بعد 10 منٹ چہل قدمی",
+    btn_pd_commit_one_plate:   "🍽️ ایک پلیٹ پر اکتفا کریں",
+    btn_pd_commit_wait10:      "⏰ ناشتہ کرنے سے پہلے 10 منٹ رکیں",
+    btn_pd_commit_other:       "کچھ اور",
     pd_crav_commit_other_q: "بہت خوب — اِس ہفتے کیا چھوٹی تبدیلی حقیقی لگتی ہے؟",
     pd_crav_done:
       "یہ بہت اچھا وعدہ ہے: *{commitment}*\n\nچھوٹی تبدیلیاں مستقل مزاجی سے بڑی بہتری لاتی ہیں۔ میں آپ کا مقصد یاد رکھوں گا اور راستے میں حوصلہ افزائی کرتا رہوں گا۔\n\nجب تیار ہوں، صحت مند عادات جاری رکھنے کے لیے مینو سے کوئی اور سرگرمی آزمائیں۔",
@@ -2418,6 +2748,166 @@ const STR = {
     challenges_title: "🏆 *Challenges*",
     exec_title: "⭐ *Executive Services*",
 
+    // ==================================================================
+    // Challenges v1.0 — Roman Urdu
+    // ==================================================================
+    chal_menu_title: "🏆 *Challenges*",
+    chal_menu_intro:
+      "Ek challenge join karein, consistency banayein aur DrSaab community ke saath apni progress compare karein.\n\nEk option chunein:",
+    btn_chal_active: "🔥 Active Challenges",
+    btn_chal_join: "➕ Challenge Join Karein",
+    btn_chal_rankings: "🏆 Rankings",
+    btn_chal_history: "🏅 Meri Challenge History",
+
+    chal_available_title: "🏆 *Challenge Chunein*",
+    chal_available_intro:
+      "Sab ke liye rules same hain. Join karein, DrSaab normally use karein aur apni progress dekhein.",
+    chal_type_hba1c: "🎯 90-Day HbA1c Challenge",
+    chal_type_activity: "🚶 30-Day Activity Challenge",
+    chal_type_healthy_plate: "📸 30-Day Healthy Plate Challenge",
+
+    chal_hba1c_intro_title: "🎯 *90-Day HbA1c Challenge*",
+    chal_hba1c_intro_body:
+      "Doosre DrSaab users ke saath agle 90 din apna HbA1c behtar karne ki koshish karein.\n\nAap ki ranking mein dekha jayega:\n🧪 Aap ka HbA1c kitna behtar hua\n📱 Aap ne DrSaab kitna consistently use kiya\n\nJoin karne ke liye tayyar hain?",
+    chal_hba1c_how_title: "ℹ️ *Yeh Kaisay Kaam Karta Hai*",
+    chal_hba1c_how_body:
+      "1️⃣ Apna latest HbA1c result add karein\n2️⃣ Agle 90 din DrSaab use karte rahein\n3️⃣ End ke qareeb naya HbA1c add karein\n4️⃣ Apni improvement aur final rank dekhein\n\nAap ka public rank kabhi HbA1c ke real numbers show nahi karega.",
+
+    chal_hba1c_collect_title:
+      "🧪 Apna starting number set karne ke liye latest HbA1c bhejein.",
+    chal_hba1c_collect_body:
+      "Aap report upload kar sakte hain ya result likh sakte hain.\n\nMisal: *8.2%*",
+    chal_hba1c_reuse:
+      "🧪 Mujhe aap ke health record mein ek recent HbA1c mila:\n\n*HbA1c: {value}%*\n*Test date: {date}*\n\nIse starting result ke tor par use karein?",
+    chal_hba1c_reuse_no_date:
+      "🧪 Mujhe aap ke health record mein ek recent HbA1c mila:\n\n*HbA1c: {value}%*\n\nIse starting result ke tor par use karein?",
+    chal_hba1c_invalid:
+      "Yeh HbA1c result sahi nahi lagta.\n\nBarah-e-karam apni report par likha percentage enter karein.\n\nMisal: *8.2%*",
+    chal_hba1c_baseline_stale_warning:
+      "_Tip: best comparison ke liye starting HbA1c pichle 30 din ka hona chahiye._",
+
+    chal_hba1c_confirm_title: "🎯 *Aap Join Ho Gaye!*",
+    chal_hba1c_confirm_body:
+      "Starting HbA1c: *{baseline}%*\nDuration: *90 din*\nEnd date: *{end_date}*\n\nDrSaab normally use karte rahein — check-ins, activity, meal analysis sab count hoga.\n\nChallenge ke end ke qareeb main aap se latest HbA1c poochoonga.",
+    chal_hba1c_confirm_doctor_footer:
+      "Aap ki challenge progress *Dr. {doctor}* ko bhi visible hogi.",
+
+    chal_hba1c_final_prompt_title:
+      "🧪 Aap ka HbA1c Challenge lagbhag mukammal hai.",
+    chal_hba1c_final_prompt_body:
+      "Latest report upload karein ya naya HbA1c likhein taake main progress aur ranking calculate kar sakoon.",
+    chal_hba1c_final_saved_title: "🎯 *Aap ke HbA1c Challenge ka Result*",
+    chal_hba1c_final_saved_body:
+      "Starting HbA1c: *{baseline}%*\nFinal HbA1c: *{final}%*\nChange: *{change} percentage points*\nFinal rank: *{rank} of {total}*",
+    chal_hba1c_supportive_improved:
+      "Yeh real progress hai — consistent rehne ka shukriya. Habits jari rakhein. 💚",
+    chal_hba1c_supportive_flat:
+      "Steady rehna bhi win hai. Chhoti tabdeeliyan mil kar bara farq laati hain. 💚",
+    chal_hba1c_supportive_up:
+      "HbA1c kai wajahat se badalta hai. Yeh failure nahi — chalein useful habits par kaam karte hain.",
+
+    btn_chal_join_now: "✅ Challenge Join Karein",
+    btn_chal_how: "ℹ️ Yeh Kaisay Kaam Karta Hai",
+    btn_chal_upload: "📎 Report Upload Karein",
+    btn_chal_enter: "⌨️ Result Likhein",
+    btn_chal_cancel: "❌ Cancel",
+    btn_chal_reuse_yes: "✅ Haan, Yehi Use Karein",
+    btn_chal_reuse_another: "🔄 Naya Result Add Karein",
+    btn_chal_remind_later: "Baad Mein Yaad Dilayein",
+
+    chal_activity_intro_title: "🚶 *30-Day Activity Challenge*",
+    chal_activity_intro_body:
+      "Agle 30 din regularly move karein aur DrSaab challenge rankings mein upar aayen.\n\nRanking mein dekha jayega:\n🚶 Active days ki tadaad\n⏱️ Activity duration\n📱 DrSaab par consistency\n\nJoin karne ke liye tayyar hain?",
+    chal_activity_how_title: "ℹ️ *Yeh Kaisay Kaam Karta Hai*",
+    chal_activity_how_body:
+      "DrSaab ke through apni walks, workouts, swimming, sports ya koi bhi physical activity log karein.\n\nActivity kam se kam *20 minute* ki honi chahiye.\n\nEk din mein sirf ek active day count hoga, chahe aap ek se zyada activities karein.",
+    chal_activity_join_title: "🚀 *Aap Join Ho Gaye!*",
+    chal_activity_join_body:
+      "30-Day Activity Challenge aaj se shuru hota hai.\n\nDrSaab ke through activity log karein, score automatically update hoga.\n\nMinimum qualifying activity: *20 min*\nEnd date: *{end_date}*",
+    chal_activity_progress:
+      "🚶 *Activity Challenge Progress*\n\nActive days: *{active_days}*\nTotal minutes: *{minutes}*\nCurrent streak: *{streak} din*\nChallenge day: *{day} of 30*\nCurrent rank: *{rank} of {total}*",
+
+    chal_hp_intro_title: "📸 *30-Day Healthy Plate Challenge*",
+    chal_hp_intro_body:
+      "Apne meals ki tafseel DrSaab ke saath share karein aur dekhein 30 din mein kitni healthier plates bana sakte hain.\n\nRanking mein dekha jayega:\n🥗 Healthy Plates ki tadaad\n📸 Meal-logging consistency\n📱 DrSaab ka overall use\n\nJoin karne ke liye tayyar hain?",
+    chal_hp_how_title: "ℹ️ *Yeh Kaisay Kaam Karta Hai*",
+    chal_hp_how_body:
+      "1️⃣ Meal ki photo ya description bhejein\n2️⃣ DrSaab meal analyze karega\n3️⃣ Healthy Plates automatically count hongi\n4️⃣ 30 din tak jari rakhein aur final rank dekhein\n\nHar meal log karna zaroori nahi.",
+    chal_hp_join_title: "🥗 *Aap Join Ho Gaye!*",
+    chal_hp_join_body:
+      "30-Day Healthy Plate Challenge aaj se shuru hota hai.\n\nDrSaab ko apne meals ki photo ya description bhejein. Healthy Plates automatically count hongi.\n\nEnd date: *{end_date}*",
+    chal_hp_meal_hit:
+      "🟢 *Healthy Plate!*\n\nYeh meal aap ke challenge mein count ho gaya.\n\nHealthy Plates: *{count}*\nCurrent rank: *{rank} of {total}*",
+    chal_hp_meal_miss:
+      "🟡 Yeh meal abhi Healthy Plate count nahi hua, magar isse meri samajh better hoti hai.",
+
+    chal_rankings_title: "🏆 *{name} Rankings*",
+    chal_rankings_empty: "_Doosre users join karenge to yahan rankings dikhengi. Jari rakhein!_",
+    chal_rankings_row: "{rank}. {name} — {outcome}",
+    chal_rankings_you_suffix: "  ← *aap*",
+    chal_rankings_you_position: "\nAap ka position: *{rank} of {total}*",
+    chal_rankings_hba1c_note:
+      "_Baseline band ({band}) ke andar ranked. Public rankings mein HbA1c numbers kabhi show nahi hote._",
+    chal_rankings_pick_intro: "Rankings dekhne ke liye challenge chunein:",
+    chal_rankings_none_active: "Challenge join karne ke baad rankings visible hongi.",
+
+    chal_history_title: "🏅 *Meri Challenge History*",
+    chal_history_empty: "Aap ne abhi tak koi challenge complete nahi kiya.",
+    chal_history_row_completed: "• *{name}* — {outcome} (rank {rank}/{total})",
+    chal_history_row_incomplete: "• *{name}* — {status}",
+    chal_history_status_expired: "final result nahi diya",
+    chal_history_status_withdrawn: "chhor diya",
+    chal_history_status_disqualified: "hata diya gaya",
+
+    chal_active_title: "🔥 *Active Challenges*",
+    chal_active_none:
+      "Aap ka koi active challenge nahi. *Challenge Join Karein* par tap karein.",
+    chal_active_line_hba1c: "🎯 *90-Day HbA1c Challenge* — din {day}/{total}",
+    chal_active_line_activity:
+      "🚶 *30-Day Activity Challenge* — din {day}/{total} · {active_days} active din",
+    chal_active_line_healthy_plate:
+      "📸 *30-Day Healthy Plate Challenge* — din {day}/{total} · {count} Healthy Plate",
+    chal_active_awaiting_hba1c:
+      "🎯 *90-Day HbA1c Challenge* — final result ka intezar",
+
+    chal_dr_joined:
+      "🏆 *Patient Ne Challenge Join Kiya*\n\nPatient: *{patient}*\nChallenge: *{challenge}*\nStart: *{start}*\nEnd: *{end}*",
+    chal_dr_weekly:
+      "📊 *Weekly Challenge Update*\n\nPatient: *{patient}*\nChallenge: *{challenge}*\nProgress: *{progress}*\nParticipation: *{participation}*\nCurrent rank: *{rank}*\nStatus: *{status}*",
+    chal_dr_completed:
+      "🏁 *Challenge Complete Ho Gaya*\n\nPatient: *{patient}*\nChallenge: *{challenge}*\nResult: *{outcome}*\nFinal rank: *{rank}*",
+    chal_dr_incomplete:
+      "⏰ *Challenge Bina Result Ke Khatam*\n\nPatient: *{patient}*\nChallenge: *{challenge}*\nReason: {reason}",
+
+    chal_reminder_activity:
+      "🚶 Ab tak *{active_days} active din* complete ho chuke hain.\n\nAaj 20 min ki walk aap ka challenge chalta rakh sakti hai. 💪",
+    chal_reminder_healthy_plate:
+      "🥗 Aap ke pas *{count} Healthy Plates* hain.\n\nJab tayyar ho, agla meal bhejein. 📸",
+    chal_reminder_hba1c:
+      "🎯 Aap ka HbA1c Challenge chal raha hai.\n\nAaj sirf agle helpful choice par focus karein — 90 din perfect nahi honay chahiye.",
+    reminder_template_challenge_final_result_prompt:
+      "🧪 Aap ka HbA1c Challenge finish line ke qareeb hai — jab ho sake latest HbA1c bhej dein.",
+    reminder_template_challenge_checkin:
+      "🏆 Aaj apna challenge chalta rakhein — chhota sa log, check-in ya meal sab count hota hai.",
+
+    chal_outcome_hba1c_change: "↓ {change} percentage points",
+    chal_outcome_hba1c_up:     "↑ {change} percentage points",
+    chal_outcome_active_days:  "{value} active day(s)",
+    chal_outcome_plates:       "{value} Healthy Plate(s)",
+
+    chal_join_already:
+      "Aap pehle se *{name}* mein hain. 🔥 Active Challenges par tap kar ke progress dekhein.",
+    chal_start_generic_confirm:
+      "✅ Aap join ho gaye! DrSaab normally use karein — qualifying actions automatically count honge.",
+    chal_error_no_defs:
+      "Abhi koi challenge open nahi. Jaldi check karein!",
+    chal_ineligible_hba1c:
+      "HbA1c Challenge prediabetes ya diabetes wale users ke liye hai. Koi doosra challenge chunein ya baad mein check karein.",
+    chal_baseline_band_lt7:     "7.0% se kam",
+    chal_baseline_band_7_8_9:   "7.0%–8.9%",
+    chal_baseline_band_9_10_9:  "9.0%–10.9%",
+    chal_baseline_band_11_plus: "11.0% ya zyada",
+
     // ===== More section v2 (2026-07 spec) =====
     more_subtitle: "Neechay diye options mein se ek chunein:",
     btn_more_subscription_v2: "💳 Meri Subscription",
@@ -2616,12 +3106,12 @@ const STR = {
     pd_crav_reflection_q:
       "Video dekhne ke baad aap ke khayal se aane wale haftoun mein kaunsi realistic tabdeeliyan kar saktay hain?",
     pd_crav_commit_q: "Agar iss haftay sirf aik chhoti tabdeeli karni ho, kya realistic lagta hai?",
-    btn_pd_commit_less_soda: "Roz aik meetha drink kam",
-    btn_pd_commit_weekend_only: "Meethay drinks sirf weekend par",
-    btn_pd_commit_water: "Aik meethay drink ki jagah paani",
-    btn_pd_commit_less_fast: "Haftay mein fast food aik bar kam",
-    btn_pd_commit_skip_chips: "Haftay mein chips na khana",
-    btn_pd_commit_other: "Kuch aur",
+    btn_pd_commit_skip_sugary: "🥤 Meethay drinks chhorden",
+    btn_pd_commit_skip_junk:   "🍟 Din mein ek junk snack chhorden",
+    btn_pd_commit_walk10:      "🚶 Khaanay ke baad 10 minute walk",
+    btn_pd_commit_one_plate:   "🍽️ Aik plate par bas karein",
+    btn_pd_commit_wait10:      "⏰ Snack se pehle 10 minute rukein",
+    btn_pd_commit_other:       "Kuch aur",
     pd_crav_commit_other_q: "Bohot khoob — iss haftay kya chhoti tabdeeli realistic lagti hai?",
     pd_crav_done:
       "Yeh acha commitment hai: *{commitment}*\n\nChhoti tabdeeliyan consistently repeat karnay se baray sudhar aatay hain. Main aap ka goal yaad rakhoonga aur raste mein encourage karta rahoonga.\n\nJab tayaar hon, menu se koi aur Healthy Living activity azmayein.",

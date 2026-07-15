@@ -38,7 +38,14 @@ function cleanKeyboard(kb) {
  * Safe message sender. Uses legacy Markdown for our own UI strings, and
  * transparently retries as plain text if Telegram rejects the formatting.
  */
+// The main-menu title always leads with the 🩺 DrSaab header across all
+// languages. Its icons are load-bearing (users lose orientation without them),
+// so force keepEmoji whenever we detect that header — belt-and-braces so a
+// caller that forgets the flag can't strip them.
+const KEEP_EMOJI_PREFIX = "🩺 DrSaab";
+
 export async function send(bot, chatId, text, { keyboard = null, markdown = false, keepEmoji = false } = {}) {
+  if (typeof text === "string" && text.startsWith(KEEP_EMOJI_PREFIX)) keepEmoji = true;
   if (!keepEmoji) text = stripEmoji(text);
   const opts = {};
   if (keyboard) opts.reply_markup = cleanKeyboard(keyboard);
