@@ -86,10 +86,16 @@ import {
 } from "./flows/pregnancy.js";
 import {
   showChallenges,
-  showMyChallenges,
-  startChallengeJoin,
-  challengeCodeText,
+  chalCallback,
+  chalHba1cText,
 } from "./flows/challenges.js";
+
+// Legacy `chl:*` handlers kept for backwards-compat with any old deep links
+// living in a message or button. New Challenges module (spec v1.0) is under
+// `chal:*` and lives in flows/challenges.js.
+async function legacyChallengeStub(bot, chatId, session) {
+  return showChallenges(bot, chatId, session);
+}
 import { showReports, showWeeklyReport, showMonthlyReport, showDoctorReport } from "./flows/reports.js";
 import { showExecutive, requestService } from "./flows/executive.js";
 import { profileqText, skipProfileQuestion } from "./flows/profileBuilder.js";
@@ -353,6 +359,7 @@ export async function handleMessage(bot, msg) {
     "coach", "food", "fitness", "askdrsaab", "lab", "challenge_code", "profileq",
     "weight", "activity", "symptoms", "prediabetes", "betterme", "pregnancy",
     "doctor_onboarding", "doctor_patient_onboarding", "my_doctor",
+    "challenge_hba1c_baseline",
   ].includes(session.state);
   if (session.user.onboarded) {
     if (cmd === "/home" || (!inFlow && (word === "home" || word === "menu"))) {
@@ -429,7 +436,11 @@ export async function handleMessage(bot, msg) {
     case "lab":
       return labText(bot, chatId, session, text, msg);
     case "challenge_code":
-      return challengeCodeText(bot, chatId, session, text);
+      // Legacy state — new Challenges module never enters this state.
+      resetFlow(chatId);
+      return showMenu(bot, chatId, session);
+    case "challenge_hba1c_baseline":
+      return chalHba1cText(bot, chatId, session, text, msg);
     case "profileq":
       return profileqText(bot, chatId, session, text);
     case "prediabetes":
@@ -497,12 +508,12 @@ export async function handleCallback(bot, query) {
   // ❤️ My Health — start / confirm (ok/edit/skip) / glucose-context picker.
   if (data.startsWith("mh:")) return myHealthCallback(bot, chatId, session, data);
 
-  // Challenges (feature prefix `chl:` — distinct from onboarding `ch:`)
-  if (data.startsWith("chl:")) {
-    const x = data.split(":")[1];
-    if (x === "mine") return showMyChallenges(bot, chatId, session);
-    return startChallengeJoin(bot, chatId, session, x);
-  }
+  // Challenges v1.0 (spec 2026-07) — prefix `chal:*`.
+  if (data.startsWith("chal:")) return chalCallback(bot, chatId, session, data);
+
+  // Legacy Challenges module (`chl:*`) kept for backwards-compat with any
+  // old deep link. All actions land back on the new hub.
+  if (data.startsWith("chl:")) return legacyChallengeStub(bot, chatId, session);
 
   // Reports
   if (data.startsWith("rep:")) {

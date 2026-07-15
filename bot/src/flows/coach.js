@@ -7,6 +7,51 @@ import { applyScores } from "../scores.js";
 import { compactKB } from "../kb.js";
 import { pushHistory } from "../session.js";
 import { matchRestaurant, restaurantHint, PK_RESTAURANTS } from "../restaurants.js";
+import { awardEventToChallenges } from "./challengeEngine.js";
+
+// Meal-analysis outcome parser for the Healthy Plate challenge.
+// The MEAL ANALYSER system prompt (openai.js) tags every meal with a
+// coloured circle in its "*Blood sugar impact:*" line:
+//   🟢 Low     → Healthy Plate (counts)
+//   🟡 Moderate → not a Healthy Plate
+//   🔴 High    → not a Healthy Plate
+// The label scanner uses the same colour convention on its "*Rating:*" line.
+function isHealthyPlateReply(kind, reply) {
+  if (!reply) return false;
+  if (kind !== "analyze" && kind !== "label") return false;
+  // Look for a green marker on the impact / rating line specifically so a
+  // "healthy swap" mention with 🟢 elsewhere in the reply doesn't false-fire.
+  const line = String(reply).split("\n").find((l) => /impact|rating/i.test(l));
+  return line ? /🟢/.test(line) : false;
+}
+
+// Report the meal to the challenges engine and — if the user is in a Healthy
+// Plate challenge — send the follow-up 🟢/🟡 confirmation from spec §8.4 with
+// the fresh count + rank.
+async function reportMealForChallenges(bot, chatId, user, lang, kind, reply) {
+  if (kind !== "analyze" && kind !== "food" && kind !== "label") return;
+  const isHealthy = isHealthyPlateReply(kind, reply);
+  try {
+    const results = await awardEventToChallenges(user, "meal", { healthy_plate: isHealthy });
+    const hpResult = (results || []).find((r) => r.challenge_type === "healthy_plate");
+    if (!hpResult) return;
+    if (hpResult.healthy_plate_delta > 0) {
+      const { t } = await import("../i18n.js");
+      const { send } = await import("../utils.js");
+      await send(bot, chatId, t(lang, "chal_hp_meal_hit", {
+        count: hpResult.outcome_value,
+        rank: hpResult.rank ?? "—",
+        total: hpResult.total ?? "—",
+      }), { markdown: true, keepEmoji: true });
+    } else if (!isHealthy) {
+      const { t } = await import("../i18n.js");
+      const { send } = await import("../utils.js");
+      await send(bot, chatId, t(lang, "chal_hp_meal_miss"), { markdown: true, keepEmoji: true });
+    }
+  } catch (e) {
+    console.error("hp meal reply:", e?.message);
+  }
+}
 
 const PROMPT_KEY = {
   coach: "coach_prompt",
@@ -96,6 +141,7 @@ export async function coachText(bot, chatId, session, text, msg) {
     const keepEmoji = kind === "label";
     await send(bot, chatId, reply, { keyboard: backKeyboard(lang), keepEmoji });
     session.user = await applyScores(session.user, "coach");
+    reportMealForChallenges(bot, chatId, session.user, lang, kind, reply);
   } catch (e) {
     console.error("coach error:", e?.message);
     const key = e?.aiLimited ? "error_ai_limit" : "error_generic";

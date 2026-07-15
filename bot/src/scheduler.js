@@ -29,13 +29,23 @@ import {
   getUserHabitById,
   updateUserHabit,
   upsertHabitCheckIn,
+  getUserChallengeById,
+  updateUserChallenge,
+  getChallengeDefById,
+  listChallengesToExpire,
+  listDueChallengeDoctorNotifications,
+  markChallengeDoctorNotificationSent,
+  getDoctorById,
+  enqueueChallengeDoctorNotification,
+  lastDoctorNotificationOfType,
 } from "./supabase.js";
-import { send } from "./utils.js";
+import { send, sanitizeMd } from "./utils.js";
 import { t } from "./i18n.js";
 import { composeDailyMessage } from "./composer.js";
 import { config } from "./config.js";
-import { hbDailyKeyboard } from "./keyboards.js";
+import { hbDailyKeyboard, chalHba1cFinalKeyboard } from "./keyboards.js";
 import { formatTime12h } from "./flows/habitbuilder.js";
+import { computeAndPersistScores } from "./flows/challengeEngine.js";
 
 const TZ_OFFSET = parseInt(process.env.REMINDER_TZ_OFFSET || "5", 10); // PKT default
 
@@ -90,6 +100,41 @@ async function fireDueReminders(bots, usersById) {
           await send(bot, chat, rendered.text, {
             keyboard: rendered.keyboard,
             markdown: true,
+          });
+          const nextIso = bumpNextFire(r);
+          await markReminderFired(r.id, nextIso);
+          continue;
+        }
+      }
+      // Challenges v1.0 daily/weekly check-in prompt.
+      // §13 requires challenge nudges to stay within the "one combined
+      // system message per user per day" rule. If the composer has already
+      // sent today's message, we defer the challenge nudge by a day so the
+      // user isn't double-messaged — the final-result prompt is *not*
+      // subject to this cap (it's transactional).
+      if (r.category === "challenge_checkin") {
+        const today = todayLocalDate();
+        const already = await alreadySentToday(u.id, today).catch(() => false);
+        if (already) {
+          const skipIso = new Date(Date.now() + 86400 * 1000).toISOString();
+          await markReminderFired(r.id, skipIso);
+          continue;
+        }
+        const rendered = await renderChallengeCheckin(r, lang);
+        if (rendered) {
+          await send(bot, chat, rendered.text, { markdown: true });
+          const nextIso = bumpNextFire(r);
+          await markReminderFired(r.id, nextIso);
+          continue;
+        }
+      }
+      // Challenges v1.0 HbA1c final-result prompt (fires from ~7 days before
+      // end_date until the user submits or the challenge auto-expires).
+      if (r.category === "challenge_final_result_prompt") {
+        const rendered = await renderChallengeFinalPrompt(r, lang);
+        if (rendered) {
+          await send(bot, chat, rendered.text, {
+            keyboard: rendered.keyboard, markdown: true,
           });
           const nextIso = bumpNextFire(r);
           await markReminderFired(r.id, nextIso);
@@ -208,6 +253,261 @@ async function fireDailyComposer(bots, users, todayDate) {
   }
 }
 
+// -------------------------------------------------------------------
+// Challenges v1.0 — render helpers, doctor notifications, auto-expire
+// -------------------------------------------------------------------
+
+// Pick the right supportive template per challenge type. Returns null if
+// the challenge row has vanished (removed / cascade-deleted).
+async function renderChallengeCheckin(reminderRow, lang) {
+  const uc = await getUserChallengeById(reminderRow.target_id).catch(() => null);
+  if (!uc || !["active", "joined"].includes(uc.status)) return null;
+  const def = uc.challenge_id ? await getChallengeDefById(uc.challenge_id).catch(() => null) : null;
+  const type = def?.challenge_type || uc.challenge_type;
+  if (type === "activity") {
+    return { text: t(lang, "chal_reminder_activity", { active_days: uc.outcome_value || 0 }) };
+  }
+  if (type === "healthy_plate") {
+    return { text: t(lang, "chal_reminder_healthy_plate", { count: uc.outcome_value || 0 }) };
+  }
+  return { text: t(lang, "chal_reminder_hba1c") };
+}
+
+async function renderChallengeFinalPrompt(reminderRow, lang) {
+  const uc = await getUserChallengeById(reminderRow.target_id).catch(() => null);
+  if (!uc || uc.final_value != null) return null;
+  if (!["active", "awaiting_final_result"].includes(uc.status)) return null;
+
+  // Flip status so the Challenges hub reflects the pending action.
+  if (uc.status !== "awaiting_final_result") {
+    await updateUserChallenge(uc.id, { status: "awaiting_final_result" }).catch(() => {});
+  }
+
+  const kb = chalHba1cFinalKeyboard(lang);
+  // Rewrite the "Upload" / "Enter" callbacks to carry the specific uc id so
+  // the flow knows which row to attach the final result to.
+  for (const row of kb.inline_keyboard || []) {
+    for (const btn of row) {
+      if (btn.callback_data === "chal:hba1c_final_upload_hint"
+        || btn.callback_data === "chal:hba1c_final_enter_hint") {
+        btn.callback_data = `chal:hba1c_final:${uc.id}`;
+      }
+    }
+  }
+
+  const text =
+    `${t(lang, "chal_hba1c_final_prompt_title")}\n\n${t(lang, "chal_hba1c_final_prompt_body")}`;
+  return { text, keyboard: kb };
+}
+
+// Fire doctor notifications queued by the challenges engine. Rate-limited
+// per doctor per day so a busy doctor doesn't get spammed by every patient
+// event — the "one combined system message per user per day" spec rule
+// applies here too.
+async function fireDoctorNotifications(bots, usersById, doctorLastSentByDay) {
+  const nowIso = new Date().toISOString();
+  const due = await listDueChallengeDoctorNotifications(nowIso).catch(() => []);
+  if (!due.length) return;
+  for (const n of due) {
+    try {
+      const doctor = await getDoctorById(n.doctor_id).catch(() => null);
+      if (!doctor) { await markChallengeDoctorNotificationSent(n.id).catch(() => {}); continue; }
+      const doctorUser = usersById.get(doctor.user_id);
+      if (!doctorUser) { await markChallengeDoctorNotificationSent(n.id).catch(() => {}); continue; }
+
+      // Per-doctor per-day cap. `joined` / `completed` messages always fire
+      // since they're one-shot; only `weekly_update` obeys the daily cap.
+      const dayKey = new Date().toISOString().slice(0, 10);
+      const doctorKey = `${doctor.id}:${dayKey}`;
+      if (n.notification_type === "weekly_update" && doctorLastSentByDay.has(doctorKey)) {
+        continue; // leave sent_at null so we retry tomorrow
+      }
+
+      const bot = botFor(bots, doctorUser);
+      const chat = chatIdFor(doctorUser);
+      if (!bot || !chat) { await markChallengeDoctorNotificationSent(n.id).catch(() => {}); continue; }
+      const lang = doctorUser.language || "en";
+      const patientUser = usersById.get(n.user_id) || {};
+      const patientName = sanitizeMd(patientUser.name || "patient");
+      const p = n.payload || {};
+      let text;
+      if (n.notification_type === "joined") {
+        text = t(lang, "chal_dr_joined", {
+          patient: patientName,
+          challenge: p.challenge_name || "Challenge",
+          start: p.start_date || "—",
+          end: p.end_date || "—",
+        });
+      } else if (n.notification_type === "completed") {
+        const isHba1c = p.challenge_type === "hba1c";
+        const fmtVal = (v) => (v == null ? "—" : isHba1c ? `${Number(v).toFixed(1)}%` : String(v));
+        const outcomeStr = isHba1c && p.outcome_value != null
+          ? (p.outcome_value >= 0
+              ? `↓ ${Number(p.outcome_value).toFixed(1)} pp`
+              : `↑ ${(-Number(p.outcome_value)).toFixed(1)} pp`)
+          : (p.outcome_value != null ? String(p.outcome_value) : "—");
+        text = t(lang, "chal_dr_completed", {
+          patient: patientName,
+          challenge: p.challenge_name || p.challenge_type || "Challenge",
+          baseline: fmtVal(p.baseline_value),
+          final: fmtVal(p.final_value),
+          outcome: outcomeStr,
+          participation: p.participation_points ?? "—",
+          rank: p.rank != null ? `${p.rank}${p.total ? "/" + p.total : ""}` : "—",
+          percentile: p.percentile != null ? `${p.percentile}` : "—",
+          status: p.status || "completed",
+        });
+      } else if (n.notification_type === "incomplete") {
+        text = t(lang, "chal_dr_incomplete", {
+          patient: patientName,
+          challenge: p.challenge_type || "Challenge",
+          reason: p.reason || "no final result submitted",
+        });
+      } else {
+        text = t(lang, "chal_dr_weekly", {
+          patient: patientName,
+          challenge: p.challenge_type || p.challenge_name || "Challenge",
+          progress: p.progress || "—",
+          participation: p.participation || "—",
+          rank: p.rank || "—",
+          status: p.status || "active",
+        });
+      }
+      await send(bot, chat, text, { markdown: true });
+      await markChallengeDoctorNotificationSent(n.id);
+      if (n.notification_type === "weekly_update") doctorLastSentByDay.set(doctorKey, true);
+    } catch (e) {
+      console.error("doctor notif send:", e?.message);
+    }
+  }
+}
+
+// Weekly doctor summary — one `weekly_update` notification per patient per
+// challenge per 7 days. Runs on every tick but only enqueues a fresh row if
+// the previous weekly update for that patient×challenge is at least 7 days
+// old. Delivery uses the same rate-limited path as `joined` / `completed`.
+async function enqueueWeeklyDoctorSummaries() {
+  // Pull every active challenge. `listChallengesToExpire` filters
+  // status in ('active','awaiting_final_result') AND end_date < cutoff, so a
+  // far-future cutoff returns every active row that has an end_date — which
+  // is exactly the set we care about (challenges without a doctor link are
+  // skipped in the loop below).
+  const rows = await listChallengesToExpire("9999-12-31").catch(() => []);
+  const now = Date.now();
+  for (const uc of rows) {
+    if (!uc.doctor_id) continue;
+    if (!["active", "awaiting_final_result"].includes(uc.status)) continue;
+    try {
+      const last = await lastDoctorNotificationOfType(uc.doctor_id, uc.user_id, "weekly_update");
+      const lastTs = last?.scheduled_for ? new Date(last.scheduled_for).getTime() : 0;
+      if (lastTs && (now - lastTs) < 7 * 86400 * 1000) continue;
+
+      // Skip patients who have received no participation this week — nothing
+      // meaningful to report yet.
+      if (!uc.last_participation_at) continue;
+      const lastPart = new Date(uc.last_participation_at).getTime();
+      if ((now - lastPart) > 7 * 86400 * 1000) continue;
+
+      const def = uc.challenge_id ? await getChallengeDefById(uc.challenge_id).catch(() => null) : null;
+      const progressStr = summariseProgress(uc, def);
+      const participationLevel = participationBucket(uc.participation_points || 0);
+
+      await enqueueChallengeDoctorNotification({
+        doctor_id: uc.doctor_id,
+        user_id: uc.user_id,
+        user_challenge_id: uc.id,
+        notification_type: "weekly_update",
+        payload: {
+          challenge_type: uc.challenge_type,
+          challenge_name: def?.name || uc.challenge_type,
+          progress: progressStr,
+          participation: participationLevel,
+          rank: uc.rank != null ? `${uc.rank}${uc.percentile != null ? ` (p${uc.percentile})` : ""}` : "—",
+          status: uc.status,
+        },
+        scheduled_for: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.error("weekly doctor summary enqueue:", e?.message);
+    }
+  }
+}
+
+function summariseProgress(uc, def) {
+  const type = def?.challenge_type || uc.challenge_type;
+  if (type === "activity") return `${uc.outcome_value || 0} active days`;
+  if (type === "healthy_plate") return `${uc.outcome_value || 0} Healthy Plates`;
+  if (type === "hba1c") {
+    const dur = def?.duration_days || 90;
+    const start = uc.start_date ? new Date(`${uc.start_date}T00:00:00Z`).getTime() : Date.now();
+    const day = Math.max(1, Math.min(dur, Math.round((Date.now() - start) / 86400000) + 1));
+    return `day ${day} of ${dur} · ${uc.participation_points || 0} participation pts · streak ${uc.current_streak || 0}`;
+  }
+  return "in progress";
+}
+
+function participationBucket(points) {
+  if (points >= 40) return "High";
+  if (points >= 20) return "Moderate";
+  if (points >= 5)  return "Low";
+  return "Very Low";
+}
+
+// Auto-expire challenges whose end_date is past. HbA1c rows without a final
+// result become `expired_incomplete`; automatic-outcome rows just close as
+// `completed` (their outcome_value is already up to date). A 7-day grace
+// period is given after end_date for the user to submit an HbA1c final.
+async function expireDueChallenges(usersById) {
+  const cutoff = new Date(Date.now() - 7 * 86400 * 1000).toISOString().slice(0, 10);
+  const rows = await listChallengesToExpire(cutoff).catch(() => []);
+  for (const uc of rows) {
+    try {
+      const isHba1c = uc.challenge_type === "hba1c";
+      if (isHba1c && uc.final_value == null) {
+        await updateUserChallenge(uc.id, {
+          status: "expired_incomplete",
+          completed_at: new Date().toISOString(),
+        });
+        // Doctor notification
+        if (uc.doctor_id) {
+          await enqueueChallengeDoctorNotification({
+            doctor_id: uc.doctor_id,
+            user_id: uc.user_id,
+            user_challenge_id: uc.id,
+            notification_type: "incomplete",
+            payload: { challenge_type: uc.challenge_type,
+                       reason: "no final HbA1c submitted" },
+            scheduled_for: new Date().toISOString(),
+          });
+        }
+        continue;
+      }
+      // Automatic outcome — close and recompute the cohort ranks.
+      await updateUserChallenge(uc.id, {
+        status: "completed",
+        completed_at: new Date().toISOString(),
+      });
+      await computeAndPersistScores(uc.challenge_id, uc.user_id).catch(() => {});
+      if (uc.doctor_id) {
+        await enqueueChallengeDoctorNotification({
+          doctor_id: uc.doctor_id,
+          user_id: uc.user_id,
+          user_challenge_id: uc.id,
+          notification_type: "completed",
+          payload: {
+            challenge_type: uc.challenge_type,
+            outcome_value: uc.outcome_value,
+            rank: uc.rank, total: null,
+          },
+          scheduled_for: new Date().toISOString(),
+        });
+      }
+    } catch (e) {
+      console.error("chal expire:", e?.message);
+    }
+  }
+}
+
 async function runTick(bots) {
   const { hour, date } = nowParts();
   let users;
@@ -222,6 +522,18 @@ async function runTick(bots) {
 
   // Independent, user-opted-in paths — run every tick.
   await fireDueReminders(bots, usersById);
+
+  // Challenges v1.0: enqueue weekly doctor summaries (§12.3), fire any
+  // queued doctor notifications, and auto-expire rows past their end_date +
+  // grace period. All are safe to run every tick — enqueueing dedupes on
+  // its own 7-day cooldown, sends are idempotent via sent_at, and expiry
+  // targets terminal statuses.
+  await enqueueWeeklyDoctorSummaries().catch((e) =>
+    console.error("chal weekly summaries:", e?.message));
+  await fireDoctorNotifications(bots, usersById, new Map()).catch((e) =>
+    console.error("chal doctor notifs:", e?.message));
+  await expireDueChallenges(usersById).catch((e) =>
+    console.error("chal expire pass:", e?.message));
 
   // Composer path — runs once per day at the configured hour. The DB
   // unique constraint (user_id, date) is the ultimate idempotency guard,

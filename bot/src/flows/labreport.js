@@ -5,6 +5,17 @@ import { backKeyboard, labStartKeyboard } from "../keyboards.js";
 import { explainLab } from "../openai.js";
 import { addLabReport, countLabReportsSince, recentLabReports } from "../supabase.js";
 import { extractPdfText, isPdfMime } from "../pdf.js";
+import { awardEventToChallenges } from "./challengeEngine.js";
+
+function extractHba1cValue(values) {
+  if (!Array.isArray(values)) return null;
+  const hit = values.find((v) => /hba1c|a1c/i.test(v?.test || ""));
+  if (!hit?.result) return null;
+  const m = String(hit.result).match(/(\d+(?:\.\d+)?)/);
+  if (!m) return null;
+  const n = parseFloat(m[1]);
+  return Number.isFinite(n) && n >= 4 && n <= 20 ? n : null;
+}
 
 // Free-tier ceiling. Paid users are unlimited. Spec: free users get a plan
 // limit rather than a hard block — see the "Explain My Report" write-up.
@@ -123,6 +134,13 @@ export async function labText(bot, chatId, session, text, msg) {
     } catch (dbErr) {
       console.error("lab history save failed:", dbErr?.stack || dbErr?.message || dbErr);
     }
+
+    // Challenges hook: every valid, analyzable report earns 3 participation
+    // points. If it contains a fresh HbA1c we also surface the value so the
+    // engine can drive HbA1c-specific behaviour (e.g. warn on stale baselines).
+    awardEventToChallenges(session.user, "lab_report", {
+      hba1c: extractHba1cValue(values),
+    }).catch(() => {});
   } catch (e) {
     console.error("lab error:", e?.stack || e?.message || e);
     const key = e?.aiLimited ? "error_ai_limit" : "error_generic";

@@ -123,35 +123,37 @@ export function challengesKeyboard(lang) {
 // ===================================================================
 
 // Main hub — Active / Join / Rankings / History / Back.
+// keepEmoji: challenge buttons carry load-bearing icons (🔥, 🏆, 🏅) that the
+// spec explicitly designs around; opt this keyboard out of the emoji stripper.
 export function chalMainKeyboard(lang) {
   const b = (key, action) => ({ text: t(lang, key), callback_data: `chal:${action}` });
-  return stack([
+  return { ...stack([
     b("btn_chal_active",   "active"),
     b("btn_chal_join",     "browse"),
     b("btn_chal_rankings", "rankings"),
     b("btn_chal_history",  "history"),
     { text: t(lang, "btn_back"), callback_data: "menu" },
-  ]);
+  ]), keepEmoji: true };
 }
 
 // Available challenges picker (spec §5).
 export function chalAvailableKeyboard(lang) {
   const b = (code, key) => ({ text: t(lang, key), callback_data: `chal:def:${code}` });
-  return stack([
+  return { ...stack([
     b("hba1c_90d",         "chal_type_hba1c"),
     b("activity_30d",      "chal_type_activity"),
     b("healthy_plate_30d", "chal_type_healthy_plate"),
     { text: t(lang, "btn_back"), callback_data: "chal:menu" },
-  ]);
+  ]), keepEmoji: true };
 }
 
 // Challenge intro card — Join / How It Works / Back (spec §6.2, §7.1, §8.1).
 export function chalIntroKeyboard(lang, code) {
-  return stack([
+  return { ...stack([
     { text: t(lang, "btn_chal_join_now"), callback_data: `chal:join:${code}` },
     { text: t(lang, "btn_chal_how"),      callback_data: `chal:how:${code}` },
     { text: t(lang, "btn_back"),          callback_data: "chal:browse" },
-  ]);
+  ]), keepEmoji: true };
 }
 
 // "How It Works" back button — returns to the challenge intro.
@@ -163,29 +165,29 @@ export function chalHowBackKeyboard(lang, code) {
 
 // HbA1c baseline collection — Upload / Enter / Cancel (spec §6.4 step 1).
 export function chalHba1cCollectKeyboard(lang) {
-  return stack([
+  return { ...stack([
     { text: t(lang, "btn_chal_upload"), callback_data: "chal:hba1c_upload_hint" },
     { text: t(lang, "btn_chal_enter"),  callback_data: "chal:hba1c_enter_hint" },
     { text: t(lang, "btn_chal_cancel"), callback_data: "chal:menu" },
-  ]);
+  ]), keepEmoji: true };
 }
 
 // HbA1c reuse dialog — Yes / Add Another / Cancel (spec §6.4).
 export function chalHba1cReuseKeyboard(lang) {
-  return stack([
+  return { ...stack([
     { text: t(lang, "btn_chal_reuse_yes"),     callback_data: "chal:hba1c_reuse_yes" },
     { text: t(lang, "btn_chal_reuse_another"), callback_data: "chal:hba1c_reuse_no" },
     { text: t(lang, "btn_chal_cancel"),        callback_data: "chal:menu" },
-  ]);
+  ]), keepEmoji: true };
 }
 
 // Final-result prompt (HbA1c end) — Upload / Enter / Remind Me Later.
 export function chalHba1cFinalKeyboard(lang) {
-  return stack([
+  return { ...stack([
     { text: t(lang, "btn_chal_upload"),       callback_data: "chal:hba1c_final_upload_hint" },
     { text: t(lang, "btn_chal_enter"),        callback_data: "chal:hba1c_final_enter_hint" },
     { text: t(lang, "btn_chal_remind_later"), callback_data: "chal:hba1c_final_later" },
-  ]);
+  ]), keepEmoji: true };
 }
 
 // Rankings picker — one row per currently-active challenge def.
@@ -207,6 +209,50 @@ export function chalBackKeyboard(lang) {
   return { inline_keyboard: [[
     { text: t(lang, "btn_back"), callback_data: "chal:menu" },
   ]]};
+}
+
+// Active-challenge detail screen — opt-out toggle + withdraw + back.
+// `optIn` reflects the current leaderboard_opt_in state so the label swaps
+// between "Show me on leaderboard" / "Hide me from leaderboard".
+export function chalDetailKeyboard(lang, ucId, optIn) {
+  const rows = [
+    [{
+      text: t(lang, optIn ? "btn_chal_hide_ranking" : "btn_chal_show_ranking"),
+      callback_data: `chal:toggle_leaderboard:${ucId}`,
+    }],
+    [{ text: t(lang, "btn_chal_withdraw"), callback_data: `chal:withdraw:${ucId}` }],
+    [{ text: t(lang, "btn_back"), callback_data: "chal:active" }],
+  ];
+  return { inline_keyboard: rows };
+}
+
+// Withdraw confirmation (destructive action — spec §15 status = withdrawn_by_user).
+export function chalWithdrawConfirmKeyboard(lang, ucId) {
+  return { inline_keyboard: [[
+    { text: t(lang, "btn_chal_withdraw_confirm"), callback_data: `chal:withdraw_confirm:${ucId}` },
+    { text: t(lang, "btn_chal_cancel"),           callback_data: `chal:view:${ucId}` },
+  ]]};
+}
+
+// Active-challenges list — one tap-able row per active challenge, so users
+// can drill into the §7.5 progress card.
+export function chalActiveListKeyboard(lang, ucs) {
+  const rows = (ucs || []).map((uc) => [{
+    text: activeListButtonText(lang, uc),
+    callback_data: `chal:view:${uc.id}`,
+  }]);
+  rows.push([{ text: t(lang, "btn_back"), callback_data: "chal:menu" }]);
+  return { inline_keyboard: rows };
+}
+
+function activeListButtonText(lang, uc) {
+  if (uc.def_type === "activity" || uc.challenge_type === "activity") {
+    return t(lang, "chal_type_activity");
+  }
+  if (uc.def_type === "healthy_plate" || uc.challenge_type === "healthy_plate") {
+    return t(lang, "chal_type_healthy_plate");
+  }
+  return t(lang, "chal_type_hba1c");
 }
 
 // Background-profile drip question: answer by typing, or Skip.

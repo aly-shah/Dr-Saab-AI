@@ -6,11 +6,19 @@ export function sanitizeMd(s = "") {
 
 // Strip emoji/pictographs so replies read clean and professional (keeps the
 // avatar icon in the web UI as the only visual mark). Preserves dashes/·.
+//
+// Keycap sequences (0-9/#/* + optional U+FE0F + U+20E3) are removed as a
+// unit *first* — otherwise stripping the variation selector alone would
+// leave "1⃣" (a lone combining keycap) which renders as a broken glyph on
+// most clients. Ordering matters: match keycaps → then the general emoji
+// character class → then whitespace normalisation.
+const KEYCAP_RE = /[0-9#*]\u{FE0F}?\u{20E3}/gu;
 const EMOJI_RE =
-  /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}\u{200D}]/gu;
+  /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}\u{FE00}-\u{FE0F}\u{20D0}-\u{20FF}\u{1F1E6}-\u{1F1FF}\u{200D}]/gu;
 
 export function stripEmoji(s = "") {
   return String(s)
+    .replace(KEYCAP_RE, "")
     .replace(EMOJI_RE, "")
     .replace(/[ \t]{2,}/g, " ")
     .split("\n")

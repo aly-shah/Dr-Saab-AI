@@ -1031,6 +1031,34 @@ create index if not exists challenge_events_uc_idx
 create index if not exists challenge_events_user_idx
   on public.challenge_events(user_id, created_at desc);
 
+-- Streak counters on user_challenges (added after §9.2 audit — the ranking
+-- engine uses the daily-participation streak as a tie-breaker).
+alter table public.user_challenges add column if not exists current_streak     int default 0;
+alter table public.user_challenges add column if not exists best_streak        int default 0;
+alter table public.user_challenges add column if not exists last_streak_date   date;
+
+-- Daily leaderboard snapshots (spec §14). Populated by the scheduler each
+-- day so historical rankings and per-day charts stay reproducible even after
+-- the live cohort scores keep changing. One row per participant per day.
+create table if not exists public.challenge_leaderboard_snapshots (
+  id                    uuid primary key default gen_random_uuid(),
+  challenge_id          uuid references public.challenge_definitions(id) on delete cascade,
+  snapshot_at           timestamptz not null default now(),
+  snapshot_date         date not null,
+  user_challenge_id     uuid references public.user_challenges(id) on delete cascade,
+  outcome_score         numeric,
+  participation_score   numeric,
+  final_score           numeric,
+  rank                  int,
+  percentile            numeric,
+  baseline_band         text,
+  created_at            timestamptz default now()
+);
+create unique index if not exists chal_leaderboard_snap_uc_date_key
+  on public.challenge_leaderboard_snapshots(user_challenge_id, snapshot_date);
+create index if not exists chal_leaderboard_snap_challenge_date_idx
+  on public.challenge_leaderboard_snapshots(challenge_id, snapshot_date desc);
+
 -- Rate-limited doctor updates. Rows are created by the challenge engine and
 -- delivered by the scheduler (which respects the "one combined message per
 -- user per day" rule from spec §12.3).

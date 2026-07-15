@@ -687,6 +687,22 @@ async function makeSupabaseBackend() {
         .gte("event_date", since);
       return count || 0;
     },
+    async insertLeaderboardSnapshot(fields) {
+      const { data, error } = await db.from("challenge_leaderboard_snapshots")
+        .upsert(fields, { onConflict: "user_challenge_id,snapshot_date" })
+        .select("*").single();
+      if (error && error.code !== "23505") throw error;
+      return data;
+    },
+    async lastDoctorNotificationOfType(doctorId, userId, notificationType) {
+      const { data } = await db.from("challenge_doctor_notifications")
+        .select("scheduled_for, sent_at, created_at, notification_type")
+        .eq("doctor_id", doctorId).eq("user_id", userId)
+        .eq("notification_type", notificationType)
+        .order("scheduled_for", { ascending: false })
+        .limit(1).maybeSingle();
+      return data || null;
+    },
 
     // ===== Doctor & Referral module (v1.0) =====
     async getDoctorByUserId(userId) {
@@ -1756,6 +1772,32 @@ async function makePostgresBackend() {
       );
       return rows[0]?.n || 0;
     },
+    async insertLeaderboardSnapshot(fields) {
+      const keys = Object.keys(fields);
+      const cols = keys.join(", ");
+      const ph = keys.map((_, i) => `$${i + 1}`).join(", ");
+      const updateKeys = keys.filter((k) => k !== "user_challenge_id" && k !== "snapshot_date");
+      const setClause = updateKeys.length
+        ? updateKeys.map((k) => `${k} = excluded.${k}`).join(", ")
+        : "snapshot_date = excluded.snapshot_date";
+      const { rows } = await pool.query(
+        `insert into challenge_leaderboard_snapshots (${cols}) values (${ph})
+         on conflict (user_challenge_id, snapshot_date) do update set ${setClause}
+         returning *`,
+        Object.values(fields)
+      );
+      return rows[0];
+    },
+    async lastDoctorNotificationOfType(doctorId, userId, notificationType) {
+      const { rows } = await pool.query(
+        `select scheduled_for, sent_at, created_at, notification_type
+           from challenge_doctor_notifications
+          where doctor_id = $1 and user_id = $2 and notification_type = $3
+          order by scheduled_for desc limit 1`,
+        [doctorId, userId, notificationType]
+      );
+      return rows[0] || null;
+    },
 
     // ===== Doctor & Referral module (v1.0) =====
     async getDoctorByUserId(userId) {
@@ -2291,6 +2333,8 @@ function makeMemoryBackend() {
     async listDueChallengeDoctorNotifications() { return []; },
     async markChallengeDoctorNotificationSent() { /* no-op */ },
     async countChallengeEventsInDays() { return 0; },
+    async insertLeaderboardSnapshot() { return null; },
+    async lastDoctorNotificationOfType() { return null; },
 
     // ===== Doctor & Referral module (v1.0) =====
     async getDoctorByUserId(userId) {
@@ -2633,6 +2677,10 @@ export const markChallengeDoctorNotificationSent = (id) =>
   backend.markChallengeDoctorNotificationSent ? backend.markChallengeDoctorNotificationSent(id) : Promise.resolve();
 export const countChallengeEventsInDays = (ucId, eventType, days) =>
   backend.countChallengeEventsInDays ? backend.countChallengeEventsInDays(ucId, eventType, days) : Promise.resolve(0);
+export const insertLeaderboardSnapshot = (fields) =>
+  backend.insertLeaderboardSnapshot ? backend.insertLeaderboardSnapshot(fields) : Promise.resolve(null);
+export const lastDoctorNotificationOfType = (docId, userId, type) =>
+  backend.lastDoctorNotificationOfType ? backend.lastDoctorNotificationOfType(docId, userId, type) : Promise.resolve(null);
 
 // --- Doctor & Referral module (v1.0) ---
 export const getDoctorByUserId = (userId) => backend.getDoctorByUserId(userId);

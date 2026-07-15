@@ -31,6 +31,7 @@ import {
 } from "../supabase.js";
 import { applyScores, glucoseInRange } from "../scores.js";
 import { refreshKB } from "../kb.js";
+import { awardEventToChallenges } from "./challengeEngine.js";
 
 // ==================================================================
 // Blood Sugar — v2 (Check-In spec, 2026-07)
@@ -123,6 +124,9 @@ export async function glucoseText(bot, chatId, session, text) {
     glucoseInRange(parsed.value_mgdl, parsed.measure_kind) ? "in_range" : "out_range"
   );
   await refreshKB(session.user);
+  awardEventToChallenges(session.user, "glucose", {
+    value_mgdl: parsed.value_mgdl, measure_kind: parsed.measure_kind,
+  }).catch(() => {});
 
   // TODO: rotate through 20 variations per confirmation type
   const feedback = glucoseFeedback(lang, parsed.value_mgdl, parsed.measure_kind);
@@ -302,6 +306,7 @@ export async function medicationText(bot, chatId, session, text) {
   session.user = await registerActivity(session.user);
   session.user = await applyScores(session.user, "log_med");
   await refreshKB(session.user);
+  awardEventToChallenges(session.user, "medication", { name, dose }).catch(() => {});
 
   const existing = await findMedicationByName(session.user.id, name).catch(() => null);
   session.state = "idle";
@@ -444,6 +449,7 @@ export async function weightText(bot, chatId, session, text) {
   session.user = await registerActivity(session.user);
   session.user = await applyScores(session.user, "checkin");
   await refreshKB(session.user);
+  awardEventToChallenges(session.user, "weight", { weight_kg: p.kg }).catch(() => {});
 
   const shownUnit = p.unit === "lb" ? `${p.original} lb (${p.kg} kg)` : `${p.kg} kg`;
   const confirmBody = `${t(lang, isFirst ? "weight_first_confirm" : "weight_confirm")}\n\n_Saved:_ ${shownUnit}`;
@@ -513,12 +519,24 @@ function parseActivity(text) {
     if (kmM) parts.push(`${kmM[1]} km`);
     if (parts.length) fields.note = parts.join(" ");
   }
+  // Approximate duration in minutes for the Challenges engine. Order of
+  // preference: explicit minutes → hours × 60 → a walking estimate from
+  // steps (100 steps ≈ 1 min) → a conservative 20-min default when the
+  // user just says "went for a walk" so the intent still qualifies.
+  let durationMin = 0;
+  if (minsM) durationMin = parseInt(minsM[1], 10);
+  else if (hoursM) durationMin = Math.round(parseFloat(hoursM[1]) * 60);
+  else if (stepsM) durationMin = Math.round(parseInt(stepsM[1].replace(/,/g, ""), 10) / 100);
+  else if (typeM) durationMin = 20;
+  fields._durationMin = durationMin;
   return fields;
 }
 
 export async function activityText(bot, chatId, session, text) {
   const lang = langOf(session);
   const fields = parseActivity(text);
+  const durationMin = fields._durationMin || 0;
+  delete fields._durationMin;
 
   const isFirst = (await countActivityEntries(session.user.id).catch(() => 0)) === 0;
 
@@ -526,6 +544,10 @@ export async function activityText(bot, chatId, session, text) {
   session.user = await registerActivity(session.user);
   session.user = await applyScores(session.user, "checkin");
   await refreshKB(session.user);
+  awardEventToChallenges(session.user, "activity", {
+    duration_min: durationMin,
+    activity_text: text,
+  }).catch(() => {});
 
   const askGoal = !session.user.weekly_activity_goal_days;
   const confirmKey = isFirst ? "activity_first_confirm" : "activity_confirm";
@@ -658,6 +680,7 @@ export async function wellbeingCallback(bot, chatId, session, data) {
   session.user = await registerActivity(session.user);
   session.user = await applyScores(session.user, "checkin");
   await refreshKB(session.user);
+  awardEventToChallenges(session.user, "wellbeing", { mood, score }).catch(() => {});
   await send(bot, chatId, t(lang, `wb_reply_${mood}`), { keyboard: backKeyboard(lang), markdown: true });
   session.state = "idle";
   session.step = null;
@@ -680,6 +703,7 @@ export async function wellbeingText(bot, chatId, session, text) {
   session.user = await registerActivity(session.user);
   session.user = await applyScores(session.user, "checkin");
   await refreshKB(session.user);
+  awardEventToChallenges(session.user, "wellbeing", { mood, score }).catch(() => {});
 
   await send(bot, chatId, t(lang, "wb_note_saved"), { keyboard: backKeyboard(lang), markdown: true });
   session.state = "idle";
