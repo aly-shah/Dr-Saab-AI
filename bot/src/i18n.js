@@ -487,9 +487,9 @@ const STR = {
     chal_available_title: "🏆 *Choose a Challenge*",
     chal_available_intro:
       "Everyone follows the same rules. Join, use DrSaab normally and see how much progress you can make.",
-    chal_type_hba1c: "🎯 90-Day HbA1c Challenge",
-    chal_type_activity: "🚶 30-Day Activity Challenge",
-    chal_type_healthy_plate: "📸 30-Day Healthy Plate Challenge",
+    chal_type_hba1c: "🎯 HbA1c Challenge",
+    chal_type_activity: "🚶 Activity Challenge",
+    chal_type_healthy_plate: "📸 Healthy Plate Challenge",
 
     // -------- HbA1c challenge (§6) --------
     chal_hba1c_intro_title: "🎯 *90-Day HbA1c Challenge*",
@@ -1899,9 +1899,9 @@ const STR = {
     chal_available_title: "🏆 *چیلنج منتخب کریں*",
     chal_available_intro:
       "سب کے لیے قوانین یکساں ہیں۔ شامل ہوں، ڈاکٹر صاحب کو معمول کے مطابق استعمال کریں اور اپنی پیش رفت دیکھیں۔",
-    chal_type_hba1c: "🎯 90 دن کا HbA1c چیلنج",
-    chal_type_activity: "🚶 30 دن کا سرگرمی چیلنج",
-    chal_type_healthy_plate: "📸 30 دن کا صحت مند پلیٹ چیلنج",
+    chal_type_hba1c: "🎯 HbA1c چیلنج",
+    chal_type_activity: "🚶 سرگرمی چیلنج",
+    chal_type_healthy_plate: "📸 صحت مند پلیٹ چیلنج",
 
     chal_hba1c_intro_title: "🎯 *90 دن کا HbA1c چیلنج*",
     chal_hba1c_intro_body:
@@ -2889,9 +2889,9 @@ const STR = {
     chal_available_title: "🏆 *Challenge Chunein*",
     chal_available_intro:
       "Sab ke liye rules same hain. Join karein, DrSaab normally use karein aur apni progress dekhein.",
-    chal_type_hba1c: "🎯 90-Day HbA1c Challenge",
-    chal_type_activity: "🚶 30-Day Activity Challenge",
-    chal_type_healthy_plate: "📸 30-Day Healthy Plate Challenge",
+    chal_type_hba1c: "🎯 HbA1c Challenge",
+    chal_type_activity: "🚶 Activity Challenge",
+    chal_type_healthy_plate: "📸 Healthy Plate Challenge",
 
     chal_hba1c_intro_title: "🎯 *90-Day HbA1c Challenge*",
     chal_hba1c_intro_body:
