@@ -52,6 +52,20 @@ export const config = {
   hasSupabase: !!(supabaseUrl && supabaseKey),
 
   defaultTier: process.env.DEFAULT_TIER?.trim() || "free",
+
+  // WhatsApp number that receives payment-submission alerts for the Subscription
+  // Module (spec §9 — Yasir Abbasi). Digits-only, no '+', matches the shape
+  // normalizePhone() produces so the bot can reach the admin directly.
+  // Testing (2026-07-17): temporarily routed to +92 334 3873622 for verification.
+  // Swap the two lines below to restore Yasir's number.
+  adminNotifyWhatsapp: process.env.ADMIN_NOTIFY_WHATSAPP?.replace(/\D/g, "") || "923343873622",
+  // adminNotifyWhatsapp: process.env.ADMIN_NOTIFY_WHATSAPP?.replace(/\D/g, "") || "923242895065",
+
+  // Subscription QA affordance — shows a "🧪 Test Activate" button on the
+  // plan-confirmation card that skips payment and jumps straight to the
+  // activation experience. Set TEST_ACTIVATION_ENABLED=false in production
+  // once the flow has been validated end-to-end.
+  testActivationEnabled: String(process.env.TEST_ACTIVATION_ENABLED ?? "true").toLowerCase() !== "false",
   useWebhook: String(process.env.USE_WEBHOOK).toLowerCase() === "true",
   webhookUrl: process.env.WEBHOOK_URL?.trim() || "",
   port: parseInt(process.env.PORT || "8080", 10),

@@ -46,6 +46,7 @@ import { config } from "./config.js";
 import { hbDailyKeyboard, chalHba1cFinalKeyboard } from "./keyboards.js";
 import { formatTime12h } from "./flows/habitbuilder.js";
 import { computeAndPersistScores } from "./flows/challengeEngine.js";
+import { runSubscriptionLifecycleTick } from "./flows/subscription.js";
 
 const TZ_OFFSET = parseInt(process.env.REMINDER_TZ_OFFSET || "5", 10); // PKT default
 
@@ -534,6 +535,12 @@ async function runTick(bots) {
     console.error("chal doctor notifs:", e?.message));
   await expireDueChallenges(usersById).catch((e) =>
     console.error("chal expire pass:", e?.message));
+
+  // Subscription Module — 7d/1d/expiry-day renewal reminders (§13) and the
+  // auto-downgrade to Free at expiry (§14). Dedupes internally via
+  // users.sub_last_reminder so a 15-minute tick doesn't re-fire.
+  await runSubscriptionLifecycleTick().catch((e) =>
+    console.error("subscription lifecycle:", e?.message));
 
   // Composer path — runs once per day at the configured hour. The DB
   // unique constraint (user_id, date) is the ultimate idempotency guard,

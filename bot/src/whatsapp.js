@@ -117,6 +117,91 @@ async function fetchMediaDataUrl(mediaId) {
   return `data:${bin.mime || "image/jpeg"};base64,${bin.buffer.toString("base64")}`;
 }
 
+// Upload a raw image/pdf/etc buffer to WhatsApp media and return its media id
+// (a short-lived token accepted by outgoing messages). Both providers use the
+// same multipart shape — only the host and auth header differ.
+async function uploadMedia(buffer, mime) {
+  const w = config.whatsapp;
+  try {
+    const form = new FormData();
+    form.append("messaging_product", "whatsapp");
+    form.append("type", mime || "application/octet-stream");
+    // Node's undici Blob is happy with Uint8Array — cast the Buffer.
+    const blob = new Blob([new Uint8Array(buffer)], { type: mime || "application/octet-stream" });
+    const extGuess = (mime || "").split("/")[1] || "bin";
+    form.append("file", blob, `upload.${extGuess}`);
+
+    let url, headers;
+    if (w.provider === "360dialog") {
+      url = `${w.baseUrl.replace(/\/$/, "")}/media`;
+      headers = { "D360-API-KEY": w.apiKey };
+    } else {
+      url = `${GRAPH}/${w.apiVersion}/${w.phoneNumberId}/media`;
+      headers = { Authorization: `Bearer ${w.token}` };
+    }
+    const res = await fetch(url, { method: "POST", headers, body: form });
+    if (!res.ok) {
+      logError("WhatsApp media upload", describeWhatsAppError(res.status, await res.text(), w.provider));
+      return null;
+    }
+    const { id } = await res.json();
+    return id || null;
+  } catch (e) {
+    logError("WhatsApp media upload", `network error: ${e?.message}`);
+    return null;
+  }
+}
+
+// Convert an inline_keyboard row list into the up-to-3 button set an
+// interactive message accepts. Returns null when there are no buttons.
+function buttonsFor(rows) {
+  const buttons = (rows || []).flat().filter((b) => b && b.callback_data);
+  if (!buttons.length) return null;
+  return buttons.slice(0, 3).map((b) => ({
+    type: "reply",
+    reply: { id: trunc(b.callback_data, 256), title: trunc(stripMd(b.text), 20) },
+  }));
+}
+
+// Send an image message with an optional caption and up-to-3 inline buttons.
+// Requires a base64 data URL (which the inbound path already produces). We
+// upload once, then either send as `type: 'image'` (caption only) or as an
+// `interactive` message with an image header (caption + buttons).
+async function sendPhotoDataUrl(to, dataUrl, caption, opts = {}) {
+  const match = /^data:([^;]+);base64,(.+)$/.exec(String(dataUrl || ""));
+  if (!match) return { ok: false, reason: "not-a-data-url" };
+  const mime = match[1];
+  const buffer = Buffer.from(match[2], "base64");
+  const mediaId = await uploadMedia(buffer, mime);
+  if (!mediaId) return { ok: false, reason: "upload-failed" };
+
+  const kb = opts.reply_markup?.inline_keyboard;
+  const buttons = kb ? buttonsFor(kb) : null;
+  if (buttons) {
+    // Interactive image-header message. WhatsApp requires the caption to
+    // live in `body.text` and the image to sit in `header`.
+    await sendRaw({
+      messaging_product: "whatsapp",
+      to: String(to),
+      type: "interactive",
+      interactive: {
+        type: "button",
+        header: { type: "image", image: { id: mediaId } },
+        body: { text: trunc(stripMd(caption || "…"), 1024) },
+        action: { buttons },
+      },
+    });
+  } else {
+    await sendRaw({
+      messaging_product: "whatsapp",
+      to: String(to),
+      type: "image",
+      image: { id: mediaId, caption: trunc(stripMd(caption || ""), 1024) },
+    });
+  }
+  return { ok: true, mediaId };
+}
+
 // Map our inline_keyboard rows → WhatsApp interactive. WhatsApp allows at most
 // 3 reply buttons; anything larger becomes a single-section list (max 10 rows).
 const trunc = (s, n) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
@@ -176,6 +261,12 @@ export function whatsappBot() {
         });
       }
       return { message_id: Date.now() };
+    },
+    // Image message with optional caption + inline buttons. Accepts a
+    // base64 data URL (the inbound path already produces this shape). Falls
+    // back to a text-only send by the caller if `ok:false` is returned.
+    async sendPhoto(to, dataUrl, caption, opts = {}) {
+      return sendPhotoDataUrl(to, dataUrl, caption, opts);
     },
     async sendChatAction() {},
     async answerCallbackQuery() {},

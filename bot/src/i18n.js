@@ -1079,6 +1079,134 @@ const STR = {
     sub_billing_stub:
       "Billing history is coming soon — we'll email your invoices in the meantime.",
 
+    // Subscription Module — Upgrade flow (spec §2–§8)
+    upsell_menu_title:
+      "🟢 *Consistency Coach*\nRs 799/month\nPersonalized AI coaching & premium features.\n\n⭐ *Executive Coach*\nRs 7,999/month\nPremium one-to-one coaching.",
+    btn_upsell_consistency: "🟢 Consistency",
+    btn_upsell_executive: "⭐ Executive",
+    upsell_executive_unavailable:
+      "⭐ *Executive Coach* isn't available yet.\nPlease check back soon.",
+    upsell_consistency_title: "🟢 *Consistency Coach*",
+    upsell_consistency_features:
+      "*Premium features:*\n• 🤖 Advanced AI\n• 🧠 Personalized guidance\n• 🏋️ Fitness plans\n• 🥗 Meal plans\n• 🎥 Exclusive videos\n• ⌚ Wearable integration (WHOOP, Fitbit, Apple Health & Google Fit)",
+    upsell_consistency_offers:
+      "💰 *Offers*\n• 1 Month – Rs 799\n• ⭐ 6 Months – Pay for 5 Months (Rs 3,995)\n• 💎 12 Months – Pay for 10 Months (Rs 7,990)",
+    btn_upsell_1m: "1 Month",
+    btn_upsell_6m: "6 Months",
+    btn_upsell_12m: "12 Months",
+
+    // Plan confirmation card (§4)
+    upsell_confirm_1m:
+      "🟢 *1 Month Plan*\n💰 Rs 799\nOne month of Consistency Coach.",
+    upsell_confirm_6m:
+      "🟢 *6 Month Plan*\nPay for 5 months\n💰 Rs 3,995\nYou get 6 full months.",
+    upsell_confirm_12m:
+      "🟢 *12 Month Plan*\nPay for 10 months\n💰 Rs 7,990\nYou get 12 full months.",
+    btn_upsell_continue: "Continue",
+    btn_upsell_change_plan: "Change Plan",
+    btn_upsell_test_activate: "🧪 Test Activate (skip payment)",
+    test_activation_disabled:
+      "🧪 Test activation isn't enabled. Set TEST_ACTIVATION_ENABLED=true in .env to use this button.",
+
+    // Payment method (§5)
+    pay_method_title: "Choose a payment method:",
+    btn_pay_bank: "🏦 Bank",
+    btn_pay_jazzcash: "💳 JazzCash",
+
+    // Bank payment (§6)
+    pay_bank_title: "🏦 *Payment Details*",
+    pay_bank_body:
+      "*Bank:* Bank AL Habib\n*Account:* M/S. MEEBO TECHNOLOGIES\n*IBAN:* PK48BAHL1036098100995201\n*Amount:* Rs {amount}\n\n📸 After payment, send the screenshot or deposit slip here.",
+
+    // JazzCash payment (§7)
+    pay_jazzcash_title: "💳 *JazzCash Payment*",
+    pay_jazzcash_body:
+      "(JazzCash account details to be added later.)\n\n*Amount:* Rs {amount}\n\n📸 After payment, send the transaction screenshot here.",
+
+    btn_pay_ive_paid: "I've Paid",
+    btn_pay_cancel: "Cancel",
+
+    // Screenshot upload state (§8)
+    pay_awaiting_proof:
+      "📸 Please send the payment screenshot or deposit slip as a photo.",
+    pay_proof_not_image:
+      "That doesn't look like an image. Please send the payment screenshot as a photo.",
+    pay_proof_received:
+      "✅ Payment proof received.\nI'll review it and activate your subscription shortly.",
+    pay_cancelled: "Payment cancelled. You can restart from Upgrade anytime.",
+
+    // Admin notification (§9) — sent to Yasir Abbasi
+    admin_new_payment:
+      "🔔 *New payment submission*\n\n*User:* {name}\n*WhatsApp:* {whatsapp}\n*Plan:* {plan}\n*Amount:* Rs {amount}\n*Method:* {method}\n*Submitted:* {when}\n\nPayment #{id}",
+    admin_new_payment_caption: "Payment #{id} proof",
+    btn_admin_approve: "✅ Approve",
+    btn_admin_reject:  "❌ Reject",
+    btn_admin_better:  "🔄 Better Image",
+    admin_help:
+      "*Subscription admin commands*\n\n`/sub pending` — list submissions awaiting review\n`/sub approve <id>` — approve payment #id and activate the user\n`/sub reject <id> [reason]` — reject payment #id (optional reason)\n`/sub better <id>` — ask the user to send a clearer screenshot",
+    admin_pending_empty: "No pending payments.",
+    admin_pending_row:
+      "*Payment #{id}* — {name} (+{whatsapp})\n{plan} · Rs {amount} · {method} · {when}",
+    admin_action_not_found: "No payment with that id.",
+    admin_action_already_reviewed:
+      "Payment #{id} was already {status} on {when}. No action taken.",
+    admin_approved_ack:
+      "✅ Payment #{id} approved. {name} is now a Consistency Coach member until {expiry}.",
+    admin_rejected_ack: "❌ Payment #{id} rejected. User has been notified.",
+    admin_better_ack:
+      "🔄 Asked user to send a better screenshot for payment #{id}.",
+
+    // §11 Activation — sent to the user once admin approves
+    pay_activated:
+      "🎉 You're now a *Consistency Coach* member!\n\n*Valid Until:* {expiry}\n\nEnjoy your premium features! 💚",
+
+    // §12 Rejection + retry
+    pay_rejected:
+      "I couldn't verify your payment.\nPlease send another screenshot.",
+    pay_better_proof:
+      "The screenshot you sent isn't clear enough for us to verify. Could you send a clearer photo of the receipt or deposit slip?",
+    btn_pay_upload_again: "📸 Upload Again",
+
+    // §13 Renewal reminders
+    sub_reminder_7d: "⏳ Your subscription expires in 7 days.",
+    sub_reminder_1d: "🔔 Your subscription ends tomorrow.",
+    sub_reminder_today: "Your premium plan expires today.",
+    btn_sub_renew: "Renew",
+    btn_sub_later: "Later",
+
+    // §14 Automatic downgrade at expiry
+    sub_expired_downgrade:
+      "Your premium plan has ended.\nYou're now using the Free version.\nYour health data is still safe.",
+    btn_sub_main_menu: "Main Menu",
+
+    // ------------------------------------------------------------------
+    // Doctor Pro Addendum (§2–§7)
+    // ------------------------------------------------------------------
+    dp_title: "🩺 *Doctor Pro*",
+    dp_price: "*Price:* PKR 4,999/month",
+    dp_plan_label: "Doctor Pro",
+    dp_benefits:
+      "*Benefits:*\n• Unlimited patients\n• Unlimited referral usage\n• Advanced patient reports\n• Priority access to new features",
+    btn_dp_continue: "Continue",
+    btn_dp_month: "Doctor Pro",
+
+    // §4 — cap-reached prompt (sent to the doctor)
+    dp_cap_a_patient: "a patient",
+    dp_cap_reached:
+      "⚠️ *You've reached your free limit of 10 patients.*\n\n{patient} just tried to connect but couldn't be added.\n\nUpgrade to *Doctor Pro (PKR 4,999/month)* to continue adding new patients.",
+    btn_dp_upgrade: "Upgrade",
+    btn_dp_later: "Later",
+
+    // Patient-side message shown when the doctor they picked is full
+    dp_patient_cap_reached:
+      "Sorry — *{name}* isn't accepting new patients right now. Please try another referral code or check back later.",
+
+    // §7 — activation & expiry messages (doctor voice)
+    dp_activated:
+      "🎉 You're now a *Doctor Pro* member!\n\n*Valid Until:* {expiry}\n\nYour 10-patient limit is lifted — new referrals will be accepted. 💚",
+    dp_expired_downgrade:
+      "Your *Doctor Pro* subscription has ended.\nExisting patients remain connected, but new patients can't be added until you renew.\nYour data and reports are safe.",
+
     // My Account
     account_title: "👤 *My Account*",
     account_body:
@@ -2106,6 +2234,120 @@ const STR = {
       "سبسکرپشن مینجمنٹ جلد آ رہا ہے۔ ابھی کے لیے پلان تبدیل یا منسوخ کرنے کے لیے support@drsaabcoach.com پر رابطہ کریں۔",
     sub_billing_stub: "بلنگ ہسٹری جلد آ رہی ہے — تب تک ہم آپ کو انوائسز ای میل کرتے رہیں گے۔",
 
+    // Subscription Module — Upgrade flow
+    upsell_menu_title:
+      "🟢 *Consistency Coach*\nRs 799/ماہ\nذاتی نوعیت کی AI کوچنگ اور پریمیم فیچرز۔\n\n⭐ *Executive Coach*\nRs 7,999/ماہ\nپریمیم ون ٹو ون کوچنگ۔",
+    btn_upsell_consistency: "🟢 Consistency",
+    btn_upsell_executive: "⭐ Executive",
+    upsell_executive_unavailable:
+      "⭐ *Executive Coach* ابھی دستیاب نہیں ہے۔\nبراہِ کرم جلد دوبارہ چیک کریں۔",
+    upsell_consistency_title: "🟢 *Consistency Coach*",
+    upsell_consistency_features:
+      "*پریمیم فیچرز:*\n• 🤖 ایڈوانسڈ AI\n• 🧠 ذاتی رہنمائی\n• 🏋️ فٹنس پلانز\n• 🥗 میل پلانز\n• 🎥 خصوصی ویڈیوز\n• ⌚ ویئرایبل انٹیگریشن (WHOOP، Fitbit، Apple Health اور Google Fit)",
+    upsell_consistency_offers:
+      "💰 *آفرز*\n• 1 ماہ – Rs 799\n• ⭐ 6 ماہ – 5 ماہ کی ادائیگی (Rs 3,995)\n• 💎 12 ماہ – 10 ماہ کی ادائیگی (Rs 7,990)",
+    btn_upsell_1m: "1 ماہ",
+    btn_upsell_6m: "6 ماہ",
+    btn_upsell_12m: "12 ماہ",
+
+    upsell_confirm_1m:
+      "🟢 *1 ماہ کا پلان*\n💰 Rs 799\nConsistency Coach ایک ماہ۔",
+    upsell_confirm_6m:
+      "🟢 *6 ماہ کا پلان*\n5 ماہ کی ادائیگی\n💰 Rs 3,995\nآپ کو مکمل 6 ماہ ملتے ہیں۔",
+    upsell_confirm_12m:
+      "🟢 *12 ماہ کا پلان*\n10 ماہ کی ادائیگی\n💰 Rs 7,990\nآپ کو مکمل 12 ماہ ملتے ہیں۔",
+    btn_upsell_continue: "جاری رکھیں",
+    btn_upsell_change_plan: "پلان تبدیل کریں",
+    btn_upsell_test_activate: "🧪 ٹیسٹ ایکٹیویٹ (ادائیگی چھوڑیں)",
+    test_activation_disabled:
+      "🧪 ٹیسٹ ایکٹیویشن فعال نہیں ہے۔ اس بٹن کے استعمال کے لیے .env میں TEST_ACTIVATION_ENABLED=true رکھیں۔",
+
+    pay_method_title: "ادائیگی کا طریقہ منتخب کریں:",
+    btn_pay_bank: "🏦 بینک",
+    btn_pay_jazzcash: "💳 JazzCash",
+
+    pay_bank_title: "🏦 *ادائیگی کی تفصیلات*",
+    pay_bank_body:
+      "*بینک:* Bank AL Habib\n*اکاؤنٹ:* M/S. MEEBO TECHNOLOGIES\n*IBAN:* PK48BAHL1036098100995201\n*رقم:* Rs {amount}\n\n📸 ادائیگی کے بعد یہاں اسکرین شاٹ یا ڈپازٹ سلپ بھیجیں۔",
+
+    pay_jazzcash_title: "💳 *JazzCash ادائیگی*",
+    pay_jazzcash_body:
+      "(JazzCash اکاؤنٹ کی تفصیلات بعد میں شامل کی جائیں گی۔)\n\n*رقم:* Rs {amount}\n\n📸 ادائیگی کے بعد یہاں لین دین کا اسکرین شاٹ بھیجیں۔",
+
+    btn_pay_ive_paid: "میں نے ادا کر دی",
+    btn_pay_cancel: "منسوخ کریں",
+
+    pay_awaiting_proof:
+      "📸 براہِ کرم ادائیگی کا اسکرین شاٹ یا ڈپازٹ سلپ تصویر کے طور پر بھیجیں۔",
+    pay_proof_not_image:
+      "یہ تصویر نہیں لگ رہی۔ براہِ کرم ادائیگی کا اسکرین شاٹ تصویر کے طور پر بھیجیں۔",
+    pay_proof_received:
+      "✅ ادائیگی کا ثبوت وصول ہو گیا۔\nمیں جائزہ لے کر جلد آپ کی سبسکرپشن ایکٹیویٹ کر دوں گا۔",
+    pay_cancelled:
+      "ادائیگی منسوخ کر دی گئی۔ آپ کسی بھی وقت اپ گریڈ سے دوبارہ شروع کر سکتے ہیں۔",
+
+    admin_new_payment:
+      "🔔 *نئی ادائیگی موصول*\n\n*صارف:* {name}\n*WhatsApp:* {whatsapp}\n*پلان:* {plan}\n*رقم:* Rs {amount}\n*طریقہ:* {method}\n*جمع کرائی گئی:* {when}\n\nPayment #{id}",
+    admin_new_payment_caption: "Payment #{id} ثبوت",
+    btn_admin_approve: "✅ منظور",
+    btn_admin_reject:  "❌ مسترد",
+    btn_admin_better:  "🔄 بہتر تصویر",
+    admin_help:
+      "*سبسکرپشن ایڈمن کمانڈز*\n\n`/sub pending` — زیرِ جائزہ ادائیگیاں دیکھیں\n`/sub approve <id>` — ادائیگی #id منظور کریں اور صارف کو فعال کریں\n`/sub reject <id> [وجہ]` — ادائیگی #id مسترد کریں (اختیاری وجہ)\n`/sub better <id>` — صارف سے واضح اسکرین شاٹ مانگیں",
+    admin_pending_empty: "کوئی زیر التوا ادائیگی نہیں۔",
+    admin_pending_row:
+      "*Payment #{id}* — {name} (+{whatsapp})\n{plan} · Rs {amount} · {method} · {when}",
+    admin_action_not_found: "اس id کی ادائیگی نہیں ملی۔",
+    admin_action_already_reviewed:
+      "Payment #{id} پہلے ہی {status} کی جا چکی ({when})۔ کوئی کارروائی نہیں کی گئی۔",
+    admin_approved_ack:
+      "✅ Payment #{id} منظور۔ {name} اب {expiry} تک Consistency Coach ممبر ہیں۔",
+    admin_rejected_ack: "❌ Payment #{id} مسترد۔ صارف کو مطلع کر دیا گیا۔",
+    admin_better_ack:
+      "🔄 صارف سے Payment #{id} کے لیے بہتر اسکرین شاٹ مانگ لیا گیا۔",
+
+    pay_activated:
+      "🎉 آپ اب *Consistency Coach* ممبر ہیں!\n\n*معیاد ختم:* {expiry}\n\nاپنی پریمیم سہولیات سے لطف اٹھائیں! 💚",
+
+    pay_rejected:
+      "میں آپ کی ادائیگی کی تصدیق نہیں کر سکا۔\nبراہِ کرم دوبارہ اسکرین شاٹ بھیجیں۔",
+    pay_better_proof:
+      "بھیجا گیا اسکرین شاٹ ہمارے لیے واضح نہیں۔ کیا آپ رسید یا ڈپازٹ سلپ کی صاف تصویر بھیج سکتے ہیں؟",
+    btn_pay_upload_again: "📸 دوبارہ اپ لوڈ کریں",
+
+    sub_reminder_7d: "⏳ آپ کی سبسکرپشن 7 دن میں ختم ہو رہی ہے۔",
+    sub_reminder_1d: "🔔 آپ کی سبسکرپشن کل ختم ہو رہی ہے۔",
+    sub_reminder_today: "آپ کا پریمیم پلان آج ختم ہو رہا ہے۔",
+    btn_sub_renew: "تجدید کریں",
+    btn_sub_later: "بعد میں",
+
+    sub_expired_downgrade:
+      "آپ کا پریمیم پلان ختم ہو گیا ہے۔\nاب آپ Free ورژن استعمال کر رہے ہیں۔\nآپ کا صحت کا ڈیٹا محفوظ ہے۔",
+    btn_sub_main_menu: "مینو",
+
+    // Doctor Pro Addendum
+    dp_title: "🩺 *Doctor Pro*",
+    dp_price: "*قیمت:* PKR 4,999/ماہ",
+    dp_plan_label: "Doctor Pro",
+    dp_benefits:
+      "*فوائد:*\n• لامحدود مریض\n• لامحدود ریفرل\n• جدید پیشنٹ رپورٹس\n• نئی سہولیات تک ترجیحی رسائی",
+    btn_dp_continue: "جاری رکھیں",
+    btn_dp_month: "Doctor Pro",
+
+    dp_cap_a_patient: "ایک مریض",
+    dp_cap_reached:
+      "⚠️ *آپ 10 مریضوں کی مفت حد تک پہنچ چکے ہیں۔*\n\n{patient} نے ابھی جُڑنے کی کوشش کی لیکن شامل نہیں ہو سکے۔\n\nمزید مریض شامل کرنے کے لیے *Doctor Pro (PKR 4,999/ماہ)* پر اپ گریڈ کریں۔",
+    btn_dp_upgrade: "اپ گریڈ",
+    btn_dp_later: "بعد میں",
+
+    dp_patient_cap_reached:
+      "معذرت — *{name}* اِس وقت نئے مریض قبول نہیں کر رہے۔ کسی اور ریفرل کوڈ کے ساتھ کوشش کریں یا بعد میں دوبارہ چیک کریں۔",
+
+    dp_activated:
+      "🎉 آپ اب *Doctor Pro* ممبر ہیں!\n\n*معیاد ختم:* {expiry}\n\n10 مریضوں کی حد ختم — نئے ریفرل قبول ہوں گے۔ 💚",
+    dp_expired_downgrade:
+      "آپ کی *Doctor Pro* سبسکرپشن ختم ہو گئی ہے۔\nموجودہ مریض جُڑے رہیں گے، مگر تجدید تک نئے مریض شامل نہیں ہو سکتے۔\nآپ کا ڈیٹا اور رپورٹس محفوظ ہیں۔",
+
     account_title: "👤 *میرا اکاؤنٹ*",
     account_body:
       "*نام:* {name}\n*ای میل:* {email}\n*واٹس ایپ نمبر:* {whatsapp}\n*ممبر شپ کی تاریخ:* {joined}\n*ذیابیطس کی قسم:* {diabetes}",
@@ -3095,6 +3337,120 @@ const STR = {
     sub_manage_stub:
       "Subscription management jald aa raha hai. Abhi ke liye plan tabdeel ya cancel karne ke liye support@drsaabcoach.com par rabta karein.",
     sub_billing_stub: "Billing history jald aa rahi hai — tab tak hum aap ko invoices email karte rahenge.",
+
+    // Subscription Module — Upgrade flow
+    upsell_menu_title:
+      "🟢 *Consistency Coach*\nRs 799/mahina\nPersonalized AI coaching aur premium features.\n\n⭐ *Executive Coach*\nRs 7,999/mahina\nPremium one-to-one coaching.",
+    btn_upsell_consistency: "🟢 Consistency",
+    btn_upsell_executive: "⭐ Executive",
+    upsell_executive_unavailable:
+      "⭐ *Executive Coach* abhi available nahi hai.\nBaraaye meherbani jald wapas check karein.",
+    upsell_consistency_title: "🟢 *Consistency Coach*",
+    upsell_consistency_features:
+      "*Premium features:*\n• 🤖 Advanced AI\n• 🧠 Personalized guidance\n• 🏋️ Fitness plans\n• 🥗 Meal plans\n• 🎥 Exclusive videos\n• ⌚ Wearable integration (WHOOP, Fitbit, Apple Health & Google Fit)",
+    upsell_consistency_offers:
+      "💰 *Offers*\n• 1 Month – Rs 799\n• ⭐ 6 Months – Pay for 5 Months (Rs 3,995)\n• 💎 12 Months – Pay for 10 Months (Rs 7,990)",
+    btn_upsell_1m: "1 Month",
+    btn_upsell_6m: "6 Months",
+    btn_upsell_12m: "12 Months",
+
+    upsell_confirm_1m:
+      "🟢 *1 Month Plan*\n💰 Rs 799\nConsistency Coach ka aik mahina.",
+    upsell_confirm_6m:
+      "🟢 *6 Month Plan*\n5 mahine ki payment\n💰 Rs 3,995\nAap ko poore 6 mahine milte hain.",
+    upsell_confirm_12m:
+      "🟢 *12 Month Plan*\n10 mahine ki payment\n💰 Rs 7,990\nAap ko poore 12 mahine milte hain.",
+    btn_upsell_continue: "Continue",
+    btn_upsell_change_plan: "Plan tabdeel karein",
+    btn_upsell_test_activate: "🧪 Test Activate (payment skip karein)",
+    test_activation_disabled:
+      "🧪 Test activation enabled nahi hai. Is button ke liye .env mein TEST_ACTIVATION_ENABLED=true rakhein.",
+
+    pay_method_title: "Payment method chunein:",
+    btn_pay_bank: "🏦 Bank",
+    btn_pay_jazzcash: "💳 JazzCash",
+
+    pay_bank_title: "🏦 *Payment Details*",
+    pay_bank_body:
+      "*Bank:* Bank AL Habib\n*Account:* M/S. MEEBO TECHNOLOGIES\n*IBAN:* PK48BAHL1036098100995201\n*Amount:* Rs {amount}\n\n📸 Payment ke baad screenshot ya deposit slip yahan bhejein.",
+
+    pay_jazzcash_title: "💳 *JazzCash Payment*",
+    pay_jazzcash_body:
+      "(JazzCash account details baad mein add ki jayengi.)\n\n*Amount:* Rs {amount}\n\n📸 Payment ke baad transaction screenshot yahan bhejein.",
+
+    btn_pay_ive_paid: "Payment ho gayi",
+    btn_pay_cancel: "Cancel",
+
+    pay_awaiting_proof:
+      "📸 Baraaye meherbani payment ka screenshot ya deposit slip photo ki tarah bhejein.",
+    pay_proof_not_image:
+      "Yeh image nahi lag rahi. Baraaye meherbani payment screenshot photo ki tarah bhejein.",
+    pay_proof_received:
+      "✅ Payment proof mil gaya.\nMain review kar ke jald aap ki subscription activate kar doonga.",
+    pay_cancelled:
+      "Payment cancel kar di gayi. Aap kisi bhi waqt Upgrade se dobara shuru kar sakte hain.",
+
+    admin_new_payment:
+      "🔔 *Nayi payment submission*\n\n*User:* {name}\n*WhatsApp:* {whatsapp}\n*Plan:* {plan}\n*Amount:* Rs {amount}\n*Method:* {method}\n*Submitted:* {when}\n\nPayment #{id}",
+    admin_new_payment_caption: "Payment #{id} proof",
+    btn_admin_approve: "✅ Approve",
+    btn_admin_reject:  "❌ Reject",
+    btn_admin_better:  "🔄 Better Image",
+    admin_help:
+      "*Subscription admin commands*\n\n`/sub pending` — pending payments dekhein\n`/sub approve <id>` — payment #id approve karein aur user activate karein\n`/sub reject <id> [reason]` — payment #id reject karein (optional reason)\n`/sub better <id>` — user se behtar screenshot mangvain",
+    admin_pending_empty: "Koi pending payment nahi.",
+    admin_pending_row:
+      "*Payment #{id}* — {name} (+{whatsapp})\n{plan} · Rs {amount} · {method} · {when}",
+    admin_action_not_found: "Is id ki koi payment nahi mili.",
+    admin_action_already_reviewed:
+      "Payment #{id} pehle hi {status} ho chuki hai ({when}). Koi action nahi liya gaya.",
+    admin_approved_ack:
+      "✅ Payment #{id} approved. {name} ab {expiry} tak Consistency Coach member hain.",
+    admin_rejected_ack: "❌ Payment #{id} reject kar di. User ko batadiya gaya.",
+    admin_better_ack:
+      "🔄 User se Payment #{id} ke liye behtar screenshot mangvaya gaya.",
+
+    pay_activated:
+      "🎉 Aap ab *Consistency Coach* member hain!\n\n*Valid Until:* {expiry}\n\nApni premium features enjoy karein! 💚",
+
+    pay_rejected:
+      "Main aap ki payment verify nahi kar saka.\nBaraaye meherbani doosra screenshot bhejein.",
+    pay_better_proof:
+      "Bheja gaya screenshot verify karne ke liye clear nahi. Kya aap receipt ya deposit slip ki behtar photo bhej sakte hain?",
+    btn_pay_upload_again: "📸 Dobara Upload karein",
+
+    sub_reminder_7d: "⏳ Aap ki subscription 7 din mein khatam ho rahi hai.",
+    sub_reminder_1d: "🔔 Aap ki subscription kal khatam ho rahi hai.",
+    sub_reminder_today: "Aap ka premium plan aaj khatam ho raha hai.",
+    btn_sub_renew: "Renew",
+    btn_sub_later: "Baad mein",
+
+    sub_expired_downgrade:
+      "Aap ka premium plan khatam ho gaya hai.\nAb aap Free version use kar rahe hain.\nAap ka health data mehfooz hai.",
+    btn_sub_main_menu: "Menu",
+
+    // Doctor Pro Addendum
+    dp_title: "🩺 *Doctor Pro*",
+    dp_price: "*Price:* PKR 4,999/month",
+    dp_plan_label: "Doctor Pro",
+    dp_benefits:
+      "*Benefits:*\n• Unlimited patients\n• Unlimited referral usage\n• Advanced patient reports\n• Priority access to new features",
+    btn_dp_continue: "Continue",
+    btn_dp_month: "Doctor Pro",
+
+    dp_cap_a_patient: "ek patient",
+    dp_cap_reached:
+      "⚠️ *Aap 10 patients ki free limit tak pahunch chuke hain.*\n\n{patient} ne abhi connect karne ki koshish ki lekin add nahi ho sake.\n\nMazeed patients add karne ke liye *Doctor Pro (PKR 4,999/month)* par upgrade karein.",
+    btn_dp_upgrade: "Upgrade",
+    btn_dp_later: "Baad mein",
+
+    dp_patient_cap_reached:
+      "Sorry — *{name}* is waqt naye patients accept nahi kar rahe. Koi doosra referral code try karein ya baad mein check karein.",
+
+    dp_activated:
+      "🎉 Aap ab *Doctor Pro* member hain!\n\n*Valid Until:* {expiry}\n\n10-patient limit hat gayi — naye referrals accept honge. 💚",
+    dp_expired_downgrade:
+      "Aap ki *Doctor Pro* subscription khatam ho gayi hai.\nMaujooda patients connected rahenge, lekin renewal tak naye patients add nahi ho sakte.\nAap ka data aur reports mehfooz hain.",
 
     account_title: "👤 *Mera Account*",
     account_body:

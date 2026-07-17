@@ -785,6 +785,102 @@ export function subscriptionKeyboard(lang, user) {
   return stack(rows);
 }
 
+// ===================================================================
+// Subscription upgrade flow (MVP) — spec §2–§8. Callback prefix `sub:`.
+// Every screen below keeps a Back that returns to the parent within the
+// flow, matching the spec's navigation.
+// ===================================================================
+
+// §2 — Upgrade menu (Consistency / Executive / Back).
+export function upsellMenuKeyboard(lang) {
+  return stack([
+    { text: t(lang, "btn_upsell_consistency"), callback_data: "sub:pick:consistency" },
+    { text: t(lang, "btn_upsell_executive"),   callback_data: "sub:pick:executive" },
+    { text: t(lang, "btn_back"),               callback_data: "feat:subscription" },
+  ]);
+}
+
+// §2b — Executive placeholder (Consistency / Back).
+export function upsellExecUnavailableKeyboard(lang) {
+  return stack([
+    { text: t(lang, "btn_upsell_consistency"), callback_data: "sub:pick:consistency" },
+    { text: t(lang, "btn_back"),               callback_data: "sub:upgrade" },
+  ]);
+}
+
+// §3 — Consistency offers (1M / 6M / 12M / Back).
+export function upsellOffersKeyboard(lang) {
+  return stack([
+    { text: t(lang, "btn_upsell_1m"),  callback_data: "sub:plan:1m" },
+    { text: t(lang, "btn_upsell_6m"),  callback_data: "sub:plan:6m" },
+    { text: t(lang, "btn_upsell_12m"), callback_data: "sub:plan:12m" },
+    { text: t(lang, "btn_back"),       callback_data: "sub:upgrade" },
+  ]);
+}
+
+// §4 — Plan confirmation (Continue / Change Plan / Back). The extra
+// "🧪 Test Activate" row is a QA affordance that skips payment collection
+// and hits the same activation code path an admin approval would. Hide it
+// in production by setting TEST_ACTIVATION_ENABLED=false.
+export function upsellConfirmKeyboard(lang, { showTest = false } = {}) {
+  const rows = [
+    { text: t(lang, "btn_upsell_continue"),    callback_data: "sub:continue" },
+    { text: t(lang, "btn_upsell_change_plan"), callback_data: "sub:pick:consistency" },
+    { text: t(lang, "btn_back"),               callback_data: "sub:pick:consistency" },
+  ];
+  if (showTest) {
+    rows.splice(1, 0, { text: t(lang, "btn_upsell_test_activate"), callback_data: "sub:test" });
+  }
+  return stack(rows);
+}
+
+// §5 — Payment method picker (Bank / JazzCash / Back).
+export function payMethodKeyboard(lang) {
+  return stack([
+    { text: t(lang, "btn_pay_bank"),     callback_data: "sub:pay:bank" },
+    { text: t(lang, "btn_pay_jazzcash"), callback_data: "sub:pay:jazzcash" },
+    { text: t(lang, "btn_back"),         callback_data: "sub:continue" },
+  ]);
+}
+
+// §6 / §7 — Bank / JazzCash payment card (I've Paid / Cancel).
+export function payProofKeyboard(lang) {
+  return stack([
+    { text: t(lang, "btn_pay_ive_paid"), callback_data: "sub:paid" },
+    { text: t(lang, "btn_pay_cancel"),   callback_data: "sub:cancel" },
+  ]);
+}
+
+// ===================================================================
+// Doctor Pro Addendum (§4 §5) — same callback prefix `sub:`.
+// ===================================================================
+
+// §5 — Doctor Pro benefits card. Continue jumps straight to the payment
+// method picker (no per-plan confirmation card — there's only one price).
+// The extra "🧪 Test Activate" row skips payment for QA and mirrors the
+// upsellConfirmKeyboard affordance; hide it via TEST_ACTIVATION_ENABLED=false.
+export function doctorProBenefitsKeyboard(lang, { showTest = false } = {}) {
+  const rows = [
+    { text: t(lang, "btn_dp_continue"), callback_data: "sub:continue" },
+    { text: t(lang, "btn_back"),        callback_data: "feat:subscription" },
+  ];
+  if (showTest) {
+    rows.splice(1, 0, { text: t(lang, "btn_upsell_test_activate"), callback_data: "sub:test" });
+  }
+  return stack(rows);
+}
+
+// §4 — cap-reached prompt shown to the doctor when a patient tried to
+// link while the doctor was at 10 active patients.
+export function doctorProCapKeyboard(lang) {
+  return {
+    inline_keyboard: [[
+      { text: t(lang, "btn_dp_upgrade"), callback_data: "sub:pick:doctor_pro" },
+      { text: t(lang, "btn_dp_later"),   callback_data: "sub:later" },
+    ]],
+  };
+}
+
 export function accountKeyboard(lang) {
   return stack([
     { text: t(lang, "btn_account_edit"), callback_data: "acct:edit" },

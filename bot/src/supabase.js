@@ -34,6 +34,11 @@ async function makeSupabaseBackend() {
       if (error) throw error;
       return data;
     },
+    async getUserById(userId) {
+      const { data, error } = await db.from("users").select("*").eq("id", userId).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
     async createUser(telegramId, source = "telegram") {
       const { data, error } = await db
         .from("users")
@@ -747,6 +752,58 @@ async function makeSupabaseBackend() {
       if (pe) throw pe;
       return patients || [];
     },
+
+    // ===== Subscription Module (MVP §8) =====
+    // Insert a pending payment submission and return the row (with the auto id
+    // the admin panel will reference). Called immediately after the user sends
+    // their proof screenshot, so any DB failure surfaces before we tell them
+    // the submission was received.
+    async createSubscriptionPayment(fields) {
+      const { data, error } = await db
+        .from("subscription_payments")
+        .insert(fields)
+        .select("*")
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    async getSubscriptionPayment(id) {
+      const { data, error } = await db
+        .from("subscription_payments")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    async updateSubscriptionPayment(id, patch) {
+      const { data, error } = await db
+        .from("subscription_payments")
+        .update(patch)
+        .eq("id", id)
+        .select("*")
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    async listPendingSubscriptionPayments(limit = 25) {
+      const { data, error } = await db
+        .from("subscription_payments")
+        .select("*")
+        .in("payment_status", ["proof_submitted", "pending_review", "better_proof_requested"])
+        .order("submitted_at", { ascending: true })
+        .limit(limit);
+      if (error) throw error;
+      return data || [];
+    },
+    async listUsersBySubStatus(statuses) {
+      const { data, error } = await db
+        .from("users")
+        .select("*")
+        .in("sub_status", statuses);
+      if (error) throw error;
+      return data || [];
+    },
   };
 }
 
@@ -793,6 +850,10 @@ async function makePostgresBackend() {
     },
     async getUserByPhoneNumber(phone) {
       const { rows } = await pool.query("select * from users where phone_number = $1", [phone]);
+      return rows[0] || null;
+    },
+    async getUserById(userId) {
+      const { rows } = await pool.query("select * from users where id = $1", [userId]);
       return rows[0] || null;
     },
     async createUser(telegramId, source = "telegram") {
@@ -1847,6 +1908,51 @@ async function makePostgresBackend() {
       );
       return rows;
     },
+
+    // ===== Subscription Module (MVP §8) =====
+    async createSubscriptionPayment(fields) {
+      const keys = Object.keys(fields);
+      const cols = keys.join(", ");
+      const ph = keys.map((_, i) => `$${i + 1}`).join(", ");
+      const { rows } = await pool.query(
+        `insert into subscription_payments (${cols}) values (${ph}) returning *`,
+        Object.values(fields)
+      );
+      return rows[0];
+    },
+    async getSubscriptionPayment(id) {
+      const { rows } = await pool.query(
+        `select * from subscription_payments where id = $1`, [id]
+      );
+      return rows[0] || null;
+    },
+    async updateSubscriptionPayment(id, patch) {
+      const keys = Object.keys(patch);
+      const set = keys.map((k, i) => `${k} = $${i + 1}`).join(", ");
+      const vals = keys.map((k) => patch[k]);
+      const { rows } = await pool.query(
+        `update subscription_payments set ${set} where id = $${vals.length + 1} returning *`,
+        [...vals, id]
+      );
+      return rows[0];
+    },
+    async listPendingSubscriptionPayments(limit = 25) {
+      const { rows } = await pool.query(
+        `select * from subscription_payments
+         where payment_status in ('proof_submitted','pending_review','better_proof_requested')
+         order by submitted_at asc
+         limit $1`, [limit]
+      );
+      return rows;
+    },
+    async listUsersBySubStatus(statuses) {
+      if (!statuses?.length) return [];
+      const ph = statuses.map((_, i) => `$${i + 1}`).join(", ");
+      const { rows } = await pool.query(
+        `select * from users where sub_status in (${ph})`, statuses
+      );
+      return rows;
+    },
   };
 }
 
@@ -1873,6 +1979,7 @@ function makeMemoryBackend() {
   const lifestyle = new Map();
   const healthGoals = [];
   const doctorsById = new Map();
+  const subPayments = [];
   let condSeq = 1;
   let metricSeq = 1;
   let hgSeq = 1;
@@ -1882,6 +1989,7 @@ function makeMemoryBackend() {
   let doctorSeq = 1;
   let remSeq = 1;
   let goalSeq = 1;
+  let subPaySeq = 1;
 
   const blankUser = (overrides) => ({
     id: "u" + seq++,
@@ -1913,6 +2021,9 @@ function makeMemoryBackend() {
     async getUserByPhoneNumber(phone) {
       const id = usersByPhone.get(phone);
       return id ? usersById.get(id) : null;
+    },
+    async getUserById(userId) {
+      return usersById.get(userId) || null;
     },
     async createUser(telegramId, source = "telegram") {
       const user = blankUser({ telegram_id: telegramId, source });
@@ -2376,6 +2487,37 @@ function makeMemoryBackend() {
       }
       return out;
     },
+
+    // ===== Subscription Module (MVP §8) =====
+    async createSubscriptionPayment(fields) {
+      const row = {
+        id: subPaySeq++,
+        payment_status: "proof_submitted",
+        submitted_at: nowISO(),
+        ...fields,
+      };
+      subPayments.push(row);
+      return row;
+    },
+    async getSubscriptionPayment(id) {
+      return subPayments.find((r) => r.id === Number(id)) || null;
+    },
+    async updateSubscriptionPayment(id, patch) {
+      const row = subPayments.find((r) => r.id === Number(id));
+      if (!row) return null;
+      Object.assign(row, patch);
+      return row;
+    },
+    async listPendingSubscriptionPayments(limit = 25) {
+      return subPayments
+        .filter((r) => ["proof_submitted","pending_review","better_proof_requested"].includes(r.payment_status))
+        .sort((a, b) => new Date(a.submitted_at) - new Date(b.submitted_at))
+        .slice(0, limit);
+    },
+    async listUsersBySubStatus(statuses) {
+      const set = new Set(statuses);
+      return [...usersById.values()].filter((u) => set.has(u.sub_status));
+    },
   };
 }
 
@@ -2422,6 +2564,7 @@ console.log(`   Store: ${storeName}`);
 
 export const getUserByTelegramId = (tg) => backend.getUserByTelegramId(tg);
 export const getUserByPhoneNumber = (phone) => backend.getUserByPhoneNumber(phone);
+export const getUserById = (id) => backend.getUserById(id);
 export const createUser = (tg, source) => backend.createUser(tg, source);
 export const updateUser = (id, patch) => backend.updateUser(id, patch);
 export const deleteUser = (id) => backend.deleteUser(id);
@@ -2690,3 +2833,14 @@ export const createDoctor = (fields) => backend.createDoctor(fields);
 export const updateDoctor = (doctorId, patch) => backend.updateDoctor(doctorId, patch);
 export const doctorReferralCodeExists = (code) => backend.doctorReferralCodeExists(code);
 export const doctorPatientStats = (doctorId) => backend.doctorPatientStats(doctorId);
+
+// --- Subscription Module (MVP §2–§14) ---
+export const createSubscriptionPayment = (fields) => backend.createSubscriptionPayment(fields);
+export const getSubscriptionPayment = (id) =>
+  backend.getSubscriptionPayment ? backend.getSubscriptionPayment(id) : Promise.resolve(null);
+export const updateSubscriptionPayment = (id, patch) =>
+  backend.updateSubscriptionPayment ? backend.updateSubscriptionPayment(id, patch) : Promise.resolve(null);
+export const listPendingSubscriptionPayments = (limit) =>
+  backend.listPendingSubscriptionPayments ? backend.listPendingSubscriptionPayments(limit) : Promise.resolve([]);
+export const listUsersBySubStatus = (statuses) =>
+  backend.listUsersBySubStatus ? backend.listUsersBySubStatus(statuses) : Promise.resolve([]);

@@ -118,6 +118,12 @@ import {
   showCloseConfirm,
   doClose,
 } from "./flows/account.js";
+import {
+  subscriptionCallback,
+  subscriptionText,
+  adminSubscriptionCommand,
+  isAdminChat,
+} from "./flows/subscription.js";
 
 // Display name for a tier slug (handles legacy slugs).
 function planName(lang, tier) {
@@ -588,6 +594,12 @@ export async function handleMessage(bot, msg) {
     return showSubscription(bot, chatId, session);
   }
 
+  // Subscription admin commands (spec §10). Only the configured admin phone
+  // number can invoke `/sub …` and manage pending payments.
+  if (cmd === "/sub" && isAdminChat(chatId)) {
+    return adminSubscriptionCommand(bot, chatId, session, text);
+  }
+
   // Universal shortcut / smart-alias router (spec 2026-07).
   //
   // Layered routing per §5:
@@ -744,6 +756,10 @@ export async function handleMessage(bot, msg) {
       return chalHba1cText(bot, chatId, session, text, msg);
     case "profileq":
       return profileqText(bot, chatId, session, text);
+    case "sub_await_proof":
+      // Subscription Module (spec §8) — the user is uploading their payment
+      // screenshot. Any incoming photo/image message is captured here.
+      return subscriptionText(bot, chatId, session, text, msg);
     case "prediabetes":
       return prediabetesText(bot, chatId, session, text);
     case "betterme":
@@ -951,13 +967,7 @@ export async function handleCallback(bot, query) {
   // My Subscription actions
   if (data.startsWith("sub:")) {
     const x = data.split(":")[1];
-    if (x === "upgrade") {
-      const lang = langOf(session);
-      return send(bot, chatId, t(lang, "upgrade_intro", { plan: planName(lang, session.user.tier) }), {
-        keyboard: backKeyboard(lang, "feat:subscription"),
-        markdown: true,
-      });
-    }
+    // Manage / Billing stubs stay — they're not part of the Upgrade module.
     if (x === "manage") {
       const lang = langOf(session);
       return send(bot, chatId, t(lang, "sub_manage_stub"), {
@@ -972,6 +982,9 @@ export async function handleCallback(bot, query) {
         markdown: true,
       });
     }
+    // Everything else in the `sub:` namespace belongs to the Subscription
+    // Module (spec §2–§14) — upgrade menu, plan pick, pay method, proof.
+    return subscriptionCallback(bot, chatId, session, data);
   }
 
   // Reminder category preference toggle (More → Reminders)

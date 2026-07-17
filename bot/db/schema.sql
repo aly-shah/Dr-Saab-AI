@@ -1105,3 +1105,51 @@ from (values
 where not exists (
   select 1 from public.challenge_definitions where challenge_code = v.challenge_code
 );
+
+-- ============================================================
+-- Subscription Module (MVP) — added 2026-07
+-- Manual payment approval flow: user picks plan → submits proof → admin
+-- approves in the panel → tier flips to 'consistency' with an expiry date.
+-- ============================================================
+
+-- Denormalised subscription state on the user row. `tier` (above) is still
+-- the source of truth for feature gating; these columns track the payment
+-- lifecycle around it (pending review, expiring soon, etc.).
+alter table public.users add column if not exists sub_status text default 'free';
+  -- 'free' | 'awaiting_payment_proof' | 'pending_approval' | 'active'
+  -- | 'expiring_soon' | 'expired' | 'payment_rejected'
+alter table public.users add column if not exists sub_plan_code    text;
+  -- 'consistency_1m' | 'consistency_6m' | 'consistency_12m'
+alter table public.users add column if not exists sub_activated_at timestamptz;
+alter table public.users add column if not exists sub_expires_at   timestamptz;
+-- Renewal-reminder dedupe (spec §13): the last reminder tag we sent so a
+-- 15-minute scheduler tick doesn't re-fire the same one all day.
+alter table public.users add column if not exists sub_last_reminder text;
+  -- 'reminder_7d' | 'reminder_1d' | 'reminder_today'
+
+-- One row per payment submission attempt. History is preserved even after
+-- approval/rejection so the admin panel can show a user's payment timeline.
+create table if not exists public.subscription_payments (
+  id                bigint generated always as identity primary key,
+  user_id           uuid references public.users(id) on delete cascade,
+  plan_code         text not null,             -- consistency_1m | consistency_6m | consistency_12m
+  plan_label        text,                      -- '1 Month' / '6 Months' / '12 Months' (for display)
+  months            int  not null,             -- 1 | 6 | 12
+  amount_pkr        int  not null,             -- 799 | 3995 | 7990
+  method            text not null,             -- 'bank' | 'jazzcash'
+  payment_status    text default 'proof_submitted',
+    -- 'awaiting_proof' | 'proof_submitted' | 'pending_review'
+    -- | 'approved' | 'rejected' | 'better_proof_requested'
+  proof_image_url   text,                      -- data: URL for MVP; upgrade to Supabase Storage later
+  proof_image_mime  text,
+  submitted_at      timestamptz default now(),
+  reviewed_at       timestamptz,
+  reviewed_by       text,                      -- admin identifier (email / user id)
+  reject_reason     text,
+  activation_at     timestamptz,
+  expiry_at         timestamptz
+);
+create index if not exists subscription_payments_user_idx
+  on public.subscription_payments(user_id, submitted_at desc);
+create index if not exists subscription_payments_status_idx
+  on public.subscription_payments(payment_status, submitted_at desc);
