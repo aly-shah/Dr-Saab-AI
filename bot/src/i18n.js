@@ -38,6 +38,7 @@ const STR = {
     btn_menu: "📋 Menu",
     btn_back: "⬅️ Back to Menu",
     btn_skip: "Skip ⏭",
+    btn_admin_skip: "🧪 Skip (admin)",
     // gender / status
     g_male: "Male",
     g_female: "Female",
@@ -1659,6 +1660,7 @@ const STR = {
     btn_menu: "📋 مینو",
     btn_back: "⬅️ مینو پر واپس",
     btn_skip: "چھوڑیں ⏭",
+    btn_admin_skip: "🧪 چھوڑیں (ایڈمن)",
     g_male: "مرد",
     g_female: "عورت",
     g_other: "دیگر",
@@ -2775,6 +2777,7 @@ const STR = {
     btn_menu: "📋 Menu",
     btn_back: "⬅️ Menu par wapas",
     btn_skip: "Chhorein ⏭",
+    btn_admin_skip: "🧪 Skip (admin)",
     g_male: "Mard",
     g_female: "Aurat",
     g_other: "Deegar",

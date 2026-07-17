@@ -18,6 +18,7 @@ import {
   doctorMenuKeyboard,
   docYesNoKeyboard,
   userTypeKeyboard,
+  adminSkipKeyboard,
 } from "../keyboards.js";
 import {
   updateUser,
@@ -60,19 +61,23 @@ export async function startDoctorOnboarding(bot, chatId, session) {
   session.step = "specialty";
   if (!session.data) session.data = {};
   session.data.user_type = "doctor";
-  return send(bot, chatId, t(lang, "doc_ask_specialty"), { markdown: true });
+  return promptStep(bot, chatId, session);
 }
 
-// Restart-safe re-prompt for the current step.
+// Restart-safe re-prompt for the current step. Admins see a 🧪 Skip button
+// on the text-input steps (specialty / location / email) so QA runs don't
+// need three real-looking answers each time. patient_use always requires
+// a choice — that branch decides whether we also run patient onboarding.
 async function promptStep(bot, chatId, session) {
   const lang = langOf(session);
+  const skipKb = adminSkipKeyboard(lang, session.user);
   switch (session.step) {
     case "specialty":
-      return send(bot, chatId, t(lang, "doc_ask_specialty"), { markdown: true });
+      return send(bot, chatId, t(lang, "doc_ask_specialty"), { keyboard: skipKb, markdown: true });
     case "location":
-      return send(bot, chatId, t(lang, "doc_ask_location"), { markdown: true });
+      return send(bot, chatId, t(lang, "doc_ask_location"), { keyboard: skipKb, markdown: true });
     case "email":
-      return send(bot, chatId, t(lang, "doc_ask_email"), { markdown: true });
+      return send(bot, chatId, t(lang, "doc_ask_email"), { keyboard: skipKb, markdown: true });
     case "patient_use":
       return send(bot, chatId, t(lang, "doc_ask_patient_use"), {
         keyboard: docYesNoKeyboard(lang),
@@ -125,6 +130,26 @@ export async function doctorOnboardingText(bot, chatId, session, text) {
 }
 
 export async function doctorOnboardingCallback(bot, chatId, session, data) {
+  // Admin skip on text steps — leave the field null and advance.
+  if (data === "admin:skip") {
+    if (session.step === "specialty") {
+      session.data.specialization = null;
+      session.step = "location";
+      return promptStep(bot, chatId, session);
+    }
+    if (session.step === "location") {
+      session.data.practice_location = null;
+      session.step = "email";
+      return promptStep(bot, chatId, session);
+    }
+    if (session.step === "email") {
+      session.data.email = null;
+      session.step = "patient_use";
+      return promptStep(bot, chatId, session);
+    }
+    return; // patient_use isn't skippable
+  }
+
   // Only patient_use answers come through here — all earlier steps are typed.
   if (session.step !== "patient_use") return;
   const parts = data.split(":");

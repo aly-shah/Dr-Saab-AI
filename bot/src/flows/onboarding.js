@@ -1,6 +1,6 @@
 import { t } from "../i18n.js";
 import { send, sanitizeMd, langOf } from "../utils.js";
-import { userTypeKeyboard, mainMenuKeyboardV2, diabetesTypeKeyboard } from "../keyboards.js";
+import { userTypeKeyboard, mainMenuKeyboardV2, diabetesTypeKeyboard, adminSkipKeyboard } from "../keyboards.js";
 import { sendWelcomeWithLangPicker } from "../welcome.js";
 import { updateUser } from "../supabase.js";
 import { refreshKB } from "../kb.js";
@@ -115,16 +115,21 @@ function nextStep(step) {
   }
 }
 
-// Prompt for the current step.
+// Prompt for the current step. `adminSkipKeyboard` is added to text-input
+// steps (name, dob) so admins can breeze through onboarding without typing.
+// It returns undefined for real users, so the prompt renders unchanged.
 async function promptStep(bot, chatId, session) {
   const lang = langOf(session);
   const s = session.step;
+  const skipKb = adminSkipKeyboard(lang, session.user);
   switch (s) {
     case "name":
-      return send(bot, chatId, t(lang, "ask_name_v2"), { markdown: true });
+      return send(bot, chatId, t(lang, "ask_name_v2"), { keyboard: skipKb, markdown: true });
     case "dob":
-      return send(bot, chatId, t(lang, "ask_age_v2"), { markdown: true });
+      return send(bot, chatId, t(lang, "ask_age_v2"), { keyboard: skipKb, markdown: true });
     case "user_type":
+      // user_type is routing-critical (patient vs doctor vs prediabetes …) —
+      // never skippable, even for admins.
       return send(bot, chatId, t(lang, "ask_user_type"), {
         keyboard: userTypeKeyboard(lang),
         markdown: true,
@@ -245,6 +250,15 @@ export async function onboardingText(bot, chatId, session, text) {
 // Handle inline-button answers during onboarding.
 export async function onboardingCallback(bot, chatId, session, data) {
   const [kind, value] = data.split(":");
+
+  // Admin "🧪 Skip (admin)" — leave the current step's answer null and jump
+  // to the next step. Only fires on skippable text-input steps (the button
+  // isn't rendered elsewhere).
+  if (data === "admin:skip") {
+    if (session.step === "name") session.data.name = null;
+    if (session.step === "dob") session.data.date_of_birth = null;
+    return advance(bot, chatId, session);
+  }
 
   // Language picker — at "welcome" step (after the welcome banner). Jumps to
   // the name prompt; date of birth and user_type follow.

@@ -55,6 +55,18 @@ export function skipKeyboard(lang) {
   return { inline_keyboard: [[{ text: t(lang, "btn_skip"), callback_data: "skip" }]] };
 }
 
+// Skip keyboard that only renders for admins — used to speed up QA runs
+// through text-input onboarding fields. Returns undefined for non-admins
+// so send() renders the prompt with no keyboard at all (unchanged UX for
+// real users). The callback_data is namespaced to avoid clashing with
+// the plain `skip` used elsewhere in the codebase.
+export function adminSkipKeyboard(lang, user) {
+  if (!user?.is_admin) return undefined;
+  return {
+    inline_keyboard: [[{ text: t(lang, "btn_admin_skip"), callback_data: "admin:skip" }]],
+  };
+}
+
 export function mainMenuKeyboard(lang) {
   const b = (key, action) => ({ text: t(lang, key), callback_data: `feat:${action}` });
   // Single layout for everyone; paid/executive-only features gate on tap with
