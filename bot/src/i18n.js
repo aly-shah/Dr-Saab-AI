@@ -167,6 +167,7 @@ const STR = {
     btn_doc_switch_doctor: "🩺 Switch to Doctor Menu",
     btn_doc_test_dp: "🧪 Test DP Cap Flow",
     dp_test_patient_name: "Test Patient",
+    btn_doc_upgrade_dp: "⭐ Upgrade to Doctor Pro",
 
     // Referral code screen
     doc_referral_title: "🔑 *Your Referral Code*",
@@ -1764,6 +1765,7 @@ const STR = {
     btn_doc_switch_doctor: "🩺 ڈاکٹر مینو پر جائیں",
     btn_doc_test_dp: "🧪 DP Cap ٹیسٹ",
     dp_test_patient_name: "ٹیسٹ مریض",
+    btn_doc_upgrade_dp: "⭐ Doctor Pro پر اپ گریڈ",
 
     doc_referral_title: "🔑 *آپ کا ریفرل کوڈ*",
     doc_referral_body: "یہ کوڈ اپنے مریضوں کو دیں تاکہ وہ اپنی DrSaab پروفائل آپ کی پریکٹس سے منسلک کر سکیں:\n\n*{code}*\n\nیہ کوڈ مستقل ہے — یہاں ہمیشہ یہی نظر آئے گا۔",
@@ -2879,6 +2881,7 @@ const STR = {
     btn_doc_switch_doctor: "🩺 Switch to Doctor Menu",
     btn_doc_test_dp: "🧪 Test DP Cap Flow",
     dp_test_patient_name: "Test Patient",
+    btn_doc_upgrade_dp: "⭐ Doctor Pro par Upgrade",
 
     doc_referral_title: "🔑 *Aap ka Referral Code*",
     doc_referral_body: "Ye code apne patients ke saath share karein taake wo apni DrSaab profile aap ki practice se link kar sakein:\n\n*{code}*\n\nYe code permanent hai — yahan hamesha yehi nazar aayega.",

@@ -349,12 +349,20 @@ export async function subscriptionCallback(bot, chatId, session, data) {
       return beginProofCapture(bot, chatId, session);
     case "renew":
       return startUpgrade(bot, chatId, session);
-    case "later":
-      // No-op ack, just drop back to the subscription screen.
+    case "later": {
+      // Dismiss the upsell/cap prompt and land the user back where they
+      // came from. Doctors return to the doctor menu (the DP cap prompt
+      // is doctor-facing); everyone else returns to the subscription
+      // screen. Lazy import avoids a cycle with flows/doctor.js.
+      if (session.user?.user_type === "doctor" && !session.patientMode) {
+        const { showDoctorMenu } = await import("./doctor.js");
+        return showDoctorMenu(bot, chatId, session);
+      }
       return send(bot, chatId, t(langOf(session), "pay_cancelled"), {
         keyboard: backKeyboard(langOf(session), "feat:subscription"),
         markdown: true,
       });
+    }
     default:
       // Unknown sub action — fall back to the upgrade landing screen.
       return startUpgrade(bot, chatId, session);

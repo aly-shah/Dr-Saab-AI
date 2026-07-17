@@ -44,10 +44,26 @@ export async function showDoctorMenu(bot, chatId, session) {
   session.patientMode = false;
   const lang = langOf(session);
   const name = sanitizeMd(session.user.name || "");
+  const atCap = await isDoctorAtFreeCap(session.user).catch(() => false);
   return send(bot, chatId, t(lang, "doc_menu_title", { name }), {
-    keyboard: doctorMenuKeyboard(lang, session.user, { showTest: isTestModeFor(session.user) }),
+    keyboard: doctorMenuKeyboard(lang, session.user, {
+      showTest: isTestModeFor(session.user),
+      atCap,
+    }),
     markdown: true,
   });
+}
+
+// True when this doctor is on the free plan and has already hit the
+// 10-patient limit. Used by showDoctorMenu to surface the persistent
+// "Upgrade to Doctor Pro" button. Doctor Pro subscribers never see it.
+async function isDoctorAtFreeCap(doctorUser) {
+  if (!doctorUser || doctorUser.user_type !== "doctor") return false;
+  if (isDoctorPro(doctorUser)) return false;
+  const doc = await getDoctorByUserId(doctorUser.id).catch(() => null);
+  if (!doc?.id) return false;
+  const patients = await doctorPatientStats(doc.id).catch(() => []);
+  return patients.length >= DOCTOR_FREE_PATIENT_CAP;
 }
 
 // Flip the doctor into patient mode and land them on the patient main menu.

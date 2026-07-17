@@ -600,21 +600,26 @@ export function mainMenuKeyboardV2(lang, user) {
 // ===================================================================
 // Doctor & Referral module (v1.0)
 // ===================================================================
-export function doctorMenuKeyboard(lang, user, { showTest = false } = {}) {
+export function doctorMenuKeyboard(lang, user, { showTest = false, atCap = false } = {}) {
   const b = (key, action) => ({ text: t(lang, key), callback_data: `doc:${action}` });
   const rows = [
     b("btn_doc_reports",  "reports"),
     b("btn_doc_referral", "referral"),
     b("btn_doc_myhealth", "myhealth"),
   ];
+  // Persistent Doctor Pro upgrade shortcut — surfaces on the main menu
+  // once the free doctor is at the 10-patient cap and not already on DP.
+  // Routes into the same doctor-pro pick as the cap-reached prompt.
+  if (atCap) {
+    rows.push({ text: t(lang, "btn_doc_upgrade_dp"), callback_data: "sub:pick:doctor_pro" });
+  }
   // Dual-use doctors (Yes to personal-health, or later opted in via My Health)
   // get a bottom button to jump into their patient menu.
   if (user?.diabetes_status) {
     rows.push(b("btn_doc_switch_patient", "switch_patient"));
   }
   // QA affordance: simulate the "10-patient cap reached" notification a
-  // real 11th-patient link attempt would send. Hidden when
-  // TEST_ACTIVATION_ENABLED=false.
+  // real 11th-patient link attempt would send. Only visible for admins.
   if (showTest) {
     rows.push(b("btn_doc_test_dp", "test_dp"));
   }
