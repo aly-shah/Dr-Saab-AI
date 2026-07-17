@@ -879,17 +879,18 @@ export function payProofKeyboard(lang) {
 // Doctor Pro Addendum (§4 §5) — same callback prefix `sub:`.
 // ===================================================================
 
-// §5 — Doctor Pro benefits card. Continue jumps straight to the payment
-// method picker (no per-plan confirmation card — there's only one price).
-// The extra "🧪 Test Activate" row skips payment for QA and mirrors the
-// upsellConfirmKeyboard affordance; hide it via TEST_ACTIVATION_ENABLED=false.
+// §5 — Doctor Pro benefits card. Payment method buttons are inlined here
+// (no separate Continue step) so a doctor at cap can go menu → upgrade →
+// pick payment method in two taps. The 🧪 Test Activate row is admin-only
+// and skips payment entirely.
 export function doctorProBenefitsKeyboard(lang, { showTest = false } = {}) {
   const rows = [
-    { text: t(lang, "btn_dp_continue"), callback_data: "sub:continue" },
-    { text: t(lang, "btn_back"),        callback_data: "feat:subscription" },
+    { text: t(lang, "btn_pay_bank"),     callback_data: "sub:pay:bank" },
+    { text: t(lang, "btn_pay_jazzcash"), callback_data: "sub:pay:jazzcash" },
+    { text: t(lang, "btn_back"),         callback_data: "feat:subscription" },
   ];
   if (showTest) {
-    rows.splice(1, 0, { text: t(lang, "btn_upsell_test_activate"), callback_data: "sub:test" });
+    rows.splice(2, 0, { text: t(lang, "btn_upsell_test_activate"), callback_data: "sub:test" });
   }
   return stack(rows);
 }

@@ -94,7 +94,9 @@ export async function startUpgrade(bot, chatId, session) {
   });
 }
 
-// Doctor Pro benefits card (Addendum §5). Continue → payment method.
+// Doctor Pro benefits card (Addendum §5). Payment methods sit inline on
+// the keyboard so a doctor can go from cap → upgrade → pick method in
+// two taps, with the benefits + price visible right above the buttons.
 async function showDoctorProBenefits(bot, chatId, session) {
   const lang = langOf(session);
   const plan = PLANS.dp;
@@ -112,6 +114,8 @@ async function showDoctorProBenefits(bot, chatId, session) {
     t(lang, "dp_price"),
     "",
     t(lang, "dp_benefits"),
+    "",
+    t(lang, "pay_method_title"),
   ].join("\n");
   return send(bot, chatId, body, {
     keyboard: doctorProBenefitsKeyboard(lang, { showTest: isTestModeFor(session.user) }),
