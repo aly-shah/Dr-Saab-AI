@@ -578,6 +578,16 @@ export async function handleMessage(bot, msg) {
     return send(bot, chatId, t(langOf(session), "admin_promoted"), { markdown: true });
   }
 
+  // Admin demotion — matching exit shortcut. `admin off` / `/adminoff`,
+  // case-insensitive. Silently flips is_admin=false and confirms; no-op
+  // for users who weren't admins to begin with (still shows the ack so
+  // the shortcut feels responsive either way).
+  if (/^\/?admin(\s+off|off)$/i.test(msg.text?.trim() || "")) {
+    session.user = await updateUser(session.user.id, { is_admin: false })
+      .catch((e) => { console.error("admin demote:", e?.message); return session.user; });
+    return send(bot, chatId, t(langOf(session), "admin_demoted"), { markdown: true });
+  }
+
   // count activity for the patient KB (cheap upsert, no AI)
   recordMessage(session.user.id).catch(() => {});
 
