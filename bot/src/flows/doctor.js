@@ -8,6 +8,7 @@
 import { t } from "../i18n.js";
 import { send, sanitizeMd, langOf } from "../utils.js";
 import { resetFlow } from "../session.js";
+import { config } from "../config.js";
 import {
   doctorMenuKeyboard,
   doctorBackKeyboard,
@@ -44,7 +45,7 @@ export async function showDoctorMenu(bot, chatId, session) {
   const lang = langOf(session);
   const name = sanitizeMd(session.user.name || "");
   return send(bot, chatId, t(lang, "doc_menu_title", { name }), {
-    keyboard: doctorMenuKeyboard(lang, session.user),
+    keyboard: doctorMenuKeyboard(lang, session.user, { showTest: config.testActivationEnabled }),
     markdown: true,
   });
 }
@@ -77,6 +78,19 @@ export async function doctorCallback(bot, chatId, session, data) {
   if (action === "reports_weekly")  return showPatientReports(bot, chatId, session, "weekly");
   if (action === "reports_monthly") return showPatientReports(bot, chatId, session, "monthly");
   if (action === "reports_all")     return showPatientReports(bot, chatId, session, "all");
+  if (action === "test_dp") return simulateDpCap(bot, chatId, session);
+}
+
+// QA helper — fires the exact cap-reached notification a real 11th-patient
+// link attempt would send to this doctor, so the upgrade flow can be
+// tested without actually seeding 10 patient links. Gated by the same
+// TEST_ACTIVATION_ENABLED flag that shows the button.
+async function simulateDpCap(bot, chatId, session) {
+  const lang = langOf(session);
+  if (!config.testActivationEnabled) {
+    return send(bot, chatId, t(lang, "test_activation_disabled"), { markdown: true });
+  }
+  await notifyDoctorCapReached(session.user, t(lang, "dp_test_patient_name"));
 }
 
 // Spec: "If the doctor has not completed patient onboarding, launch it.

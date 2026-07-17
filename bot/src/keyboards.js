@@ -1,5 +1,6 @@
 import { t, LANGUAGES } from "./i18n.js";
 import { isPaid } from "./tiers.js";
+import { config } from "./config.js";
 
 // Inline keyboards use callback_data (language-independent), so menus
 // work the same regardless of the user's chosen language.
@@ -576,7 +577,7 @@ export function understandKeyboard(lang) {
 export function mainMenuKeyboardV2(lang, user) {
   // Doctors get their own three-item main menu (Doctor & Referral module).
   // The patient menu is available from within "My Health".
-  if (user?.user_type === "doctor") return doctorMenuKeyboard(lang, user);
+  if (user?.user_type === "doctor") return doctorMenuKeyboard(lang, user, { showTest: config.testActivationEnabled });
   const b = (key, action) => ({ text: t(lang, key), callback_data: `feat:${action}` });
   const rows = [];
   // ❤️ My Health sits at the top of the menu (spec v2.1, 2026-07).
@@ -599,7 +600,7 @@ export function mainMenuKeyboardV2(lang, user) {
 // ===================================================================
 // Doctor & Referral module (v1.0)
 // ===================================================================
-export function doctorMenuKeyboard(lang, user) {
+export function doctorMenuKeyboard(lang, user, { showTest = false } = {}) {
   const b = (key, action) => ({ text: t(lang, key), callback_data: `doc:${action}` });
   const rows = [
     b("btn_doc_reports",  "reports"),
@@ -610,6 +611,12 @@ export function doctorMenuKeyboard(lang, user) {
   // get a bottom button to jump into their patient menu.
   if (user?.diabetes_status) {
     rows.push(b("btn_doc_switch_patient", "switch_patient"));
+  }
+  // QA affordance: simulate the "10-patient cap reached" notification a
+  // real 11th-patient link attempt would send. Hidden when
+  // TEST_ACTIVATION_ENABLED=false.
+  if (showTest) {
+    rows.push(b("btn_doc_test_dp", "test_dp"));
   }
   return { ...stack(rows), keepEmoji: true };
 }
