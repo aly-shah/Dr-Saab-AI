@@ -1132,7 +1132,9 @@ const STR = {
     pay_proof_not_image:
       "That doesn't look like an image. Please send the payment screenshot as a photo.",
     pay_proof_received:
-      "✅ Payment proof received.\nI'll review it and activate your subscription shortly.",
+      "✅ Thanks for the screenshot! We're processing your payment.\nOnce it's processed we'll notify you on WhatsApp.",
+    pay_session_lost:
+      "Looks like your payment session was interrupted. Tap *Upgrade Plan* to pick your plan again — your health data is safe.",
     pay_cancelled: "Payment cancelled. You can restart from Upgrade anytime.",
 
     // Admin notification (§9) — sent to Yasir Abbasi
@@ -2282,7 +2284,9 @@ const STR = {
     pay_proof_not_image:
       "یہ تصویر نہیں لگ رہی۔ براہِ کرم ادائیگی کا اسکرین شاٹ تصویر کے طور پر بھیجیں۔",
     pay_proof_received:
-      "✅ ادائیگی کا ثبوت وصول ہو گیا۔\nمیں جائزہ لے کر جلد آپ کی سبسکرپشن ایکٹیویٹ کر دوں گا۔",
+      "✅ اسکرین شاٹ کا شکریہ! ہم آپ کی ادائیگی پروسیس کر رہے ہیں۔\nپروسیس مکمل ہونے پر ہم آپ کو WhatsApp پر مطلع کر دیں گے۔",
+    pay_session_lost:
+      "لگتا ہے آپ کی ادائیگی کا سیشن رک گیا۔ *پلان اپ گریڈ* پر ٹیپ کر کے دوبارہ پلان منتخب کریں — آپ کا صحت کا ڈیٹا محفوظ ہے۔",
     pay_cancelled:
       "ادائیگی منسوخ کر دی گئی۔ آپ کسی بھی وقت اپ گریڈ سے دوبارہ شروع کر سکتے ہیں۔",
 
@@ -3386,7 +3390,9 @@ const STR = {
     pay_proof_not_image:
       "Yeh image nahi lag rahi. Baraaye meherbani payment screenshot photo ki tarah bhejein.",
     pay_proof_received:
-      "✅ Payment proof mil gaya.\nMain review kar ke jald aap ki subscription activate kar doonga.",
+      "✅ Screenshot ka shukriya! Hum aap ki payment process kar rahe hain.\nProcess mukammal hone par hum aap ko WhatsApp par notify kar denge.",
+    pay_session_lost:
+      "Lagta hai aap ki payment session ruk gayi. *Plan Upgrade karein* par tap kar ke dobara plan pick karein — aap ka health data mehfooz hai.",
     pay_cancelled:
       "Payment cancel kar di gayi. Aap kisi bhi waqt Upgrade se dobara shuru kar sakte hain.",
 

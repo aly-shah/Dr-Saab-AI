@@ -355,9 +355,19 @@ export async function subscriptionText(bot, chatId, session, text, msg) {
   const lang = langOf(session);
   const sub = session.data.sub || {};
   if (!sub.planCode || !sub.method) {
-    // Session got out of sync (e.g. process restart mid-flow). Bounce back.
-    resetFlow(chatId);
-    return startUpgrade(bot, chatId, session);
+    // Session lost its plan context (process restart mid-flow, or the
+    // user typed rather than tapped and slipped past our state). Ask them
+    // to re-open Upgrade rather than dropping them into onboarding, and
+    // keep them in-state so they can retry.
+    return send(bot, chatId, t(lang, "pay_session_lost"), {
+      keyboard: {
+        inline_keyboard: [[
+          { text: t(lang, "btn_sub_upgrade"), callback_data: "sub:upgrade" },
+          { text: t(lang, "btn_back"),        callback_data: "feat:subscription" },
+        ]],
+      },
+      markdown: true,
+    });
   }
 
   const imageDataUrl = msg ? await photoDataUrl(bot, msg).catch(() => null) : null;

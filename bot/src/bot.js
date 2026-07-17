@@ -207,6 +207,7 @@ const RESUMABLE_STATES = new Set([
   "profileq",
   "my_doctor",
   "challenge_hba1c_baseline",
+  "sub_await_proof",
 ]);
 
 const PAUSED_TTL_MS = 15 * 60 * 1000;
@@ -693,10 +694,17 @@ export async function handleMessage(bot, msg) {
   // (doctor_onboarding, doctor_patient_onboarding) are also considered
   // in-progress onboarding — otherwise their typed replies would restart
   // the whole welcome/language flow.
+  //
+  // sub_await_proof is a payment upload state: the user reached it only
+  // after completing onboarding, but session.user.onboarded may look false
+  // on a fresh in-memory session after a process restart. Never bounce
+  // them into onboarding while mid-upload — the state check below handles
+  // the missing-context case with a friendlier message.
   const inOnboardingState =
     session.state === "onboarding" ||
     session.state === "doctor_onboarding" ||
-    session.state === "doctor_patient_onboarding";
+    session.state === "doctor_patient_onboarding" ||
+    session.state === "sub_await_proof";
   if (!session.user.onboarded && !inOnboardingState) {
     return startOnboarding(bot, chatId, session, greeting || "eng");
   }
