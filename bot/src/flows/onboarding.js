@@ -115,6 +115,23 @@ function nextStep(step) {
   }
 }
 
+// Inverse of nextStep — used by the admin /back shortcut so a tester
+// can step back through the wizard without restarting. Returns null when
+// there's nowhere to go (the welcome step is language-only, which is a
+// hard requirement).
+function previousStep(step) {
+  switch (step) {
+    case "dob":       return "name";
+    case "user_type": return "dob";
+    default:          return null;
+  }
+}
+
+// Regexes for the admin navigation shortcuts. Accepts the slash command
+// form (/back, /forward) and the plain arrow glyphs (⬅, ←, ➡, →).
+const BACK_RE    = /^(\/?back|⬅️?|←)$/i;
+const FORWARD_RE = /^(\/?forward|➡️?|→)$/i;
+
 // Prompt for the current step. `adminSkipKeyboard` is added to text-input
 // steps (name, dob) so admins can breeze through onboarding without typing.
 // It returns undefined for real users, so the prompt renders unchanged.
@@ -219,6 +236,21 @@ export async function onboardingText(bot, chatId, session, text) {
     if (session.step === "dob")  { session.data.date_of_birth = null; return advance(bot, chatId, session); }
     // Fall through for non-skippable steps (welcome, user_type) — the normal
     // re-prompt below handles them.
+  }
+
+  // Admin navigation — /back (⬅) and /forward (➡). Back moves to the
+  // previous step without clearing what's already saved; forward acts as
+  // skip. Both silently no-op on the welcome step (language pick).
+  if (session.user?.is_admin && BACK_RE.test(val)) {
+    const prev = previousStep(session.step);
+    if (!prev) return promptStep(bot, chatId, session);
+    session.step = prev;
+    return promptStep(bot, chatId, session);
+  }
+  if (session.user?.is_admin && FORWARD_RE.test(val)) {
+    if (session.step === "name") { session.data.name = null; return advance(bot, chatId, session); }
+    if (session.step === "dob")  { session.data.date_of_birth = null; return advance(bot, chatId, session); }
+    return promptStep(bot, chatId, session);
   }
 
   switch (session.step) {

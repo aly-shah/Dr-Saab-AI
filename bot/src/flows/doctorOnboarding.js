@@ -30,6 +30,21 @@ import { refreshKB } from "../kb.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Admin navigation shortcuts — accept the slash command form and the
+// plain arrow glyphs, matching the patient onboarding flow.
+const BACK_RE    = /^(\/?back|⬅️?|←)$/i;
+const FORWARD_RE = /^(\/?forward|➡️?|→)$/i;
+
+// Inverse of the forward step order (specialty → location → email → patient_use).
+function previousStep(step) {
+  switch (step) {
+    case "location":    return "specialty";
+    case "email":       return "location";
+    case "patient_use": return "email";
+    default:            return null;
+  }
+}
+
 // ---------- Referral code ----------
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I ambiguity
 
@@ -118,6 +133,33 @@ export async function doctorOnboardingText(bot, chatId, session, text) {
       return promptStep(bot, chatId, session);
     }
     // patient_use falls through — it's a required tap.
+  }
+
+  // Admin navigation — /back (⬅) moves to the previous step without
+  // clearing what's saved; /forward (➡) skips forward like /skip does.
+  if (session.user?.is_admin && BACK_RE.test(val)) {
+    const prev = previousStep(session.step);
+    if (!prev) return promptStep(bot, chatId, session);
+    session.step = prev;
+    return promptStep(bot, chatId, session);
+  }
+  if (session.user?.is_admin && FORWARD_RE.test(val)) {
+    if (session.step === "specialty") {
+      session.data.specialization = null;
+      session.step = "location";
+      return promptStep(bot, chatId, session);
+    }
+    if (session.step === "location") {
+      session.data.practice_location = null;
+      session.step = "email";
+      return promptStep(bot, chatId, session);
+    }
+    if (session.step === "email") {
+      session.data.email = null;
+      session.step = "patient_use";
+      return promptStep(bot, chatId, session);
+    }
+    return promptStep(bot, chatId, session);
   }
 
   switch (session.step) {
