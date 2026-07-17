@@ -568,23 +568,56 @@ async function loadUserById(userId) {
   }
 }
 
-async function adminApprovePayment(bot, chatId, lang, idStr) {
+// Shared preflight: parse the id, fetch the payment, and short-circuit when
+// the payment is already in a terminal state. Returns { payment } on success
+// or null when we've already sent the caller a response.
+async function preflightAdminAction(bot, chatId, lang, idStr, allow = new Set()) {
   const id = Number(idStr);
-  if (!Number.isFinite(id)) return send(bot, chatId, t(lang, "admin_help"), { markdown: true });
+  if (!Number.isFinite(id)) {
+    await send(bot, chatId, t(lang, "admin_help"), { markdown: true });
+    return null;
+  }
   const payment = await getSubscriptionPayment(id).catch(() => null);
-  if (!payment) return send(bot, chatId, t(lang, "admin_action_not_found"));
-  if (payment.payment_status === "approved") {
-    return send(bot, chatId, t(lang, "admin_action_already_reviewed", {
-      id, status: "approved",
+  if (!payment) {
+    await send(bot, chatId, t(lang, "admin_action_not_found"));
+    return null;
+  }
+  // Terminal statuses this action isn't willing to overwrite.
+  const terminals = new Set(["approved", "rejected"]);
+  for (const s of allow) terminals.delete(s);
+  if (terminals.has(payment.payment_status)) {
+    await send(bot, chatId, t(lang, "admin_action_already_reviewed", {
+      id,
+      status: payment.payment_status,
       when: (payment.reviewed_at || "").replace("T", " ").slice(0, 16),
     }));
+    return null;
   }
+  return { payment, id };
+}
+
+// Wrap notifyUser so failures (WA session expired etc.) surface to the admin
+// via a small marker line rather than being silently swallowed.
+async function notifyUserAndTag(user, key, args, opts, lang) {
+  try {
+    await notifyUser(user, key, args, opts);
+    return t(lang, "admin_user_notified");
+  } catch (e) {
+    console.error("admin notify user failed:", key, e?.message);
+    return t(lang, "admin_user_notify_failed");
+  }
+}
+
+async function adminApprovePayment(bot, chatId, lang, idStr) {
+  const pf = await preflightAdminAction(bot, chatId, lang, idStr);
+  if (!pf) return;
+  const { payment, id } = pf;
 
   const user = await loadUserById(payment.user_id);
   const nowIso = new Date().toISOString();
 
-  // §15 — renew before expiry: extend from current expiry.
-  //        renew after expiry:  begin from approval date.
+  // §15 — renew before expiry extends from current expiry; renew after
+  // expiry starts from the approval date.
   const currentExpiry = user?.sub_expires_at ? new Date(user.sub_expires_at) : null;
   const base = currentExpiry && currentExpiry > new Date() ? currentExpiry : new Date();
   const expiry = addMonths(base, payment.months);
@@ -593,98 +626,109 @@ async function adminApprovePayment(bot, chatId, lang, idStr) {
   // consistency tier is a patient-tier concept. Only the sub_* fields flip.
   const isDoctorProPlan = String(payment.plan_code || "").startsWith("doctor_pro");
 
-  await updateSubscriptionPayment(id, {
-    payment_status: "approved",
-    reviewed_at: nowIso,
-    reviewed_by: `admin:${config.adminNotifyWhatsapp}`,
-    activation_at: nowIso,
-    expiry_at: expiry.toISOString(),
-  }).catch((e) => console.error("admin approve update payment:", e?.message));
+  // Update payment + user atomically-ish: if either DB write fails, tell
+  // the admin loudly so they know to retry, rather than showing a fake
+  // "approved!" while the row stayed pending.
+  try {
+    await updateSubscriptionPayment(id, {
+      payment_status: "approved",
+      reviewed_at: nowIso,
+      reviewed_by: `admin:${config.adminNotifyWhatsapp}`,
+      activation_at: nowIso,
+      expiry_at: expiry.toISOString(),
+    });
+    const userPatch = {
+      sub_status: "active",
+      sub_plan_code: payment.plan_code,
+      sub_activated_at: nowIso,
+      sub_expires_at: expiry.toISOString(),
+      sub_last_reminder: null,
+    };
+    if (!isDoctorProPlan) userPatch.tier = "consistency";
+    await updateUser(payment.user_id, userPatch);
+  } catch (e) {
+    console.error("admin approve DB write failed:", e?.message);
+    return send(bot, chatId, t(lang, "admin_db_error", { id, err: e?.message || "unknown" }), {
+      markdown: true,
+    });
+  }
 
-  const userPatch = {
-    sub_status: "active",
-    sub_plan_code: payment.plan_code,
-    sub_activated_at: nowIso,
-    sub_expires_at: expiry.toISOString(),
-    sub_last_reminder: null, // clear any prior renewal reminder marker
-  };
-  if (!isDoctorProPlan) userPatch.tier = "consistency";
-  await updateUser(payment.user_id, userPatch)
-    .catch((e) => console.error("admin approve update user:", e?.message));
-
-  // Notify the user with the plan-family-appropriate message.
+  // Notify the user — flag success/failure back to the admin.
   const activationKey = isDoctorProPlan ? "dp_activated" : "pay_activated";
-  await notifyUser(user, activationKey, { expiry: formatExpiry(expiry) }, {
+  const notify = await notifyUserAndTag(user, activationKey, { expiry: formatExpiry(expiry) }, {
     keyboard: { inline_keyboard: [[{ text: "Menu", callback_data: "menu" }]] },
-  }).catch((e) => console.error("admin approve notify user:", e?.message));
+  }, lang);
 
   return send(bot, chatId, t(lang, "admin_approved_ack", {
-    id, name: sanitizeMd(user?.name || "—"), expiry: formatExpiry(expiry),
+    id, name: sanitizeMd(user?.name || "—"), expiry: formatExpiry(expiry), notify,
   }), { markdown: true });
 }
 
 async function adminRejectPayment(bot, chatId, lang, idStr, reason) {
-  const id = Number(idStr);
-  if (!Number.isFinite(id)) return send(bot, chatId, t(lang, "admin_help"), { markdown: true });
-  const payment = await getSubscriptionPayment(id).catch(() => null);
-  if (!payment) return send(bot, chatId, t(lang, "admin_action_not_found"));
-  if (payment.payment_status === "approved") {
-    return send(bot, chatId, t(lang, "admin_action_already_reviewed", {
-      id, status: "approved",
-      when: (payment.reviewed_at || "").replace("T", " ").slice(0, 16),
-    }));
-  }
+  const pf = await preflightAdminAction(bot, chatId, lang, idStr);
+  if (!pf) return;
+  const { payment, id } = pf;
 
   const nowIso = new Date().toISOString();
-  await updateSubscriptionPayment(id, {
-    payment_status: "rejected",
-    reviewed_at: nowIso,
-    reviewed_by: `admin:${config.adminNotifyWhatsapp}`,
-    reject_reason: reason || null,
-  }).catch((e) => console.error("admin reject update payment:", e?.message));
-
-  await updateUser(payment.user_id, { sub_status: "payment_rejected" })
-    .catch((e) => console.error("admin reject update user:", e?.message));
+  try {
+    await updateSubscriptionPayment(id, {
+      payment_status: "rejected",
+      reviewed_at: nowIso,
+      reviewed_by: `admin:${config.adminNotifyWhatsapp}`,
+      reject_reason: reason || null,
+    });
+    await updateUser(payment.user_id, { sub_status: "payment_rejected" });
+  } catch (e) {
+    console.error("admin reject DB write failed:", e?.message);
+    return send(bot, chatId, t(lang, "admin_db_error", { id, err: e?.message || "unknown" }), {
+      markdown: true,
+    });
+  }
 
   const user = await loadUserById(payment.user_id);
   const userLang = user?.language || "en";
-  await notifyUser(user, "pay_rejected", {}, {
+  const notify = await notifyUserAndTag(user, "pay_rejected", {}, {
     keyboard: {
       inline_keyboard: [[
         { text: t(userLang, "btn_pay_upload_again"), callback_data: "sub:upload_again" },
       ]],
     },
-  }).catch((e) => console.error("admin reject notify user:", e?.message));
+  }, lang);
 
-  return send(bot, chatId, t(lang, "admin_rejected_ack", { id }));
+  return send(bot, chatId, t(lang, "admin_rejected_ack", { id, notify }), { markdown: true });
 }
 
 async function adminRequestBetterProof(bot, chatId, lang, idStr) {
-  const id = Number(idStr);
-  if (!Number.isFinite(id)) return send(bot, chatId, t(lang, "admin_help"), { markdown: true });
-  const payment = await getSubscriptionPayment(id).catch(() => null);
-  if (!payment) return send(bot, chatId, t(lang, "admin_action_not_found"));
-  const nowIso = new Date().toISOString();
-  await updateSubscriptionPayment(id, {
-    payment_status: "better_proof_requested",
-    reviewed_at: nowIso,
-    reviewed_by: `admin:${config.adminNotifyWhatsapp}`,
-  }).catch((e) => console.error("admin better update payment:", e?.message));
+  const pf = await preflightAdminAction(bot, chatId, lang, idStr);
+  if (!pf) return;
+  const { payment, id } = pf;
 
-  await updateUser(payment.user_id, { sub_status: "awaiting_payment_proof" })
-    .catch((e) => console.error("admin better update user:", e?.message));
+  const nowIso = new Date().toISOString();
+  try {
+    await updateSubscriptionPayment(id, {
+      payment_status: "better_proof_requested",
+      reviewed_at: nowIso,
+      reviewed_by: `admin:${config.adminNotifyWhatsapp}`,
+    });
+    await updateUser(payment.user_id, { sub_status: "awaiting_payment_proof" });
+  } catch (e) {
+    console.error("admin better DB write failed:", e?.message);
+    return send(bot, chatId, t(lang, "admin_db_error", { id, err: e?.message || "unknown" }), {
+      markdown: true,
+    });
+  }
 
   const user = await loadUserById(payment.user_id);
   const userLang = user?.language || "en";
-  await notifyUser(user, "pay_better_proof", {}, {
+  const notify = await notifyUserAndTag(user, "pay_better_proof", {}, {
     keyboard: {
       inline_keyboard: [[
         { text: t(userLang, "btn_pay_upload_again"), callback_data: "sub:upload_again" },
       ]],
     },
-  }).catch((e) => console.error("admin better notify user:", e?.message));
+  }, lang);
 
-  return send(bot, chatId, t(lang, "admin_better_ack", { id }));
+  return send(bot, chatId, t(lang, "admin_better_ack", { id, notify }), { markdown: true });
 }
 
 // Send a localised message to `user` on whichever channel they're on. We

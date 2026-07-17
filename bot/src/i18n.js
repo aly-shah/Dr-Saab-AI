@@ -1153,10 +1153,15 @@ const STR = {
     admin_action_already_reviewed:
       "Payment #{id} was already {status} on {when}. No action taken.",
     admin_approved_ack:
-      "✅ Payment #{id} approved. {name} is now a Consistency Coach member until {expiry}.",
-    admin_rejected_ack: "❌ Payment #{id} rejected. User has been notified.",
+      "✅ Payment #{id} approved.\n{name} is now a member until {expiry}.\n{notify}",
+    admin_rejected_ack: "❌ Payment #{id} rejected.\n{notify}",
     admin_better_ack:
-      "🔄 Asked user to send a better screenshot for payment #{id}.",
+      "🔄 Asked user to send a better screenshot for payment #{id}.\n{notify}",
+    admin_user_notified: "📣 User notified on WhatsApp.",
+    admin_user_notify_failed:
+      "⚠️ Couldn't reach the user on WhatsApp (session window may be closed). Backend was still updated.",
+    admin_db_error:
+      "⚠️ Couldn't update payment #{id} in the database. Please try again. Error: {err}",
 
     // §11 Activation — sent to the user once admin approves
     pay_activated:
@@ -2305,10 +2310,15 @@ const STR = {
     admin_action_already_reviewed:
       "Payment #{id} پہلے ہی {status} کی جا چکی ({when})۔ کوئی کارروائی نہیں کی گئی۔",
     admin_approved_ack:
-      "✅ Payment #{id} منظور۔ {name} اب {expiry} تک Consistency Coach ممبر ہیں۔",
-    admin_rejected_ack: "❌ Payment #{id} مسترد۔ صارف کو مطلع کر دیا گیا۔",
+      "✅ Payment #{id} منظور۔\n{name} اب {expiry} تک ممبر ہیں۔\n{notify}",
+    admin_rejected_ack: "❌ Payment #{id} مسترد۔\n{notify}",
     admin_better_ack:
-      "🔄 صارف سے Payment #{id} کے لیے بہتر اسکرین شاٹ مانگ لیا گیا۔",
+      "🔄 صارف سے Payment #{id} کے لیے بہتر اسکرین شاٹ مانگ لیا گیا۔\n{notify}",
+    admin_user_notified: "📣 صارف کو WhatsApp پر مطلع کر دیا گیا۔",
+    admin_user_notify_failed:
+      "⚠️ WhatsApp پر صارف تک پہنچ نہیں سکے (session window بند ہو سکتی ہے)۔ Backend اپڈیٹ ہو گیا۔",
+    admin_db_error:
+      "⚠️ Payment #{id} کو database میں اپڈیٹ نہیں کر سکے۔ دوبارہ کوشش کریں۔ Error: {err}",
 
     pay_activated:
       "🎉 آپ اب *Consistency Coach* ممبر ہیں!\n\n*معیاد ختم:* {expiry}\n\nاپنی پریمیم سہولیات سے لطف اٹھائیں! 💚",
@@ -3411,10 +3421,15 @@ const STR = {
     admin_action_already_reviewed:
       "Payment #{id} pehle hi {status} ho chuki hai ({when}). Koi action nahi liya gaya.",
     admin_approved_ack:
-      "✅ Payment #{id} approved. {name} ab {expiry} tak Consistency Coach member hain.",
-    admin_rejected_ack: "❌ Payment #{id} reject kar di. User ko batadiya gaya.",
+      "✅ Payment #{id} approved.\n{name} ab {expiry} tak member hain.\n{notify}",
+    admin_rejected_ack: "❌ Payment #{id} reject kar di.\n{notify}",
     admin_better_ack:
-      "🔄 User se Payment #{id} ke liye behtar screenshot mangvaya gaya.",
+      "🔄 User se Payment #{id} ke liye behtar screenshot mangvaya gaya.\n{notify}",
+    admin_user_notified: "📣 User ko WhatsApp par notify kar diya.",
+    admin_user_notify_failed:
+      "⚠️ WhatsApp par user tak nahi pahunch sake (session window band ho sakti hai). Backend update ho gaya.",
+    admin_db_error:
+      "⚠️ Payment #{id} ko database mein update nahi kar sake. Dobara try karein. Error: {err}",
 
     pay_activated:
       "🎉 Aap ab *Consistency Coach* member hain!\n\n*Valid Until:* {expiry}\n\nApni premium features enjoy karein! 💚",
