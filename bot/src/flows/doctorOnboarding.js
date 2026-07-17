@@ -99,6 +99,27 @@ export async function doctorOnboardingText(bot, chatId, session, text) {
   const val = (text || "").trim();
   if (!val) return promptStep(bot, chatId, session);
 
+  // Admin typed-skip shortcut. Same effect as tapping 🧪 Skip: null the
+  // current field, advance. Only accepted on skippable steps.
+  if (session.user?.is_admin && /^\/?skip$/i.test(val)) {
+    if (session.step === "specialty") {
+      session.data.specialization = null;
+      session.step = "location";
+      return promptStep(bot, chatId, session);
+    }
+    if (session.step === "location") {
+      session.data.practice_location = null;
+      session.step = "email";
+      return promptStep(bot, chatId, session);
+    }
+    if (session.step === "email") {
+      session.data.email = null;
+      session.step = "patient_use";
+      return promptStep(bot, chatId, session);
+    }
+    // patient_use falls through — it's a required tap.
+  }
+
   switch (session.step) {
     case "specialty":
       session.data.specialization = val.slice(0, 100);

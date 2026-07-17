@@ -212,6 +212,15 @@ export async function onboardingText(bot, chatId, session, text) {
   const val = (text || "").trim();
   if (!val) return;
 
+  // Admin typed-skip shortcut. Same effect as tapping 🧪 Skip: null the
+  // current field, advance. Only accepted on skippable steps.
+  if (session.user?.is_admin && /^\/?skip$/i.test(val)) {
+    if (session.step === "name") { session.data.name = null; return advance(bot, chatId, session); }
+    if (session.step === "dob")  { session.data.date_of_birth = null; return advance(bot, chatId, session); }
+    // Fall through for non-skippable steps (welcome, user_type) — the normal
+    // re-prompt below handles them.
+  }
+
   switch (session.step) {
     case "welcome":
       // User typed instead of tapping a language button — re-prompt.
