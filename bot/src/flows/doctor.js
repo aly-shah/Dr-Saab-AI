@@ -34,6 +34,7 @@ import {
   isDoctorPro,
   DOCTOR_FREE_PATIENT_CAP,
   notifyDoctorCapReached,
+  renderDoctorCapPrompt,
 } from "./subscription.js";
 
 // ===================================================================
@@ -81,16 +82,15 @@ export async function doctorCallback(bot, chatId, session, data) {
   if (action === "test_dp") return simulateDpCap(bot, chatId, session);
 }
 
-// QA helper — fires the exact cap-reached notification a real 11th-patient
-// link attempt would send to this doctor, so the upgrade flow can be
-// tested without actually seeding 10 patient links. Gated by the same
-// TEST_ACTIVATION_ENABLED flag that shows the button.
+// QA helper — fires the exact cap-reached prompt a real 11th-patient link
+// attempt would send. Renders on the current bot so it works on every
+// channel (web, WhatsApp, Telegram) rather than only WhatsApp.
 async function simulateDpCap(bot, chatId, session) {
   const lang = langOf(session);
   if (!config.testActivationEnabled) {
     return send(bot, chatId, t(lang, "test_activation_disabled"), { markdown: true });
   }
-  await notifyDoctorCapReached(session.user, t(lang, "dp_test_patient_name"));
+  return renderDoctorCapPrompt(bot, chatId, lang, t(lang, "dp_test_patient_name"));
 }
 
 // Spec: "If the doctor has not completed patient onboarding, launch it.

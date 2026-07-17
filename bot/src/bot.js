@@ -603,16 +603,18 @@ export async function handleMessage(bot, msg) {
   }
 
   // Doctor QA shortcut — types `/testdp` in a doctor chat to fire the same
-  // "10-patient cap reached" notification a real 11th-patient link attempt
-  // would send. Backup for cases where WhatsApp buries the menu button inside
-  // a "Choose" list. Gated by config.testActivationEnabled.
+  // "10-patient cap reached" prompt a real 11th-patient link attempt would
+  // send. Backup for cases where WhatsApp buries the menu button inside a
+  // "Choose" list, and the only entry point on the web chat GUI (which
+  // isn't reachable via the WhatsApp-only notifyDoctorCapReached path).
+  // Renders on the CURRENT bot so it works on every channel.
   if (cmd === "/testdp" && session.user.onboarded && session.user.user_type === "doctor") {
-    const { notifyDoctorCapReached } = await import("./flows/subscription.js");
+    const lang = langOf(session);
     if (!config.testActivationEnabled) {
-      return send(bot, chatId, t(langOf(session), "test_activation_disabled"), { markdown: true });
+      return send(bot, chatId, t(lang, "test_activation_disabled"), { markdown: true });
     }
-    await notifyDoctorCapReached(session.user, t(langOf(session), "dp_test_patient_name"));
-    return;
+    const { renderDoctorCapPrompt } = await import("./flows/subscription.js");
+    return renderDoctorCapPrompt(bot, chatId, lang, t(lang, "dp_test_patient_name"));
   }
 
   // Universal shortcut / smart-alias router (spec 2026-07).

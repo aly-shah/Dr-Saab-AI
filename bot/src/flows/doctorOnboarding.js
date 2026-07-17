@@ -26,6 +26,7 @@ import {
   getDoctorByUserId,
 } from "../supabase.js";
 import { refreshKB } from "../kb.js";
+import { config } from "../config.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -194,7 +195,7 @@ async function finishDoctorSetup(bot, chatId, session, continueAsPatient) {
   // Land the doctor on their main menu.
   resetFlow(chatId);
   return send(bot, chatId, t(lang, "doc_menu_title", { name }), {
-    keyboard: doctorMenuKeyboard(lang),
+    keyboard: doctorMenuKeyboard(lang, session.user, { showTest: config.testActivationEnabled }),
     markdown: true,
   });
 }

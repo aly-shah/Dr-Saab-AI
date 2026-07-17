@@ -121,13 +121,27 @@ async function showDoctorProBenefits(bot, chatId, session) {
 
 // Sent to a doctor when a patient tried to link while they were at the
 // 10-patient cap (Addendum §4). Fired from within the doctor-linking
-// path — not from a user-invoked callback.
+// path — not from a user-invoked callback. Uses notifyUser's channel
+// lookup because the doctor isn't the current conversation partner
+// (the patient is).
 export async function notifyDoctorCapReached(doctor, patientName) {
   const lang = doctor?.language || "en";
   const patient = patientName ? sanitizeMd(patientName) : t(lang, "dp_cap_a_patient");
   return notifyUser(doctor, "dp_cap_reached", { patient }, {
     keyboard: doctorProCapKeyboard(lang),
   }).catch((e) => console.error("dp cap notify:", e?.message));
+}
+
+// Same message + buttons, but sent through the caller's own bot/chatId.
+// Used by the /testdp QA shortcut — the doctor IS the current conversation
+// partner, so we can send directly without the WhatsApp-only channel
+// lookup notifyUser does. Works on every channel (web, WhatsApp, Telegram).
+export async function renderDoctorCapPrompt(bot, chatId, lang, patientName) {
+  const patient = patientName ? sanitizeMd(patientName) : t(lang, "dp_cap_a_patient");
+  return send(bot, chatId, t(lang, "dp_cap_reached", { patient }), {
+    keyboard: doctorProCapKeyboard(lang),
+    markdown: true,
+  });
 }
 
 async function showExecutiveUnavailable(bot, chatId, session) {
