@@ -26,7 +26,7 @@ export default function Home() {
         <Hero />
         <section className="py-12 sm:py-16">
           <div className="container-page">
-            <VideoBlock caption="DrSaab helps people with diabetes stay consistent with the daily habits that lead to better health. Through WhatsApp, DrSaab provides personalized guidance, accountability, education, and support to make diabetes management simpler and more sustainable." />
+            <VideoBlock src="/intro.mp4" poster="/intro-poster.jpg" caption="DrSaab helps people with diabetes stay consistent with the daily habits that lead to better health. Through WhatsApp, DrSaab provides personalized guidance, accountability, education, and support to make diabetes management simpler and more sustainable." />
           </div>
         </section>
         <TrustBar />
