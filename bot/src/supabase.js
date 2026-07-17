@@ -2008,6 +2008,7 @@ function makeMemoryBackend() {
     monitoring_habit: null, monitoring_device: null,
     primary_goal: null, primary_challenge: null, motivation_driver: null,
     disclaimer_accepted: false,
+    is_admin: false,
     consistency_score: 50, motivation_score: 50, risk_score: 50, engagement_score: 50,
     total_checkins: 0,
     ...overrides,

@@ -1112,6 +1112,11 @@ where not exists (
 -- approves in the panel → tier flips to 'consistency' with an expiry date.
 -- ============================================================
 
+-- Admin flag — flipped true when a user sends the shared admin password
+-- (see ADMIN_PASSWORD in .env). Admins see the 🧪 test buttons on the
+-- upgrade / doctor menus even when TEST_ACTIVATION_ENABLED is off in prod.
+alter table public.users add column if not exists is_admin boolean default false;
+
 -- Denormalised subscription state on the user row. `tier` (above) is still
 -- the source of truth for feature gating; these columns track the payment
 -- lifecycle around it (pending review, expiring soon, etc.).

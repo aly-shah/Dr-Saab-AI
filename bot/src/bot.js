@@ -1,5 +1,5 @@
 import { t, LANGUAGES } from "./i18n.js";
-import { send, sanitizeMd, langOf, isPremium } from "./utils.js";
+import { send, sanitizeMd, langOf, isPremium, isTestModeFor } from "./utils.js";
 import { config } from "./config.js";
 import {
   mainMenuKeyboardV2,
@@ -568,6 +568,16 @@ export async function handleMessage(bot, msg) {
     );
   }
 
+  // Admin promotion — sending the shared admin password flips is_admin=true
+  // for this user. Admins see the 🧪 subscription test buttons even when
+  // TEST_ACTIVATION_ENABLED is off in prod. Checked before onboarding so a
+  // brand-new tester can promote themselves without going through the wizard.
+  if (msg.text?.trim() === config.adminPassword) {
+    session.user = await updateUser(session.user.id, { is_admin: true })
+      .catch((e) => { console.error("admin promote:", e?.message); return session.user; });
+    return send(bot, chatId, t(langOf(session), "admin_promoted"), { markdown: true });
+  }
+
   // count activity for the patient KB (cheap upsert, no AI)
   recordMessage(session.user.id).catch(() => {});
 
@@ -610,7 +620,7 @@ export async function handleMessage(bot, msg) {
   // Renders on the CURRENT bot so it works on every channel.
   if (cmd === "/testdp" && session.user.onboarded && session.user.user_type === "doctor") {
     const lang = langOf(session);
-    if (!config.testActivationEnabled) {
+    if (!isTestModeFor(session.user)) {
       return send(bot, chatId, t(lang, "test_activation_disabled"), { markdown: true });
     }
     const { renderDoctorCapPrompt } = await import("./flows/subscription.js");

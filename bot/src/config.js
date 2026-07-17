@@ -61,11 +61,17 @@ export const config = {
   adminNotifyWhatsapp: process.env.ADMIN_NOTIFY_WHATSAPP?.replace(/\D/g, "") || "923343873622",
   // adminNotifyWhatsapp: process.env.ADMIN_NOTIFY_WHATSAPP?.replace(/\D/g, "") || "923242895065",
 
-  // Subscription QA affordance — shows a "🧪 Test Activate" button on the
-  // plan-confirmation card that skips payment and jumps straight to the
-  // activation experience. Set TEST_ACTIVATION_ENABLED=false in production
-  // once the flow has been validated end-to-end.
-  testActivationEnabled: String(process.env.TEST_ACTIVATION_ENABLED ?? "true").toLowerCase() !== "false",
+  // Subscription QA affordance — shows the 🧪 test buttons (upgrade
+  // Test Activate + doctor Test DP Cap Flow) globally to every user.
+  // Defaults to false in prod so real users never see them; individual
+  // admins can still unlock them per-account by sending ADMIN_PASSWORD
+  // (see the isTestModeFor() helper in utils.js).
+  testActivationEnabled: String(process.env.TEST_ACTIVATION_ENABLED ?? "false").toLowerCase() === "true",
+
+  // Shared password that promotes the sender's account to `is_admin=true`.
+  // An admin sees the same 🧪 test buttons as when the global flag is on.
+  // Change or unset this in prod to lock the door.
+  adminPassword: process.env.ADMIN_PASSWORD?.trim() || "admin123@",
   useWebhook: String(process.env.USE_WEBHOOK).toLowerCase() === "true",
   webhookUrl: process.env.WEBHOOK_URL?.trim() || "",
   port: parseInt(process.env.PORT || "8080", 10),

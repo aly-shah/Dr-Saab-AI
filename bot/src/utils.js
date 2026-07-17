@@ -146,6 +146,14 @@ export function isPremium(user) {
   return isPaid(user);
 }
 
+// True when the given user should see the 🧪 subscription test buttons.
+// Two ways to unlock: the per-user `is_admin` flag (flipped by sending the
+// admin password) or the global TEST_ACTIVATION_ENABLED env var (dev only).
+import { config } from "./config.js";
+export function isTestModeFor(user) {
+  return user?.is_admin === true || config.testActivationEnabled === true;
+}
+
 export function langOf(session) {
   return session?.data?.language || session?.user?.language || "en";
 }

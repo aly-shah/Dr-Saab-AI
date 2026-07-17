@@ -14,7 +14,7 @@
 //   { planCode, months, amountPkr, planLabel, method, methodLabel }
 
 import { t } from "../i18n.js";
-import { send, langOf, photoDataUrl, sanitizeMd } from "../utils.js";
+import { send, langOf, photoDataUrl, sanitizeMd, isTestModeFor } from "../utils.js";
 import {
   upsellMenuKeyboard,
   upsellExecUnavailableKeyboard,
@@ -114,7 +114,7 @@ async function showDoctorProBenefits(bot, chatId, session) {
     t(lang, "dp_benefits"),
   ].join("\n");
   return send(bot, chatId, body, {
-    keyboard: doctorProBenefitsKeyboard(lang, { showTest: config.testActivationEnabled }),
+    keyboard: doctorProBenefitsKeyboard(lang, { showTest: isTestModeFor(session.user) }),
     markdown: true,
   });
 }
@@ -182,7 +182,7 @@ async function showPlanConfirm(bot, chatId, session, planKey) {
     planLabel: t(lang, plan.labelKey),
   };
   return send(bot, chatId, t(lang, plan.confirmKey), {
-    keyboard: upsellConfirmKeyboard(lang, { showTest: config.testActivationEnabled }),
+    keyboard: upsellConfirmKeyboard(lang, { showTest: isTestModeFor(session.user) }),
     markdown: true,
   });
 }
@@ -228,11 +228,11 @@ async function beginProofCapture(bot, chatId, session) {
 // QA affordance — activate the currently-selected plan immediately, bypassing
 // payment collection and admin approval. Fires the same activation code path
 // the admin approve command uses, so the user sees the exact "🎉 you're now a
-// member" experience. Gated by config.testActivationEnabled; the button is
-// only rendered when that flag is true.
+// member" experience. Gated by isTestModeFor(user) — either the admin flag
+// (set via the ADMIN_PASSWORD promotion) or the global env override.
 async function testActivate(bot, chatId, session) {
   const lang = langOf(session);
-  if (!config.testActivationEnabled) {
+  if (!isTestModeFor(session.user)) {
     return send(bot, chatId, t(lang, "test_activation_disabled"), {
       keyboard: backKeyboard(lang, "feat:subscription"),
       markdown: true,

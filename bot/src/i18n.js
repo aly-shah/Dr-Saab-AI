@@ -1108,7 +1108,9 @@ const STR = {
     btn_upsell_change_plan: "Change Plan",
     btn_upsell_test_activate: "🧪 Test Activate (skip payment)",
     test_activation_disabled:
-      "🧪 Test activation isn't enabled. Set TEST_ACTIVATION_ENABLED=true in .env to use this button.",
+      "🧪 Test activation isn't enabled for your account. Send the admin password to unlock, or set TEST_ACTIVATION_ENABLED=true in .env.",
+    admin_promoted:
+      "🔓 *Admin mode unlocked.*\nYou'll now see the 🧪 test buttons on the upgrade and doctor menus. Send /menu to refresh.",
 
     // Payment method (§5)
     pay_method_title: "Choose a payment method:",
@@ -2271,7 +2273,9 @@ const STR = {
     btn_upsell_change_plan: "پلان تبدیل کریں",
     btn_upsell_test_activate: "🧪 ٹیسٹ ایکٹیویٹ (ادائیگی چھوڑیں)",
     test_activation_disabled:
-      "🧪 ٹیسٹ ایکٹیویشن فعال نہیں ہے۔ اس بٹن کے استعمال کے لیے .env میں TEST_ACTIVATION_ENABLED=true رکھیں۔",
+      "🧪 ٹیسٹ ایکٹیویشن آپ کے اکاؤنٹ کے لیے فعال نہیں۔ ایڈمن پاس ورڈ بھیج کر انلاک کریں، یا .env میں TEST_ACTIVATION_ENABLED=true رکھیں۔",
+    admin_promoted:
+      "🔓 *ایڈمن موڈ کھل گیا۔*\nاب آپ کو اپ گریڈ اور ڈاکٹر مینو پر 🧪 ٹیسٹ بٹن نظر آئیں گے۔ /menu بھیج کر ری فریش کریں۔",
 
     pay_method_title: "ادائیگی کا طریقہ منتخب کریں:",
     btn_pay_bank: "🏦 بینک",
@@ -3384,7 +3388,9 @@ const STR = {
     btn_upsell_change_plan: "Plan tabdeel karein",
     btn_upsell_test_activate: "🧪 Test Activate (payment skip karein)",
     test_activation_disabled:
-      "🧪 Test activation enabled nahi hai. Is button ke liye .env mein TEST_ACTIVATION_ENABLED=true rakhein.",
+      "🧪 Test activation aap ke account ke liye enabled nahi. Admin password bhej kar unlock karein, ya .env mein TEST_ACTIVATION_ENABLED=true rakhein.",
+    admin_promoted:
+      "🔓 *Admin mode unlocked.*\nAb aap ko upgrade aur doctor menu par 🧪 test buttons dikhenge. Refresh ke liye /menu bhejein.",
 
     pay_method_title: "Payment method chunein:",
     btn_pay_bank: "🏦 Bank",

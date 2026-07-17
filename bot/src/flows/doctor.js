@@ -6,9 +6,8 @@
 // doctor by referral code.
 
 import { t } from "../i18n.js";
-import { send, sanitizeMd, langOf } from "../utils.js";
+import { send, sanitizeMd, langOf, isTestModeFor } from "../utils.js";
 import { resetFlow } from "../session.js";
-import { config } from "../config.js";
 import {
   doctorMenuKeyboard,
   doctorBackKeyboard,
@@ -46,7 +45,7 @@ export async function showDoctorMenu(bot, chatId, session) {
   const lang = langOf(session);
   const name = sanitizeMd(session.user.name || "");
   return send(bot, chatId, t(lang, "doc_menu_title", { name }), {
-    keyboard: doctorMenuKeyboard(lang, session.user, { showTest: config.testActivationEnabled }),
+    keyboard: doctorMenuKeyboard(lang, session.user, { showTest: isTestModeFor(session.user) }),
     markdown: true,
   });
 }
@@ -87,7 +86,7 @@ export async function doctorCallback(bot, chatId, session, data) {
 // channel (web, WhatsApp, Telegram) rather than only WhatsApp.
 async function simulateDpCap(bot, chatId, session) {
   const lang = langOf(session);
-  if (!config.testActivationEnabled) {
+  if (!isTestModeFor(session.user)) {
     return send(bot, chatId, t(lang, "test_activation_disabled"), { markdown: true });
   }
   return renderDoctorCapPrompt(bot, chatId, lang, t(lang, "dp_test_patient_name"));
