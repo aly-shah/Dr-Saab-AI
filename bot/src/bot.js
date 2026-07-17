@@ -1,5 +1,6 @@
 import { t, LANGUAGES } from "./i18n.js";
 import { send, sanitizeMd, langOf, isPremium } from "./utils.js";
+import { config } from "./config.js";
 import {
   mainMenuKeyboardV2,
   patientMenuForDoctorKeyboard,
@@ -599,6 +600,19 @@ export async function handleMessage(bot, msg) {
   // number can invoke `/sub …` and manage pending payments.
   if (cmd === "/sub" && isAdminChat(chatId)) {
     return adminSubscriptionCommand(bot, chatId, session, text);
+  }
+
+  // Doctor QA shortcut — types `/testdp` in a doctor chat to fire the same
+  // "10-patient cap reached" notification a real 11th-patient link attempt
+  // would send. Backup for cases where WhatsApp buries the menu button inside
+  // a "Choose" list. Gated by config.testActivationEnabled.
+  if (cmd === "/testdp" && session.user.onboarded && session.user.user_type === "doctor") {
+    const { notifyDoctorCapReached } = await import("./flows/subscription.js");
+    if (!config.testActivationEnabled) {
+      return send(bot, chatId, t(langOf(session), "test_activation_disabled"), { markdown: true });
+    }
+    await notifyDoctorCapReached(session.user, t(langOf(session), "dp_test_patient_name"));
+    return;
   }
 
   // Universal shortcut / smart-alias router (spec 2026-07).
