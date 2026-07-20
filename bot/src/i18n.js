@@ -130,11 +130,11 @@ const STR = {
 
     // ===== v2 onboarding journey (DrSaab MVP) =====
     welcome_eng:
-      "As Salam Alaikum and welcome to DrSaab — your AI Coach for Diabetes 👋🏼\n\nI can help you understand your diabetes, build healthier habits, stay consistent, and improve your long-term health.\n\nFor اردو messaging, please select Urdu below.\nAur WhatsApp wali Urdu mein baat karnay ke liye, WhatsApp Urdu ka option use karain.",
+      "As Salam Alaikum and welcome to DrSaab — your AI Coach for Diabetes 👋🏼\n\nI can help you understand your diabetes, build healthier habits, stay consistent, and improve your long-term health.\n\nFor اردو messaging, please select Urdu below.\n\nAur WhatsApp wali Urdu mein baat karnay ke liye, WhatsApp Urdu ka option use karain.",
     welcome_salaam:
-      "Walaikumussalam and welcome to *DrSaab* — your AI Coach for Diabetes.\n\nI can help you understand your diabetes, build healthier habits, stay consistent, and improve your long-term health.\n\nFor اردو messaging, please select Urdu below.\nAur WhatsApp wali Urdu mein baat karnay ke liye, WhatsApp Urdu ka option use karain.",
+      "Walaikumussalam and welcome to *DrSaab* — your AI Coach for Diabetes.\n\nI can help you understand your diabetes, build healthier habits, stay consistent, and improve your long-term health.\n\nFor اردو messaging, please select Urdu below.\n\nAur WhatsApp wali Urdu mein baat karnay ke liye, WhatsApp Urdu ka option use karain.",
     welcome_urdu_intent:
-      "وعلیکم السلام اور ڈاکٹر صاحب میں خوش آمدید۔\nمیں آپ کو ذیابیطس کو بہتر سمجھنے، صحت مند عادات بنانے، مستقل مزاج رہنے اور اپنی صحت بہتر بنانے میں مدد دوں گا۔\n\nEnglish mein baat karne ke liye English select karein.\nWhatsapp wali Urdu mein baat karne ke liye WhatsApp Urdu select karein.",
+      "وعلیکم السلام اور ڈاکٹر صاحب میں خوش آمدید۔\nمیں آپ کو ذیابیطس کو بہتر سمجھنے، صحت مند عادات بنانے، مستقل مزاج رہنے اور اپنی صحت بہتر بنانے میں مدد دوں گا۔\n\nEnglish mein baat karne ke liye English select karein.\n\nWhatsapp wali Urdu mein baat karne ke liye WhatsApp Urdu select karein.",
     btn_lang_english: "English",
     btn_lang_urdu: "اردو",
     btn_lang_whatsapp_urdu: "WhatsApp Urdu",
