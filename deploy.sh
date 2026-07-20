@@ -58,7 +58,7 @@ $SUDO apt-get install -y curl ca-certificates gnupg openssl git
 
 if ! command -v node >/dev/null 2>&1 || [ "$(node -v | sed 's/v\([0-9]*\).*/\1/')" -lt 18 ]; then
   log "Installing Node.js 20"
-  curl -fsSL https://deb.nodesource.com/setup_20.x | $SUDO -E bash -
+  curl -fsSL https://deb.nodesource.com/setup_20.x | $SUDO ${SUDO:+-E} bash -
   $SUDO apt-get install -y nodejs
 fi
 
