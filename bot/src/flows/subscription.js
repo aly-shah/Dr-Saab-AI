@@ -468,50 +468,55 @@ function planMonthsLabel(months) {
 }
 
 async function notifyAdminOfSubmission(user, payment) {
-  const adminPhone = config.adminNotifyWhatsapp;
-  if (!adminPhone) return;
-  // Admin lang defaults to en; if the admin has a row we honour their choice.
-  const admin = await getUserByPhoneNumber(adminPhone).catch(() => null);
-  const lang = admin?.language || "en";
-
-  const wa = whatsappNumberFor(user);
-  const caption = t(lang, "admin_new_payment", {
-    name: sanitizeMd(user.name || "—"),
-    whatsapp: wa ? `+${wa}` : "—",
-    plan: planMonthsLabel(payment.months),
-    amount: payment.amount_pkr,
-    method: payment.method === "bank" ? "Bank Transfer" : "JazzCash",
-    when: new Date(payment.submitted_at || Date.now()).toISOString().replace("T", " ").slice(0, 16),
-    id: payment.id,
-  });
+  const adminPhones = config.adminNotifyWhatsapps;
+  if (!adminPhones?.length) return;
 
   const adminBot = await getBotForSource("whatsapp");
   if (!adminBot) return;
 
   // Approve / Reject / Better — three-button max, exactly what an interactive
   // image-header message supports. Callback IDs stay short so they fit under
-  // WhatsApp's 256-char reply-id cap.
+  // WhatsApp's 256-char reply-id cap. Buttons are identical for every admin —
+  // whichever taps first wins; the others see "already reviewed" via
+  // preflightAdminAction().
   const buttonsKb = {
     inline_keyboard: [[
-      { text: t(lang, "btn_admin_approve"), callback_data: `sub:adm:apr:${payment.id}` },
-      { text: t(lang, "btn_admin_reject"),  callback_data: `sub:adm:rej:${payment.id}` },
-      { text: t(lang, "btn_admin_better"),  callback_data: `sub:adm:btr:${payment.id}` },
+      { text: t("en", "btn_admin_approve"), callback_data: `sub:adm:apr:${payment.id}` },
+      { text: t("en", "btn_admin_reject"),  callback_data: `sub:adm:rej:${payment.id}` },
+      { text: t("en", "btn_admin_better"),  callback_data: `sub:adm:btr:${payment.id}` },
     ]],
   };
 
-  // Preferred: image + caption + buttons in a single interactive message so
-  // Yasir can eyeball the screenshot and tap Approve without leaving WhatsApp.
-  // If the media upload fails (rare — bad token, WA outage), fall back to a
-  // text-only interactive message with the same buttons so the flow still
-  // works.
-  const sent = payment.proof_image_url
-    ? await adminBot.sendPhoto(adminPhone, payment.proof_image_url, caption, { reply_markup: buttonsKb })
-        .catch((e) => { console.error("admin sendPhoto failed:", e?.message); return { ok: false }; })
-    : { ok: false, reason: "no-proof-url" };
+  for (const adminPhone of adminPhones) {
+    // Admin lang defaults to en; if the admin has a row we honour their choice.
+    const admin = await getUserByPhoneNumber(adminPhone).catch(() => null);
+    const lang = admin?.language || "en";
 
-  if (!sent?.ok) {
-    await send(adminBot, adminPhone, caption, { keyboard: buttonsKb, markdown: true })
-      .catch((e) => console.error("admin fallback text notify failed:", e?.message));
+    const wa = whatsappNumberFor(user);
+    const caption = t(lang, "admin_new_payment", {
+      name: sanitizeMd(user.name || "—"),
+      whatsapp: wa ? `+${wa}` : "—",
+      plan: planMonthsLabel(payment.months),
+      amount: payment.amount_pkr,
+      method: payment.method === "bank" ? "Bank Transfer" : "JazzCash",
+      when: new Date(payment.submitted_at || Date.now()).toISOString().replace("T", " ").slice(0, 16),
+      id: payment.id,
+    });
+
+    // Preferred: image + caption + buttons in a single interactive message so
+    // the admin can eyeball the screenshot and tap Approve without leaving
+    // WhatsApp. If the media upload fails (rare — bad token, WA outage), fall
+    // back to a text-only interactive message with the same buttons so the
+    // flow still works.
+    const sent = payment.proof_image_url
+      ? await adminBot.sendPhoto(adminPhone, payment.proof_image_url, caption, { reply_markup: buttonsKb })
+          .catch((e) => { console.error("admin sendPhoto failed:", adminPhone, e?.message); return { ok: false }; })
+      : { ok: false, reason: "no-proof-url" };
+
+    if (!sent?.ok) {
+      await send(adminBot, adminPhone, caption, { keyboard: buttonsKb, markdown: true })
+        .catch((e) => console.error("admin fallback text notify failed:", adminPhone, e?.message));
+    }
   }
 }
 
@@ -519,11 +524,12 @@ function normalizeAdminIdentifier(id) {
   return String(id ?? "").replace(/\D/g, "").replace(/^0+/, "");
 }
 
-// True when the inbound message is from the configured admin phone.
+// True when the inbound message is from any configured admin phone.
 export function isAdminChat(chatId) {
-  const admin = config.adminNotifyWhatsapp;
-  if (!admin) return false;
-  return normalizeAdminIdentifier(chatId) === normalizeAdminIdentifier(admin);
+  const admins = config.adminNotifyWhatsapps;
+  if (!admins?.length) return false;
+  const norm = normalizeAdminIdentifier(chatId);
+  return admins.some((a) => normalizeAdminIdentifier(a) === norm);
 }
 
 // Handle `/sub …` typed by the admin. Returns true if the command was
@@ -659,7 +665,7 @@ async function adminApprovePayment(bot, chatId, lang, idStr) {
     await updateSubscriptionPayment(id, {
       payment_status: "approved",
       reviewed_at: nowIso,
-      reviewed_by: `admin:${config.adminNotifyWhatsapp}`,
+      reviewed_by: `admin:${normalizeAdminIdentifier(chatId)}`,
       activation_at: nowIso,
       expiry_at: expiry.toISOString(),
     });
@@ -700,7 +706,7 @@ async function adminRejectPayment(bot, chatId, lang, idStr, reason) {
     await updateSubscriptionPayment(id, {
       payment_status: "rejected",
       reviewed_at: nowIso,
-      reviewed_by: `admin:${config.adminNotifyWhatsapp}`,
+      reviewed_by: `admin:${normalizeAdminIdentifier(chatId)}`,
       reject_reason: reason || null,
     });
     await updateUser(payment.user_id, { sub_status: "payment_rejected" });
@@ -734,7 +740,7 @@ async function adminRequestBetterProof(bot, chatId, lang, idStr) {
     await updateSubscriptionPayment(id, {
       payment_status: "better_proof_requested",
       reviewed_at: nowIso,
-      reviewed_by: `admin:${config.adminNotifyWhatsapp}`,
+      reviewed_by: `admin:${normalizeAdminIdentifier(chatId)}`,
     });
     await updateUser(payment.user_id, { sub_status: "awaiting_payment_proof" });
   } catch (e) {

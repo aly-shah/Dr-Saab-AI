@@ -53,13 +53,15 @@ export const config = {
 
   defaultTier: process.env.DEFAULT_TIER?.trim() || "free",
 
-  // WhatsApp number that receives payment-submission alerts for the Subscription
-  // Module (spec §9 — Yasir Abbasi). Digits-only, no '+', matches the shape
-  // normalizePhone() produces so the bot can reach the admin directly.
-  // Testing (2026-07-17): temporarily routed to +92 334 3873622 for verification.
-  // Swap the two lines below to restore Yasir's number.
-  adminNotifyWhatsapp: process.env.ADMIN_NOTIFY_WHATSAPP?.replace(/\D/g, "") || "923343873622",
-  // adminNotifyWhatsapp: process.env.ADMIN_NOTIFY_WHATSAPP?.replace(/\D/g, "") || "923242895065",
+  // WhatsApp numbers that receive payment-submission alerts for the Subscription
+  // Module (spec §9). Digits-only, no '+', matches the shape normalizePhone()
+  // produces so the bot can reach the admin directly. ADMIN_NOTIFY_WHATSAPP may
+  // be a single number or a comma-separated list; every number receives the
+  // payment card and any of them can Approve/Reject/Better.
+  adminNotifyWhatsapps: (process.env.ADMIN_NOTIFY_WHATSAPP || "923343873622,923242895065")
+    .split(",")
+    .map((n) => n.replace(/\D/g, ""))
+    .filter(Boolean),
 
   // Subscription QA affordance — shows the 🧪 test buttons (upgrade
   // Test Activate + doctor Test DP Cap Flow) globally to every user.
