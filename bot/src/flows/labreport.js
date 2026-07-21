@@ -6,6 +6,7 @@ import { explainLab } from "../openai.js";
 import { addLabReport, countLabReportsSince, recentLabReports } from "../supabase.js";
 import { extractPdfText, isPdfMime } from "../pdf.js";
 import { awardEventToChallenges } from "./challengeEngine.js";
+import { errorKey } from "../errors.js";
 
 function extractHba1cValue(values) {
   if (!Array.isArray(values)) return null;
@@ -143,7 +144,6 @@ export async function labText(bot, chatId, session, text, msg) {
     }).catch(() => {});
   } catch (e) {
     console.error("lab error:", e?.stack || e?.message || e);
-    const key = e?.aiLimited ? "error_ai_limit" : "error_generic";
-    await send(bot, chatId, t(lang, key), { keyboard: backKeyboard(lang) });
+    await send(bot, chatId, t(lang, errorKey(e)), { keyboard: backKeyboard(lang) });
   }
 }

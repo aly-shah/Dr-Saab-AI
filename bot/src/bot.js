@@ -1,5 +1,6 @@
 import { t, LANGUAGES } from "./i18n.js";
 import { send, sanitizeMd, langOf, isPremium, isTestModeFor } from "./utils.js";
+import { errorKey } from "./errors.js";
 import { config } from "./config.js";
 import {
   mainMenuKeyboardV2,
@@ -1127,7 +1128,7 @@ export function registerHandlers(bot) {
       console.error("message handler error:", e);
       const chatId = msg.chat?.id;
       const lang = chatId ? langOf(getSession(chatId)) : "en";
-      if (chatId) send(bot, chatId, t(lang, "error_generic"));
+      if (chatId) send(bot, chatId, t(lang, errorKey(e)));
     });
   });
 

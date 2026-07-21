@@ -48,6 +48,38 @@ export function describeLlmError(err, provider = "LLM", model = "") {
   return `${provider} call failed${status ? ` (HTTP ${status})` : ""}: ${apiMsg || err?.code || "unknown error"}.`;
 }
 
+// Map an LLM error onto the user-facing i18n key that best explains it.
+// Flows use this instead of a hard-coded "error_generic" so the user sees a
+// meaningful message ("AI is busy" vs "AI is down" vs "your file is too big")
+// while the raw cause still lands in the red log via describeLlmError().
+export function errorKey(err) {
+  if (err?.aiLimited) return "error_ai_limit";
+  const status = err?.status ?? err?.response?.status;
+  const code = err?.code || err?.cause?.code;
+  const msg = err?.message || err?.error?.message || "";
+  if (status === 413 || /too\s*large|payload too large/i.test(msg)) return "error_too_large";
+  if (
+    status === 400 ||
+    status === 401 ||
+    status === 403 ||
+    status === 404 ||
+    status === 422
+  )
+    return "error_ai_config";
+  if (status >= 500 && status < 600) return "error_ai_unavailable";
+  if (
+    code === "ETIMEDOUT" ||
+    code === "ECONNRESET" ||
+    code === "ECONNREFUSED" ||
+    code === "ENOTFOUND" ||
+    code === "EAI_AGAIN" ||
+    code === "UND_ERR_SOCKET" ||
+    /premature|socket hang up|fetch failed|network|timed?\s*out|aborted|terminated/i.test(msg)
+  )
+    return "error_ai_unavailable";
+  return "error_generic";
+}
+
 // ---- WhatsApp Cloud API (Meta direct / 360dialog) --------------------------
 export function describeWhatsAppError(status, body, provider = "meta") {
   let msg = typeof body === "string" ? body : "";

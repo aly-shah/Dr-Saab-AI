@@ -2,6 +2,7 @@ import { t } from "../i18n.js";
 import { send, typing, langOf, isPremium, photoDataUrl } from "../utils.js";
 import { backKeyboard } from "../keyboards.js";
 import { askDrsaabReply } from "../openai.js";
+import { errorKey } from "../errors.js";
 import {
   saveCoachMessage,
   weeklyStats,
@@ -61,8 +62,7 @@ export async function askDrsaabText(bot, chatId, session, text, msg) {
     session.user = await applyScores(user, "coach");
   } catch (e) {
     console.error("askdrsaab error:", e?.message);
-    const key = e?.aiLimited ? "error_ai_limit" : "error_generic";
-    await send(bot, chatId, t(lang, key), { keyboard: backKeyboard(lang) });
+    await send(bot, chatId, t(lang, errorKey(e)), { keyboard: backKeyboard(lang) });
   }
 }
 

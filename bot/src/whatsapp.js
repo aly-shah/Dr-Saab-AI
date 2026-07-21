@@ -17,7 +17,7 @@ import http from "node:http";
 import { config } from "./config.js";
 import { handleMessage, handleCallback } from "./bot.js";
 import { logError } from "./log.js";
-import { describeWhatsAppError } from "./errors.js";
+import { describeWhatsAppError, errorKey } from "./errors.js";
 import { getOrCreateUser, saveVoiceNote } from "./supabase.js";
 import { t } from "./i18n.js";
 import { getSession } from "./session.js";
@@ -29,8 +29,7 @@ import { langOf } from "./utils.js";
 // genuinely unhandled errors. A 429 is flagged as `aiLimited` in openai.js.
 async function replyOnError(bot, to, e) {
   const lang = langOf(getSession(to));
-  const key = e?.aiLimited ? "error_ai_limit" : "error_generic";
-  await bot.sendMessage(to, t(lang, key)).catch(() => {});
+  await bot.sendMessage(to, t(lang, errorKey(e))).catch(() => {});
 }
 
 const GRAPH = "https://graph.facebook.com";

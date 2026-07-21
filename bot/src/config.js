@@ -33,7 +33,7 @@ export const config = {
     model: process.env.LLM_MODEL?.trim() || (usingGroq ? "llama-3.3-70b-versatile" : "gpt-4o-mini"),
     visionModel:
       process.env.LLM_VISION_MODEL?.trim() ||
-      (usingGroq ? "meta-llama/llama-4-scout-17b-16e-instruct" : "gpt-4o-mini"),
+      (usingGroq ? "qwen/qwen3.6-27b" : "gpt-4o-mini"),
 
     // Paid-tier routing for Ask DrSaab (spec: free = basic AI, paid = OpenAI).
     // If BOTH GROQ and OPENAI keys are present, paid users hit OpenAI directly

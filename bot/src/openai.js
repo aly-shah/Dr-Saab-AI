@@ -136,6 +136,9 @@ async function complete(messages, { maxTokens = 600, model, jsonMode = false, pa
       temperature: 0.6,
     };
     if (jsonMode) req.response_format = { type: "json_object" };
+    // Qwen models on Groq emit <think>…</think> reasoning traces by default,
+    // which break the meal-analyser's strict output format. Turn them off.
+    if (/qwen/i.test(usedModel)) req.reasoning_effort = "none";
     // Stream the completion instead of buffering the whole body. On some VPS
     // networks a large buffered response over a reused keep-alive socket drops
     // mid-body as "Premature close"; consuming the body incrementally as chunks
@@ -153,6 +156,15 @@ async function complete(messages, { maxTokens = 600, model, jsonMode = false, pa
       } catch (err) {
         if (attempt < 3 && isPrematureClose(err)) {
           await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+          continue;
+        }
+        // Groq refuses long/complex JSON with "Failed to generate JSON …" (typically
+        // when max_tokens truncates the object mid-string). parseLabJson() and the
+        // KB extractor both tolerate prose-wrapped JSON, so drop the strict
+        // response_format constraint and retry once — better a good text answer
+        // than a hard failure for the user.
+        if (req.response_format && /failed to generate json/i.test(err?.message || "")) {
+          delete req.response_format;
           continue;
         }
         throw err;

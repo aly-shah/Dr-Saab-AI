@@ -118,6 +118,12 @@ const STR = {
     error_generic: "😕 Something went wrong. Please try again in a moment.",
     error_ai_limit:
       "🤖 I'm getting a lot of messages right now and hit a temporary AI limit. Please try again in a minute — your data is safe.",
+    error_ai_unavailable:
+      "🤖 The AI service is temporarily unreachable. Please try again in a few minutes — your data is safe.",
+    error_ai_config:
+      "⚙️ Something is off on our side and the AI couldn't reply. Our team has been notified — please try again shortly.",
+    error_too_large:
+      "📎 That file is too large for me to analyse. Try a smaller image (ideally under 5 MB) or send a shorter document.",
     disclaimer:
       "_DrSaab gives general guidance and is not a substitute for professional medical advice._",
     reminder_daily: "Good morning! Time to log your fasting blood sugar. Just send your reading, e.g. 130.",
@@ -1722,6 +1728,12 @@ const STR = {
     error_generic: "😕 کچھ مسئلہ ہو گیا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔",
     error_ai_limit:
       "🤖 ابھی بہت زیادہ پیغامات آ رہے ہیں اور اے آئی کی عارضی حد پوری ہو گئی ہے۔ ایک منٹ بعد دوبارہ کوشش کریں — آپ کا ڈیٹا محفوظ ہے۔",
+    error_ai_unavailable:
+      "🤖 اے آئی سروس عارضی طور پر دستیاب نہیں۔ چند منٹ بعد دوبارہ کوشش کریں — آپ کا ڈیٹا محفوظ ہے۔",
+    error_ai_config:
+      "⚙️ ہماری طرف سے کچھ مسئلہ ہے اور اے آئی جواب نہیں دے سکا۔ ٹیم کو اطلاع دی جا چکی ہے — تھوڑی دیر بعد دوبارہ کوشش کریں۔",
+    error_too_large:
+      "📎 یہ فائل تجزیہ کے لیے بہت بڑی ہے۔ چھوٹی تصویر (5 MB سے کم) یا مختصر دستاویز بھیجیں۔",
     disclaimer: "_DrSaab عمومی رہنمائی دیتا ہے اور طبی مشورے کا متبادل نہیں۔_",
     reminder_daily: "صبح بخیر! اپنی فاسٹنگ شوگر لاگ کرنے کا وقت ہے۔ بس اپنی ریڈنگ بھیجیں، مثلاً 130۔",
     reminder_streak: "آپ کا {streak} دن کا سلسلہ جاری ہے! آج ایک ریڈنگ لاگ کریں تاکہ یہ برقرار رہے۔",
@@ -2841,6 +2853,12 @@ const STR = {
     error_generic: "😕 Kuch masla ho gaya. Thori dair baad dobara koshish karein.",
     error_ai_limit:
       "🤖 Abhi bohat zyada messages aa rahe hain aur AI ki temporary limit puri ho gayi hai. Ek minute baad dobara koshish karein — aap ka data mehfooz hai.",
+    error_ai_unavailable:
+      "🤖 AI service abhi temporarily unavailable hai. Chand minute baad dobara koshish karein — aap ka data mehfooz hai.",
+    error_ai_config:
+      "⚙️ Hamari taraf se kuch masla hai aur AI reply nahi de saka. Team ko notify kar diya gaya hai — thori dair baad dobara koshish karein.",
+    error_too_large:
+      "📎 Yeh file analysis ke liye bohat bari hai. Chhoti image (5 MB se kam) ya chhota document bhejein.",
     disclaimer: "_DrSaab aam rahnumai deta hai aur tibbi mashware ka mutabadil nahi._",
     reminder_daily: "Good morning! Apni fasting sugar log karne ka waqt hai. Bas apni reading bhejein, masalan 130.",
     reminder_streak: "Aap ka {streak}-din ka streak chal raha hai! Aaj ek reading log karein taake yeh barqarar rahe.",

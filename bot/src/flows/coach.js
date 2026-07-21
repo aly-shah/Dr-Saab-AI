@@ -2,6 +2,7 @@ import { t } from "../i18n.js";
 import { send, typing, langOf, isPremium, photoDataUrl } from "../utils.js";
 import { backKeyboard } from "../keyboards.js";
 import { coachReply } from "../openai.js";
+import { errorKey } from "../errors.js";
 import { saveCoachMessage, weeklyStats } from "../supabase.js";
 import { applyScores } from "../scores.js";
 import { compactKB } from "../kb.js";
@@ -144,7 +145,6 @@ export async function coachText(bot, chatId, session, text, msg) {
     reportMealForChallenges(bot, chatId, session.user, lang, kind, reply);
   } catch (e) {
     console.error("coach error:", e?.message);
-    const key = e?.aiLimited ? "error_ai_limit" : "error_generic";
-    await send(bot, chatId, t(lang, key), { keyboard: backKeyboard(lang) });
+    await send(bot, chatId, t(lang, errorKey(e)), { keyboard: backKeyboard(lang) });
   }
 }

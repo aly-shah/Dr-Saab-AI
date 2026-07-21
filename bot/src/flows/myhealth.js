@@ -50,6 +50,7 @@ import {
   parseHealthUpdate,
 } from "../openai.js";
 import { refreshKB } from "../kb.js";
+import { errorKey } from "../errors.js";
 
 const TOTAL_STEPS = 7;
 
@@ -233,8 +234,7 @@ export async function myHealthText(bot, chatId, session, text, msg) {
     return await extractForQuestion(bot, chatId, session, q, val, imageDataUrl);
   } catch (e) {
     console.error("myhealth extract error:", e?.message);
-    const key = e?.aiLimited ? "error_ai_limit" : "error_generic";
-    return send(bot, chatId, t(lang, key), { markdown: true });
+    return send(bot, chatId, t(lang, errorKey(e)), { markdown: true });
   }
 }
 
@@ -580,8 +580,7 @@ async function handleUpdate(bot, chatId, session, val, imageDataUrl) {
     change = await parseHealthUpdate(session.user, val, imageDataUrl);
   } catch (e) {
     console.error("myhealth update error:", e?.message);
-    const key = e?.aiLimited ? "error_ai_limit" : "error_generic";
-    return send(bot, chatId, t(lang, key), { keyboard: backKeyboard(lang), markdown: true });
+    return send(bot, chatId, t(lang, errorKey(e)), { keyboard: backKeyboard(lang), markdown: true });
   }
 
   // Ambiguous glucose → ask fasting / random / post-meal before saving that one.

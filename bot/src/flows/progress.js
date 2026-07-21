@@ -3,6 +3,7 @@ import { send, typing, langOf } from "../utils.js";
 import { backKeyboard } from "../keyboards.js";
 import { weeklyStats } from "../supabase.js";
 import { weeklySummary } from "../openai.js";
+import { errorKey } from "../errors.js";
 
 // Weekly Summary — used by Reports (feat:summary / rep:weekly). The
 // standalone Goals & Progress screen was retired in the 2026-07 revision;
@@ -24,7 +25,6 @@ export async function showSummary(bot, chatId, session) {
     await send(bot, chatId, summary, { keyboard: backKeyboard(lang) });
   } catch (e) {
     console.error("summary error:", e?.message);
-    const key = e?.aiLimited ? "error_ai_limit" : "error_generic";
-    await send(bot, chatId, t(lang, key), { keyboard: backKeyboard(lang) });
+    await send(bot, chatId, t(lang, errorKey(e)), { keyboard: backKeyboard(lang) });
   }
 }
