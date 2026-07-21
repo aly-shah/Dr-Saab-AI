@@ -103,24 +103,50 @@ export async function labText(bot, chatId, session, text, msg) {
     const prior = await recentLabReports(session.user.id, 3).catch(() => []);
     const priorLine = priorValuesLine(prior);
 
-    const { analysis, metadata, values, labSource } = await explainLab(
-      session.user,
-      userText,
-      imageDataUrl,
-      priorLine
-    );
+    const {
+      analysis,
+      metadata,
+      values,
+      labSource,
+      unreadable,
+      partialUnreadable,
+      unreadableReason,
+    } = await explainLab(session.user, userText, imageDataUrl, priorLine);
+
+    // Fully unreadable image: ask for a clearer photo instead of falling
+    // through to the generic error. Only applies when the user actually sent
+    // an image (a garbled text paste is handled by the generic path).
+    if (unreadable && imageDataUrl) {
+      return send(bot, chatId, t(lang, "lab_image_unreadable"), {
+        keyboard: backKeyboard(lang),
+        markdown: true,
+      });
+    }
 
     // Guard: an empty reply from the LLM (Groq occasionally returns "" under
     // load) would send a blank message that the transport silently rejects,
     // leaving the user staring at a disclaimer with nothing above it. Treat
     // it as a generic failure so they see a real message and can retry.
-    if (!analysis || !String(analysis).trim()) {
-      throw new Error("empty analysis from LLM");
+    // Also treat JSON-shaped output as empty — the user must never see raw
+    // JSON from the model, even if a future code path forgets to strip it.
+    const trimmed = String(analysis || "").trim();
+    if (!trimmed || /^[{[]/.test(trimmed) || /^"[a-zA-Z_][\w-]*"\s*:/.test(trimmed)) {
+      throw new Error("empty or JSON-shaped analysis from LLM");
     }
 
     // Send the analysis first, so a follow-up failure (e.g. history insert)
     // doesn't hide the answer we already have from the user.
     await send(bot, chatId, analysis, { keyboard: backKeyboard(lang), markdown: true });
+
+    // If part of the image was unclear, tell the user which part was skipped
+    // so they know the analysis above is incomplete and can resend that
+    // section. The reason string comes from the model — if it's missing we
+    // fall back to a generic note.
+    if (partialUnreadable && imageDataUrl) {
+      const noteKey = unreadableReason ? "lab_partial_unreadable" : "lab_partial_unreadable_generic";
+      await send(bot, chatId, t(lang, noteKey, { reason: unreadableReason }), { markdown: true });
+    }
+
     await send(bot, chatId, t(lang, "lab_disclaimer"), { markdown: true });
 
     // History save is best-effort. If the DB is misconfigured the user still

@@ -179,6 +179,20 @@ async function complete(messages, { maxTokens = 600, model, jsonMode = false, pa
     // "AI is busy, try again shortly" instead of a generic failure — or silence.
     const status = e?.status ?? e?.response?.status;
     if (status === 429) e.aiLimited = true;
+    // Distinguish "credits/quota actually exhausted" from a short-lived rate
+    // spike. Providers signal exhaustion via specific keywords in the message
+    // body (or via HTTP 402). Callers use this flag to show a different
+    // message to the user (top-up / contact admin) instead of "try again in
+    // a minute", which is misleading when there is nothing to wait for.
+    const apiMsg =
+      e?.error?.message || e?.response?.data?.error?.message || e?.message || "";
+    if (
+      status === 402 ||
+      (status === 429 && /quota|insufficient|credit|billing|exceeded your current|out of credits|no credits/i.test(apiMsg))
+    ) {
+      e.aiCreditsExhausted = true;
+      e.aiLimited = true;
+    }
     logError(`${config.llm.provider.toUpperCase()} LLM`, describeLlmError(e, config.llm.provider, usedModel));
     throw e;
   }
@@ -281,6 +295,9 @@ export async function explainLab(user, text, imageDataUrl = null, priorValues = 
     `You are a LAB REPORT ANALYST for a diabetes coaching app. The user gave you a report (image and/or pasted text). Return ONE JSON object — no prose outside the JSON — with these fields:
 
 {
+  "unreadable": boolean,
+  "partial_unreadable": boolean,
+  "unreadable_reason": string|null,
   "metadata": {
     "lab_name": string|null,
     "lab_branch": string|null,
@@ -304,8 +321,11 @@ export async function explainLab(user, text, imageDataUrl = null, priorValues = 
 }
 
 Rules for extraction:
+- IMPORTANT (fully unreadable): Set "unreadable": true ONLY if the ENTIRE image is unreadable — you cannot make out any test values at all. In that case leave metadata/values empty and set "analysis" to an empty string. Also set "unreadable": true if the image is clearly not a medical/lab report (e.g. a random photo, selfie, food, unrelated screenshot).
+- IMPORTANT (partially unreadable): If you can read SOME of the report but a portion is blurred, cropped, glared, cut off, or otherwise not legible, set "unreadable": false AND "partial_unreadable": true. Extract every value you can read confidently, skip the ones you cannot, and put a SHORT plain-language description of what is missing into "unreadable_reason" (e.g. "the bottom rows of the CBC table are blurred" or "the reference-range column on the right is cut off"). Never guess or invent values for the unreadable part.
+- If the whole image is clear, set both "unreadable" and "partial_unreadable" to false and leave "unreadable_reason" null.
 - Prioritize these tests where present: HbA1c, fasting glucose, random glucose, LDL, HDL, total cholesterol, triglycerides, creatinine, eGFR, urea, ALT/SGPT, AST/SGOT, urine albumin, urine microalbumin, and any CBC values.
-- If the source is unreadable or missing a field, leave it null. Do not invent values.
+- If a single field is missing but the rest of the report is readable, leave that field null. Do not invent values.
 - Status is judged against the printed reference range on the report; if no range is given, use general adult reference ranges and mark "unknown" if you're not sure.
 
 Rules for the "analysis" field (markdown, user-facing):
@@ -337,18 +357,58 @@ Return valid JSON only.`,
     },
   ];
   const raw = await complete(messages, {
-    maxTokens: 1500,
+    // Large CBC/lipid panels can carry 15–20 values, each needing 1–2 sentences
+    // in the analysis field. 1500 tokens truncated the JSON mid-string on real
+    // CBC reports and dumped raw partial JSON to the user; 3000 gives headroom.
+    maxTokens: 3000,
     model: imageDataUrl ? config.llm.visionModel : config.llm.model,
     jsonMode: !imageDataUrl, // vision endpoints often reject response_format
   });
 
   const parsed = parseLabJson(raw);
+  // Hard rule: users must never see raw JSON. If the parsed `analysis` field
+  // is missing, try the truncated-JSON recovery; if that also fails, return
+  // an empty analysis so the caller's empty-response guard shows a friendly
+  // error rather than dumping `raw` (which is almost always JSON here).
+  let analysis = parsed.analysis || extractAnalysisFallback(raw) || "";
+  if (looksLikeJson(analysis)) analysis = "";
+  const values = Array.isArray(parsed.values) ? parsed.values : null;
+  const metadata = parsed.metadata || null;
+  // Consider the image unreadable when the model explicitly flags it, OR when
+  // we sent an image and got back nothing meaningful (no values and no
+  // identifying metadata). The latter catches models that ignore the flag but
+  // still refuse to invent data.
+  const nothingExtracted =
+    !values?.length &&
+    !metadata?.lab_name &&
+    !metadata?.patient_name &&
+    !metadata?.report_type;
+  const unreadable = !!parsed.unreadable || (!!imageDataUrl && nothingExtracted && !analysis);
+  const partialUnreadable = !unreadable && !!parsed.partial_unreadable;
+  const unreadableReason = typeof parsed.unreadable_reason === "string"
+    ? parsed.unreadable_reason.trim()
+    : "";
   return {
-    analysis: parsed.analysis || raw, // fall back to raw text if JSON parse failed
-    metadata: parsed.metadata || null,
-    values: Array.isArray(parsed.values) ? parsed.values : null,
+    analysis,
+    metadata,
+    values,
     labSource: parsed.lab_source || null,
+    unreadable,
+    partialUnreadable,
+    unreadableReason,
   };
+}
+
+// True when the string is (or begins with) JSON-shaped content — an opening
+// brace/bracket or a leading `"key":` pair. Used to make sure we never leak
+// raw model JSON into the user-facing analysis message.
+function looksLikeJson(s) {
+  if (!s) return false;
+  const trimmed = String(s).trim();
+  if (!trimmed) return false;
+  if (/^[{[]/.test(trimmed)) return true;
+  if (/^"[a-zA-Z_][\w-]*"\s*:/.test(trimmed)) return true;
+  return false;
 }
 
 // Best-effort JSON extractor. Handles clean JSON, fenced ```json blocks, and
@@ -370,6 +430,24 @@ function parseLabJson(raw) {
     try { return JSON.parse(raw.slice(first, last + 1)); } catch { /* fall through */ }
   }
   return {};
+}
+
+// Last-resort recovery when the model returned JSON but it got truncated
+// mid-string (max_tokens hit). Pulls just the `"analysis": "..."` field body
+// and unescapes it, so the user still sees prose instead of raw JSON.
+function extractAnalysisFallback(raw) {
+  if (!raw) return "";
+  const m = raw.match(/"analysis"\s*:\s*"([\s\S]*?)(?:"\s*[,}]|$)/);
+  if (!m) return "";
+  try {
+    return JSON.parse('"' + m[1].replace(/(^|[^\\])"/g, '$1\\"') + '"');
+  } catch {
+    return m[1]
+      .replace(/\\n/g, "\n")
+      .replace(/\\t/g, "\t")
+      .replace(/\\"/g, '"')
+      .replace(/\\\\/g, "\\");
+  }
 }
 
 /**

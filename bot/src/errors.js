@@ -53,6 +53,7 @@ export function describeLlmError(err, provider = "LLM", model = "") {
 // meaningful message ("AI is busy" vs "AI is down" vs "your file is too big")
 // while the raw cause still lands in the red log via describeLlmError().
 export function errorKey(err) {
+  if (err?.aiCreditsExhausted) return "error_ai_credits";
   if (err?.aiLimited) return "error_ai_limit";
   const status = err?.status ?? err?.response?.status;
   const code = err?.code || err?.cause?.code;

@@ -725,24 +725,14 @@ export async function handleMessage(bot, msg) {
     }
   }
 
-  // Not onboarded yet → (re)start onboarding for any input.
-  // A greeting word picks the matching welcome scenario; any other text
-  // falls back to the English welcome banner. Doctor onboarding branches
-  // (doctor_onboarding, doctor_patient_onboarding) are also considered
-  // in-progress onboarding — otherwise their typed replies would restart
-  // the whole welcome/language flow.
-  //
-  // sub_await_proof is a payment upload state: the user reached it only
-  // after completing onboarding, but session.user.onboarded may look false
-  // on a fresh in-memory session after a process restart. Never bounce
-  // them into onboarding while mid-upload — the state check below handles
-  // the missing-context case with a friendlier message.
-  const inOnboardingState =
-    session.state === "onboarding" ||
-    session.state === "doctor_onboarding" ||
-    session.state === "doctor_patient_onboarding" ||
-    session.state === "sub_await_proof";
-  if (!session.user.onboarded && !inOnboardingState) {
+  // Not onboarded yet → (re)start onboarding only when the user has no
+  // active flow. If they've already navigated into a specific state via a
+  // callback (Food Help → Analyze Meal, a tracking flow, a payment upload,
+  // etc.), let their message reach the corresponding handler instead of
+  // yanking them back to the welcome banner mid-task — `session.user.onboarded`
+  // can legitimately look false on a fresh in-memory session after a process
+  // restart while an active state proves the user has already progressed.
+  if (!session.user.onboarded && session.state === "idle") {
     return startOnboarding(bot, chatId, session, greeting || "eng");
   }
 

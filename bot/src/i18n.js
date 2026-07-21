@@ -83,6 +83,12 @@ const STR = {
       "I received the PDF but couldn't read any text from it — it may be a scanned image. Please share a photo or screenshot of the report instead.",
     lab_unsupported_file:
       "That file type isn't supported yet — please attach a photo, an image file, or a PDF of your report.",
+    lab_image_unreadable:
+      "📸 I couldn't read the report clearly — the image looks blurry or the text isn't sharp enough. Please send a clearer photo (good lighting, no shadows, the whole report in focus) or type the values as text.",
+    lab_partial_unreadable:
+      "⚠️ *Note:* Some parts of the image were not clear, so I couldn't analyse everything — {reason}. If you'd like those values explained too, please send a clearer photo of that section or type the values as text.",
+    lab_partial_unreadable_generic:
+      "⚠️ *Note:* Some parts of the image were not clear, so I couldn't analyse everything. If you'd like those values explained too, please send a clearer photo of that section or type the values as text.",
     lab_saved: "✅ Your report has been analyzed and added to your health record.",
     lab_disclaimer:
       "_Important: This explanation is for understanding your report only. Please consult your doctor before making any medical decisions or changing your treatment._",
@@ -118,6 +124,8 @@ const STR = {
     error_generic: "😕 Something went wrong. Please try again in a moment.",
     error_ai_limit:
       "🤖 I'm getting a lot of messages right now and hit a temporary AI limit. Please try again in a minute — your data is safe.",
+    error_ai_credits:
+      "💳 Our AI credits have run out for now, so I can't analyse this right now. Our team has been notified and will top up shortly — please try again later. Your data is safe.",
     error_ai_unavailable:
       "🤖 The AI service is temporarily unreachable. Please try again in a few minutes — your data is safe.",
     error_ai_config:
@@ -1705,6 +1713,12 @@ const STR = {
     btn_upload_lab: "📎 تصویر اپلوڈ کریں",
     upload_lab_hint:
       "📸 بس رپورٹ کی تصویر منسلک کر کے بھیج دیں۔\n\n_چیٹ میں اٹیچ (پیپر کلپ) کے نشان پر کلک کریں، اپنی رپورٹ کی تصویر منتخب کریں اور بھیج دیں۔ میں تجزیہ کر کے آپ کے ریکارڈ میں محفوظ کر دوں گا۔_",
+    lab_image_unreadable:
+      "📸 میں رپورٹ واضح طور پر پڑھ نہیں سکا — تصویر دھندلی ہے یا الفاظ صاف نہیں۔ براہِ کرم واضح تصویر بھیجیں (اچھی روشنی میں، بغیر سائے کے، پوری رپورٹ فوکس میں) یا ویلیوز ٹیکسٹ میں لکھ دیں۔",
+    lab_partial_unreadable:
+      "⚠️ *نوٹ:* تصویر کے کچھ حصے واضح نہیں تھے، اس لیے میں سب کچھ نہیں پڑھ سکا — {reason}۔ اگر آپ چاہتے ہیں کہ باقی ویلیوز بھی سمجھائی جائیں تو اُس حصے کی صاف تصویر بھیجیں یا ٹیکسٹ میں لکھ دیں۔",
+    lab_partial_unreadable_generic:
+      "⚠️ *نوٹ:* تصویر کے کچھ حصے واضح نہیں تھے، اس لیے میں سب کچھ نہیں پڑھ سکا۔ اگر آپ چاہتے ہیں کہ باقی ویلیوز بھی سمجھائی جائیں تو اُس حصے کی صاف تصویر بھیجیں یا ٹیکسٹ میں لکھ دیں۔",
     lab_saved: "✅ آپ کی رپورٹ کا تجزیہ ہو گیا اور آپ کے صحت کے ریکارڈ میں محفوظ ہو گئی۔",
     lab_disclaimer:
       "_اہم: یہ وضاحت صرف آپ کی رپورٹ سمجھنے کے لیے ہے۔ کوئی بھی طبی فیصلہ کرنے یا علاج تبدیل کرنے سے پہلے اپنے ڈاکٹر سے مشورہ کریں۔_",
@@ -1728,6 +1742,8 @@ const STR = {
     error_generic: "😕 کچھ مسئلہ ہو گیا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔",
     error_ai_limit:
       "🤖 ابھی بہت زیادہ پیغامات آ رہے ہیں اور اے آئی کی عارضی حد پوری ہو گئی ہے۔ ایک منٹ بعد دوبارہ کوشش کریں — آپ کا ڈیٹا محفوظ ہے۔",
+    error_ai_credits:
+      "💳 ہمارے اے آئی کریڈٹس فی الحال ختم ہو گئے ہیں، اس لیے میں ابھی تجزیہ نہیں کر سکتا۔ ٹیم کو اطلاع دی جا چکی ہے اور جلد ری چارج کر دیا جائے گا — براہِ کرم بعد میں دوبارہ کوشش کریں۔ آپ کا ڈیٹا محفوظ ہے۔",
     error_ai_unavailable:
       "🤖 اے آئی سروس عارضی طور پر دستیاب نہیں۔ چند منٹ بعد دوبارہ کوشش کریں — آپ کا ڈیٹا محفوظ ہے۔",
     error_ai_config:
@@ -2830,6 +2846,12 @@ const STR = {
     btn_upload_lab: "📎 Tasveer Upload Karein",
     upload_lab_hint:
       "📸 Bas report ki tasveer attach kar ke bhej dein.\n\n_Chat mein attach (paper-clip) icon dabayein, apni report ki tasveer chunein aur bhej dein. Main tajziya kar ke aap ke record mein mehfooz kar doonga._",
+    lab_image_unreadable:
+      "📸 Main report ko clearly parh nahi saka — tasveer blurry hai ya text saaf nahi. Meharbani karke ek clear tasveer bhejein (achi roshni mein, bina shadow ke, poori report focus mein) ya values text mein type kar dein.",
+    lab_partial_unreadable:
+      "⚠️ *Note:* Tasveer ke kuch hissay saaf nahi thay, is liye main sab kuch analyse nahi kar saka — {reason}. Agar baaki values bhi samjhna chahte hain to us hissay ki clear tasveer bhejein ya text mein type kar dein.",
+    lab_partial_unreadable_generic:
+      "⚠️ *Note:* Tasveer ke kuch hissay saaf nahi thay, is liye main sab kuch analyse nahi kar saka. Agar baaki values bhi samjhna chahte hain to us hissay ki clear tasveer bhejein ya text mein type kar dein.",
     lab_saved: "✅ Aap ki report ka tajziya ho gaya aur aap ke health record mein mehfooz ho gayi.",
     lab_disclaimer:
       "_Ahem: Yeh wazahat sirf aap ki report samajhne ke liye hai. Koi bhi tibbi faisla karne ya ilaaj tabdeel karne se pehle apne doctor se mashwara karein._",
@@ -2853,6 +2875,8 @@ const STR = {
     error_generic: "😕 Kuch masla ho gaya. Thori dair baad dobara koshish karein.",
     error_ai_limit:
       "🤖 Abhi bohat zyada messages aa rahe hain aur AI ki temporary limit puri ho gayi hai. Ek minute baad dobara koshish karein — aap ka data mehfooz hai.",
+    error_ai_credits:
+      "💳 Hamare AI credits filhal khatam ho gaye hain, is liye main abhi analyse nahi kar sakta. Team ko notify kar diya gaya hai aur jald recharge kar diya jayega — meharbani karke baad mein dobara koshish karein. Aap ka data mehfooz hai.",
     error_ai_unavailable:
       "🤖 AI service abhi temporarily unavailable hai. Chand minute baad dobara koshish karein — aap ka data mehfooz hai.",
     error_ai_config:
