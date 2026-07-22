@@ -1,5 +1,5 @@
 import { t, LANGUAGES } from "./i18n.js";
-import { send, sanitizeMd, langOf, isPremium, isTestModeFor } from "./utils.js";
+import { send, sanitizeMd, langOf, isPremium, isTestModeFor, hasAttachment } from "./utils.js";
 import { errorKey } from "./errors.js";
 import { config } from "./config.js";
 import {
@@ -210,6 +210,22 @@ const RESUMABLE_STATES = new Set([
   "my_doctor",
   "challenge_hba1c_baseline",
   "sub_await_proof",
+]);
+
+// States whose own handler already knows what to do with a photo or PDF.
+// Anything NOT in this set has its uploads captured by the universal
+// attachment router below and forwarded to the lab-report explainer.
+const ATTACHMENT_AWARE_STATES = new Set([
+  "lab",
+  "myhealth",
+  "coach",
+  "food",
+  "fitness",
+  "label",
+  "analyze",
+  "askdrsaab",
+  "sub_await_proof",
+  "challenge_hba1c_baseline",
 ]);
 
 const PAUSED_TTL_MS = 15 * 60 * 1000;
@@ -556,17 +572,25 @@ export async function handleMessage(bot, msg) {
   }
 
   // Hard reset: typing DELETE (exact, all caps) wipes this user's profile and
-  // ALL their data + chat history, then drops the session. Lets a demo be
-  // replayed from scratch as a brand-new user. Checked before recordMessage so
-  // we don't re-create a patient_kb row against the row we're about to delete.
+  // ALL their data + chat history, then drops the session. Also the ONLY
+  // path back into the onboarding wizard now — auto-onboarding-on-idle was
+  // removed so browser refreshes on the web bot don't drop testers back
+  // into the wizard mid-demo. Checked before recordMessage so we don't
+  // re-create a patient_kb row against the row we're about to delete.
   if (msg.text?.trim() === "DELETE") {
     await deleteUser(session.user.id).catch((e) => console.error("deleteUser error:", e));
     clearSession(chatId);
-    return send(
+    await send(
       bot,
       chatId,
-      "Your profile and chat history have been deleted. Send any message (or /start) to begin again as a new user."
+      "Your profile and chat history have been deleted. Let's set you up again."
     );
+    const freshSession = getSession(chatId);
+    freshSession.user = await getOrCreateUser(
+      msg.from?.id ?? chatId,
+      msg.__source || "telegram",
+    );
+    return startOnboarding(bot, chatId, freshSession, "eng");
   }
 
   // Admin promotion — sending the shared admin password flips is_admin=true
@@ -638,6 +662,34 @@ export async function handleMessage(bot, msg) {
     return renderDoctorCapPrompt(bot, chatId, lang, t(lang, "dp_test_patient_name"));
   }
 
+  // Universal attachment routing (flexible mode).
+  //
+  // If the user sends an image or a PDF while parked in a flow that doesn't
+  // natively deal with attachments (glucose entry, medication picker, idle
+  // chat, …), treat it as a lab-report upload — the user almost certainly
+  // wants it explained rather than silently dropped. Flows that already
+  // handle their own attachments keep control: Explain My Report itself,
+  // the coaches (food / fitness / meal-analyze / label / ask-drsaab), My
+  // Health, and the subscription proof upload.
+  if (session.user.onboarded && hasAttachment(msg) && !ATTACHMENT_AWARE_STATES.has(session.state)) {
+    // Preserve any in-progress data entry so the user can pick it back up
+    // with the `resume` shortcut once they're done with the report.
+    if (isInResumableFlow(session)) {
+      const paused = pauseActiveFlow(session);
+      resetFlow(chatId);
+      if (paused) {
+        await send(
+          bot,
+          chatId,
+          t(langOf(session), "shortcut_flow_paused", { flow: pausedFlowLabel(langOf(session), paused) }),
+          { markdown: true },
+        );
+      }
+    }
+    session.state = "lab";
+    return labText(bot, chatId, session, text, msg);
+  }
+
   // Universal shortcut / smart-alias router (spec 2026-07).
   //
   // Layered routing per §5:
@@ -700,10 +752,11 @@ export async function handleMessage(bot, msg) {
 
     // §6 disambiguation rule 4 — food questions ("Can I eat biryani?")
     // route to the Food Help coach conversationally rather than the
-    // generic Ask DrSaab, but only for paid users (Food Coach is a paid
-    // feature) and when we're not already inside another data-entry flow.
+    // generic Ask DrSaab. Paid feature. Fires from any menu except the
+    // coach-like states (where the coach is already listening): if a
+    // data-entry flow is running, we snapshot it so `resume` brings the
+    // user back where they left off after they're done chatting food.
     if (
-      !inResumableFlow &&
       !inCoachlike &&
       isFoodQuestion(text) &&
       isPremium(session.user)
@@ -715,6 +768,18 @@ export async function handleMessage(bot, msg) {
         role: session.user?.user_type === "doctor" ? "doctor" : "patient",
         user_id: session.user?.id,
       });
+      if (inResumableFlow) {
+        const paused = pauseActiveFlow(session);
+        resetFlow(chatId);
+        if (paused) {
+          await send(
+            bot,
+            chatId,
+            t(langOf(session), "shortcut_flow_paused", { flow: pausedFlowLabel(langOf(session), paused) }),
+            { markdown: true },
+          );
+        }
+      }
       // Enter the food coach silently (skip the intro since the user
       // already asked their question) and hand the message straight to
       // coachText so the AI answers the biryani question in-flow.
@@ -725,16 +790,14 @@ export async function handleMessage(bot, msg) {
     }
   }
 
-  // Not onboarded yet → (re)start onboarding only when the user has no
-  // active flow. If they've already navigated into a specific state via a
-  // callback (Food Help → Analyze Meal, a tracking flow, a payment upload,
-  // etc.), let their message reach the corresponding handler instead of
-  // yanking them back to the welcome banner mid-task — `session.user.onboarded`
-  // can legitimately look false on a fresh in-memory session after a process
-  // restart while an active state proves the user has already progressed.
-  if (!session.user.onboarded && session.state === "idle") {
-    return startOnboarding(bot, chatId, session, greeting || "eng");
-  }
+  // Onboarding is no longer auto-triggered on every "not onboarded + idle"
+  // message. Two problems with that pattern: a web session whose sessionId
+  // changes on every browser refresh would create a fresh not-onboarded
+  // user each time and drop the tester back into the wizard mid-demo; and
+  // legitimate flows already know how to prompt for what they need. The
+  // only entry points into onboarding are now explicit: the DELETE reset
+  // above, `/start`, `/menu`, and `/cancel`. Everything else falls through
+  // to the normal state switch so the user keeps using the bot.
 
   // Already in onboarding but the user typed a greeting — restart the banner
   // in the matching scenario (covers cases where they tap "back" or want to

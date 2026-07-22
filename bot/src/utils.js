@@ -119,6 +119,19 @@ export async function photoDataUrl(bot, msg) {
   return null;
 }
 
+// True when the message carries any file attachment the bot might want to
+// look at (photo, image sent as document, or any other document like a PDF).
+// Used by the universal routing layer so a report uploaded from ANY flow can
+// be redirected to the lab-report explainer.
+export function hasAttachment(msg) {
+  if (!msg) return false;
+  if (msg.__imageDataUrl) return true;
+  if (msg.__documentBuffer && msg.__documentMime) return true;
+  if (Array.isArray(msg.photo) && msg.photo.length) return true;
+  if (msg.document?.file_id) return true;
+  return false;
+}
+
 // Download a Telegram document (or return a WhatsApp-provided buffer) as a
 // { mime, buffer } pair. Used for PDFs on the lab-report flow — the caller
 // then extracts text via pdf.js. Returns null if there's no document.

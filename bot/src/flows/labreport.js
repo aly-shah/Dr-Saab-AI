@@ -1,5 +1,5 @@
 import { t } from "../i18n.js";
-import { send, typing, langOf, photoDataUrl, documentBuffer } from "../utils.js";
+import { send, typing, langOf, photoDataUrl, documentBuffer, isPremium } from "../utils.js";
 import { isPaid } from "../tiers.js";
 import { backKeyboard, labStartKeyboard } from "../keyboards.js";
 import { explainLab } from "../openai.js";
@@ -7,6 +7,31 @@ import { addLabReport, countLabReportsSince, recentLabReports } from "../supabas
 import { extractPdfText, isPdfMime } from "../pdf.js";
 import { awardEventToChallenges } from "./challengeEngine.js";
 import { errorKey } from "../errors.js";
+import { isFoodQuestion } from "../shortcuts.js";
+import { askDrsaabText } from "./askdrsaab.js";
+import { coachText } from "./coach.js";
+
+// Common lab / clinical test names. When the user's message mentions any of
+// these we treat the text as lab input; otherwise it's delegated out of the
+// lab flow so a food or lifestyle sentence ("I had paratha and chai", "can
+// I eat biryani?") gets a real answer instead of a "no values found" reply
+// from the report parser. A short numeric-only paste ("6.5, 145, 210") is
+// also allowed through — genuine OCR results sometimes drop the test names.
+const LAB_TERMS_RE =
+  /\b(hba1c|a1c|glucose|fbs|ppbs|rbs|cholesterol|ldl|hdl|triglycerid|creatinine|urea|egfr|hemoglobin|haemoglobin|hgb|tsh|thyroid|t3|t4|alt|ast|sgpt|sgot|bilirubin|albumin|calcium|sodium|potassium|wbc|rbc|platelet|hematocrit|hct|mcv|uric\s*acid|ferritin|vitamin\s*[db](?:12)?|c[- ]?peptide|insulin\s*level|report|lab|blood\s*test)\b/i;
+
+function looksLikeNumericOnly(text) {
+  const stripped = String(text).replace(/[\d.,%\s\-:/]/g, "");
+  if (stripped.length) return false;
+  return /\d/.test(text);
+}
+
+function looksLikeLabInput(text) {
+  if (!text) return false;
+  if (LAB_TERMS_RE.test(text)) return true;
+  if (looksLikeNumericOnly(text)) return true;
+  return false;
+}
 
 function extractHba1cValue(values) {
   if (!Array.isArray(values)) return null;
@@ -54,6 +79,28 @@ export async function startLab(bot, chatId, session) {
 export async function labText(bot, chatId, session, text, msg) {
   const lang = langOf(session);
 
+  const imageDataUrl = msg ? await photoDataUrl(bot, msg) : null;
+  const hasDocAttachment = !!(msg?.document?.file_id || msg?.__documentBuffer);
+  let userText = (text || msg?.caption || "").trim();
+
+  // Off-topic guard (flexible mode). When there's no attachment and the
+  // user's message doesn't look like lab data — most commonly a food or
+  // lifestyle question — hand it off to the coach that actually answers
+  // that type of question, rather than sending it through the report
+  // parser and getting a "no values found" response. Food questions go to
+  // the Food Coach for paid users; everything else goes to Ask DrSaab.
+  if (!imageDataUrl && !hasDocAttachment && userText && !looksLikeLabInput(userText)) {
+    if (isFoodQuestion(userText) && isPremium(session.user)) {
+      session.state = "food";
+      session.history = [];
+      if (session.data) delete session.data.foodRestaurantId;
+      return coachText(bot, chatId, session, userText, msg);
+    }
+    session.state = "askdrsaab";
+    session.history = [];
+    return askDrsaabText(bot, chatId, session, userText, msg);
+  }
+
   // Free-tier monthly cap. Paid users bypass entirely. If the count query
   // itself fails (DB down / schema missing) we fail-open so a background DB
   // hiccup can't block a paying-adjacent feature from running at all.
@@ -66,9 +113,6 @@ export async function labText(bot, chatId, session, text, msg) {
       });
     }
   }
-
-  const imageDataUrl = msg ? await photoDataUrl(bot, msg) : null;
-  let userText = (text || msg?.caption || "").trim();
 
   // PDF attachment: vision models can't read PDFs. Extract text server-side
   // and feed it in as if the user had typed the values themselves. Applies to
