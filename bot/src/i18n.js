@@ -234,10 +234,11 @@ const STR = {
     g_prefer_not: "Prefer not to say",
     ask_city_v2: "Which city do you live in?",
 
-    ask_diabetes_type: "Do you know which type you have?",
+    ask_diabetes_type: "What best describes you?",
     dt_type1: "Type 1 Diabetes",
     dt_type2: "Type 2 Diabetes",
     dt_prediabetes: "Prediabetes",
+    dt_healthier: "I want to live healthier",
     dt_gestational: "Gestational Diabetes",
     dt_notsure: "Not Sure",
 
@@ -1846,10 +1847,11 @@ const STR = {
     g_prefer_not: "بتانا نہیں چاہتا",
     ask_city_v2: "آپ کس شہر میں رہتے ہیں؟",
 
-    ask_diabetes_type: "کیا آپ جانتے ہیں کہ آپ کو ذیابیطس کی کون سی قسم ہے؟",
+    ask_diabetes_type: "ان میں سے کون سی بات آپ پر سب سے بہتر لاگو ہوتی ہے؟",
     dt_type1: "ٹائپ 1 ذیابیطس",
     dt_type2: "ٹائپ 2 ذیابیطس",
     dt_prediabetes: "پری ذیابیطس",
+    dt_healthier: "میں صحت مند زندگی چاہتا/چاہتی ہوں",
     dt_gestational: "حملاتی ذیابیطس",
     dt_notsure: "یقین نہیں",
 
@@ -2979,10 +2981,11 @@ const STR = {
     g_prefer_not: "Batana nahi chahta",
     ask_city_v2: "Aap kis shehar mein rehte hain?",
 
-    ask_diabetes_type: "Kya aap jaantay hain ke aap ko diabetes ki kaunsi type hai?",
+    ask_diabetes_type: "In mein se kaunsi baat aap par sab se zyada lagu hoti hai?",
     dt_type1: "Type 1 Diabetes",
     dt_type2: "Type 2 Diabetes",
     dt_prediabetes: "Prediabetes",
+    dt_healthier: "Main sehatmand zindagi chahta/chahti hoon",
     dt_gestational: "Gestational Diabetes",
     dt_notsure: "Yaqeen nahi",
 

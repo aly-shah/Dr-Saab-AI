@@ -371,7 +371,7 @@ export async function doctorPatientBranchCallback(bot, chatId, session, data) {
     type1:       { user_type: "diabetes",    diabetes_type: "type1" },
     type2:       { user_type: "diabetes",    diabetes_type: "type2" },
     prediabetes: { user_type: "diabetes",    diabetes_type: "prediabetes" },
-    notsure:     { user_type: "diabetes",    diabetes_type: "notsure" },
+    healthier:   { user_type: "healthier",   diabetes_type: null },
   };
   const m = map[value];
   const patch = {

@@ -430,7 +430,7 @@ export function diabetesTypeKeyboard(lang) {
       { text: t(lang, "dt_type2"), callback_data: "dt:type2" },
     ],
     { text: t(lang, "dt_prediabetes"), callback_data: "dt:prediabetes" },
-    { text: t(lang, "dt_notsure"), callback_data: "dt:notsure" },
+    { text: t(lang, "dt_healthier"), callback_data: "dt:healthier" },
   ]);
 }
 
