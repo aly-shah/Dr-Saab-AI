@@ -424,14 +424,12 @@ export function genderKeyboardV2(lang) {
 }
 
 export function diabetesTypeKeyboard(lang) {
-  // Prediabetes intentionally omitted — already covered by the user_type
-  // question ("I have prediabetes") asked one step earlier.
   return stack([
     [
       { text: t(lang, "dt_type1"), callback_data: "dt:type1" },
       { text: t(lang, "dt_type2"), callback_data: "dt:type2" },
     ],
-    { text: t(lang, "dt_gestational"), callback_data: "dt:gestational" },
+    { text: t(lang, "dt_prediabetes"), callback_data: "dt:prediabetes" },
     { text: t(lang, "dt_notsure"), callback_data: "dt:notsure" },
   ]);
 }
