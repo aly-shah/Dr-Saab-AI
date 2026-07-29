@@ -198,8 +198,7 @@ const STR = {
     btn_doc_rep_monthly: "📅 Monthly",
     btn_doc_rep_all: "📊 All-time",
     doc_reports_empty: "No patients are linked to your practice yet.\n\nShare your referral code *{code}* — once patients add it under ❤️ My Health → My Doctor, their aggregated insights will appear here.",
-    doc_reports_body:
-      "*Connected patients:* {patients}\n*Engagement:* {engagement}\n*Average SMI:* {smi}\n\n📈 *Trends*\n• HbA1c average: {hba1c}\n• Weight average: {weight}\n• Activity: {activity}\n• Medication adherence: {adherence}\n\n🟢 *Green flags*\n{green}\n\n🔴 *Red flags*\n{red}\n\n💡 *Suggested actions*\n{actions}",
+    doc_reports_body: "*Connected Patients:* {patients}\n\n{list}",
     doc_reports_none: "—",
     doc_reports_green_default: "• Patients logging consistently\n• Engagement holding steady",
     doc_reports_red_default: "• Watch for patients missing check-ins",
@@ -1812,8 +1811,7 @@ const STR = {
     btn_doc_rep_monthly: "📅 ماہانہ",
     btn_doc_rep_all: "📊 مکمل",
     doc_reports_empty: "ابھی آپ کی پریکٹس سے کوئی مریض منسلک نہیں۔\n\nاپنا ریفرل کوڈ *{code}* شیئر کریں — جیسے ہی مریض ❤️ میری صحت → میرا ڈاکٹر میں یہ کوڈ ڈالیں گے، ان کی مجموعی معلومات یہاں ظاہر ہوں گی۔",
-    doc_reports_body:
-      "*منسلک مریض:* {patients}\n*مصروفیت:* {engagement}\n*اوسط SMI:* {smi}\n\n📈 *رجحانات*\n• HbA1c اوسط: {hba1c}\n• وزن اوسط: {weight}\n• جسمانی سرگرمی: {activity}\n• ادویات کا تسلسل: {adherence}\n\n🟢 *مثبت اشارے*\n{green}\n\n🔴 *خطرے کے اشارے*\n{red}\n\n💡 *تجویز کردہ اقدامات*\n{actions}",
+    doc_reports_body: "*منسلک مریض:* {patients}\n\n{list}",
     doc_reports_none: "—",
     doc_reports_green_default: "• مریض باقاعدگی سے لاگ کر رہے ہیں\n• مصروفیت مستحکم ہے",
     doc_reports_red_default: "• چیک اِن نہ کرنے والے مریضوں پر نظر رکھیں",
@@ -2946,8 +2944,7 @@ const STR = {
     btn_doc_rep_monthly: "📅 Monthly",
     btn_doc_rep_all: "📊 All-time",
     doc_reports_empty: "Abhi aap ki practice se koi patient link nahi.\n\nApna referral code *{code}* share karein — jaise hi patients ❤️ My Health → My Doctor mein ye code enter karenge, un ki aggregated insights yahan aa jayengi.",
-    doc_reports_body:
-      "*Connected patients:* {patients}\n*Engagement:* {engagement}\n*Average SMI:* {smi}\n\n📈 *Trends*\n• HbA1c average: {hba1c}\n• Weight average: {weight}\n• Activity: {activity}\n• Medication adherence: {adherence}\n\n🟢 *Green flags*\n{green}\n\n🔴 *Red flags*\n{red}\n\n💡 *Suggested actions*\n{actions}",
+    doc_reports_body: "*Connected Patients:* {patients}\n\n{list}",
     doc_reports_none: "—",
     doc_reports_green_default: "• Patients regular log kar rahe hain\n• Engagement stable hai",
     doc_reports_red_default: "• Check-in miss karne wale patients par nazar rakhein",

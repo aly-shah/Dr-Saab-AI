@@ -11,7 +11,6 @@ import { resetFlow } from "../session.js";
 import {
   doctorMenuKeyboard,
   doctorBackKeyboard,
-  doctorReportsWindowKeyboard,
   patientMenuForDoctorKeyboard,
   myDoctorNoneKeyboard,
   myDoctorLinkedKeyboard,
@@ -87,13 +86,13 @@ async function showDoctorPatientMenu(bot, chatId, session) {
 export async function doctorCallback(bot, chatId, session, data) {
   const action = data.split(":")[1];
   if (action === "menu")     return showDoctorMenu(bot, chatId, session);
-  if (action === "reports")  return showReportsWindowPicker(bot, chatId, session);
+  if (action === "reports")  return showPatientList(bot, chatId, session);
   if (action === "referral") return showReferralCode(bot, chatId, session);
   if (action === "myhealth") return openDoctorMyHealth(bot, chatId, session);
   if (action === "switch_patient") return showDoctorPatientMenu(bot, chatId, session);
-  if (action === "reports_weekly")  return showPatientReports(bot, chatId, session, "weekly");
-  if (action === "reports_monthly") return showPatientReports(bot, chatId, session, "monthly");
-  if (action === "reports_all")     return showPatientReports(bot, chatId, session, "all");
+  if (action === "reports_weekly" || action === "reports_monthly" || action === "reports_all") {
+    return showPatientList(bot, chatId, session);
+  }
   if (action === "test_dp") return simulateDpCap(bot, chatId, session);
 }
 
@@ -146,58 +145,9 @@ async function showReferralCode(bot, chatId, session) {
 }
 
 // ===================================================================
-// Patient reports (aggregated)
+// Patient reports — simple count + numbered list of connected patients.
 // ===================================================================
-function fmtAvg(nums, digits = 1, suffix = "") {
-  const clean = nums.filter((n) => typeof n === "number" && !Number.isNaN(n));
-  if (!clean.length) return "—";
-  const avg = clean.reduce((a, b) => a + b, 0) / clean.length;
-  return `${avg.toFixed(digits)}${suffix}`;
-}
-
-// Simple "engagement" bucket derived from average engagement_score across
-// linked patients. Matches the wording used elsewhere in the app.
-function engagementLabel(avg) {
-  if (avg == null) return "—";
-  if (avg >= 75) return "High";
-  if (avg >= 50) return "Moderate";
-  if (avg >= 25) return "Low";
-  return "Very Low";
-}
-
-// SMI = Self-Management Index. We already track four per-patient sub-scores
-// (consistency, motivation, risk-inverse, engagement) — averaging them gives
-// a coarse but useful practice-wide SMI for MVP reporting.
-function computeSmi(p) {
-  const parts = [p.consistency_score, p.motivation_score, p.engagement_score];
-  if (typeof p.risk_score === "number") parts.push(100 - p.risk_score);
-  const valid = parts.filter((n) => typeof n === "number");
-  if (!valid.length) return null;
-  return valid.reduce((a, b) => a + b, 0) / valid.length;
-}
-
-// Show the timeframe picker (Weekly / Monthly / All-time) — spec Reporting
-// Engine. If nobody's linked yet, skip straight to the empty state.
-async function showReportsWindowPicker(bot, chatId, session) {
-  const lang = langOf(session);
-  const doc = await getDoctorByUserId(session.user.id).catch(() => null);
-  if (!doc) return showDoctorMenu(bot, chatId, session);
-  const patients = await doctorPatientStats(doc.id).catch(() => []);
-  if (!patients.length) {
-    return send(bot, chatId, t(lang, "doc_reports_empty", { code: doc.referral_code || "—" }), {
-      keyboard: doctorBackKeyboard(lang),
-      markdown: true,
-    });
-  }
-  return send(bot, chatId, t(lang, "doc_reports_pick_window"), {
-    keyboard: doctorReportsWindowKeyboard(lang),
-    markdown: true,
-  });
-}
-
-// `window`: 'weekly' | 'monthly' | 'all'. Defaults to weekly so a doctor who
-// somehow lands here via a legacy button still gets a bounded, useful view.
-async function showPatientReports(bot, chatId, session, window = "weekly") {
+async function showPatientList(bot, chatId, session) {
   const lang = langOf(session);
   const doc = await getDoctorByUserId(session.user.id).catch(() => null);
   const patients = doc ? await doctorPatientStats(doc.id).catch(() => []) : [];
@@ -210,84 +160,13 @@ async function showPatientReports(bot, chatId, session, window = "weekly") {
     });
   }
 
-  const windowLabelKey = window === "monthly"
-    ? "doc_reports_window_monthly"
-    : window === "all"
-      ? "doc_reports_window_all"
-      : "doc_reports_window_weekly";
-  const windowLine = t(lang, windowLabelKey);
-  const windowDays = window === "monthly" ? 30 : window === "all" ? Infinity : 7;
-
-  const engagements = patients.map((p) => p.engagement_score).filter((n) => typeof n === "number");
-  const avgEngagement = engagements.length ? engagements.reduce((a, b) => a + b, 0) / engagements.length : null;
-
-  const smis = patients.map(computeSmi).filter((n) => typeof n === "number");
-  const avgSmi = smis.length ? smis.reduce((a, b) => a + b, 0) / smis.length : null;
-
-  const hba1cs = patients.map((p) => p.latest_hba1c).filter((n) => typeof n === "number");
-  const weights = patients.map((p) => Number(p.weight_kg)).filter((n) => Number.isFinite(n));
-
-  // Activity/adherence: MVP proxy — % of patients with any recent activity
-  // in the chosen window. Real adherence engine can plug in later.
-  const now = Date.now();
-  const windowMs = Number.isFinite(windowDays) ? windowDays * 86400000 : Infinity;
-  const activeInWindow = patients.filter((p) => {
-    if (!p.last_log_date) return false;
-    const ts = new Date(p.last_log_date).getTime();
-    if (!Number.isFinite(ts)) return false;
-    return windowMs === Infinity ? true : (now - ts) <= windowMs;
-  }).length;
-  const activityPct = patients.length ? Math.round((activeInWindow / patients.length) * 100) : 0;
-  const activityLabel = windowDays === Infinity
-    ? `${activityPct}% ever logged`
-    : `${activityPct}% logged in last ${windowDays} days`;
-
-  // Adherence approximated from consistency_score for now — same rationale as
-  // SMI: use a signal we already collect until a dedicated metric exists.
-  const consistencies = patients.map((p) => p.consistency_score).filter((n) => typeof n === "number");
-  const avgConsistency = consistencies.length ? consistencies.reduce((a, b) => a + b, 0) / consistencies.length : null;
-
-  // Red/green flag heuristics — kept intentionally simple for MVP. The strings
-  // fall back to language-specific defaults if no flag qualifies.
-  const greenLines = [];
-  const redLines = [];
-  const actionLines = [];
-
-  if (activityPct >= 60) greenLines.push(`• ${activeInWindow}/${patients.length} patients active in this window`);
-  if (avgEngagement != null && avgEngagement >= 60) greenLines.push(`• Engagement average is ${Math.round(avgEngagement)} — healthy`);
-  if (avgConsistency != null && avgConsistency >= 60) greenLines.push(`• Medication adherence tracking is strong`);
-
-  // Stale = no log in double the window (or 14+ days for all-time).
-  const staleThreshMs = Number.isFinite(windowDays) ? windowDays * 2 * 86400000 : 14 * 86400000;
-  const stale = patients.filter((p) => !p.last_log_date || (now - new Date(p.last_log_date).getTime()) > staleThreshMs);
-  if (stale.length) redLines.push(`• ${stale.length} patient(s) haven't logged recently`);
-  const highA1c = patients.filter((p) => typeof p.latest_hba1c === "number" && p.latest_hba1c >= 8.5);
-  if (highA1c.length) redLines.push(`• ${highA1c.length} patient(s) with HbA1c ≥ 8.5%`);
-  if (avgEngagement != null && avgEngagement < 40) redLines.push(`• Engagement average is low (${Math.round(avgEngagement)})`);
-
-  if (stale.length) actionLines.push(`• Nudge the ${stale.length} inactive patient(s) to log a check-in`);
-  if (highA1c.length) actionLines.push(`• Schedule review with the ${highA1c.length} high-HbA1c patient(s)`);
-  if (avgEngagement != null && avgEngagement < 50) actionLines.push(`• Send a group message to lift engagement`);
-
-  const green = greenLines.length ? greenLines.join("\n") : t(lang, "doc_reports_green_default");
-  const red = redLines.length ? redLines.join("\n") : t(lang, "doc_reports_red_default");
-  const actions = actionLines.length ? actionLines.join("\n") : t(lang, "doc_reports_actions_default");
-
-  const body = t(lang, "doc_reports_title") + "\n" + windowLine + "\n\n" + t(lang, "doc_reports_body", {
-    patients: patients.length,
-    engagement: engagementLabel(avgEngagement) + (avgEngagement != null ? ` (${Math.round(avgEngagement)})` : ""),
-    smi: avgSmi != null ? `${Math.round(avgSmi)}/100` : "—",
-    hba1c: fmtAvg(hba1cs, 1, "%"),
-    weight: fmtAvg(weights, 1, " kg"),
-    activity: activityLabel,
-    adherence: avgConsistency != null ? `${Math.round(avgConsistency)}/100` : "—",
-    green,
-    red,
-    actions,
-  });
+  const list = patients
+    .map((p, i) => `${i + 1}. ${sanitizeMd(p.name || "—")}`)
+    .join("\n");
+  const body = t(lang, "doc_reports_body", { patients: patients.length, list });
 
   return send(bot, chatId, body, {
-    keyboard: doctorReportsWindowKeyboard(lang),
+    keyboard: doctorBackKeyboard(lang),
     markdown: true,
   });
 }
