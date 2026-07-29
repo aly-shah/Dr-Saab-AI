@@ -325,6 +325,12 @@ export async function showMyDoctor(bot, chatId, session) {
     }
   }
 
+  // The "no doctor" screen tells the user to type a DS#XXXX code, so put
+  // the session into await_code up front — otherwise a code typed before
+  // tapping "Add Doctor" falls through to the AI.
+  session.state = "my_doctor";
+  session.step = "await_code";
+  if (!session.data) session.data = {};
   return send(bot, chatId, t(lang, "my_doctor_title_none"), {
     keyboard: myDoctorNoneKeyboard(lang),
     markdown: true,
