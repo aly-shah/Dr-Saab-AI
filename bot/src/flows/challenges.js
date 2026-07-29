@@ -53,6 +53,7 @@ import { explainLab } from "../openai.js";
 import { addLabReport } from "../supabase.js";
 import { extractPdfText, isPdfMime } from "../pdf.js";
 import { computeAndPersistScores, HBA1C_BANDS } from "./challengeEngine.js";
+import { withDrPrefix } from "./doctor.js";
 
 const TZ_OFFSET = parseInt(process.env.REMINDER_TZ_OFFSET || "5", 10);
 
@@ -495,7 +496,7 @@ async function finalizeHba1cJoin(bot, chatId, session, hba1cValue, baselineDate)
       baseline: fmtHba1c(hba1cValue), end_date: endDate,
     });
   const footer = doc
-    ? `\n\n${t(lang, "chal_hba1c_confirm_doctor_footer", { doctor: sanitizeMd(doc.name || "—") })}`
+    ? `\n\n${t(lang, "chal_hba1c_confirm_doctor_footer", { doctor: sanitizeMd(withDrPrefix(doc.name) || "—") })}`
     : "";
   return send(bot, chatId, body + footer, {
     keyboard: chalBackKeyboard(lang), markdown: true, keepEmoji: true,

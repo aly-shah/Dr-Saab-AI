@@ -301,6 +301,15 @@ function normalizeCode(raw) {
   return String(raw || "").trim().toUpperCase().replace(/\s+/g, "");
 }
 
+// Prepend "Dr. " to a doctor's display name unless the doctor already
+// wrote it in themselves (matches "Dr", "Dr.", or "Doctor" at the start).
+export function withDrPrefix(name) {
+  const s = String(name || "").trim();
+  if (!s) return s;
+  if (/^(dr\.?|doctor)\b/i.test(s)) return s;
+  return `Dr. ${s}`;
+}
+
 export async function showMyDoctor(bot, chatId, session) {
   resetFlow(chatId);
   const lang = langOf(session);
@@ -313,7 +322,7 @@ export async function showMyDoctor(bot, chatId, session) {
         ? new Date(user.doctor_linked_date).toISOString().slice(0, 10)
         : "—";
       const body = t(lang, "my_doctor_title_linked", {
-        name: sanitizeMd(doc.name || ""),
+        name: sanitizeMd(withDrPrefix(doc.name)),
         specialty: sanitizeMd(doc.specialization || "—"),
         location: sanitizeMd(doc.practice_location || "—"),
         linked,
@@ -361,7 +370,7 @@ export async function myDoctorCallback(bot, chatId, session, data) {
     session.state = "my_doctor";
     session.step = "await_remove";
     return send(bot, chatId, t(lang, "my_doctor_remove_confirm", {
-      name: sanitizeMd(doc.name || ""),
+      name: sanitizeMd(withDrPrefix(doc.name)),
     }), {
       keyboard: myDoctorRemoveConfirmKeyboard(lang),
       markdown: true,
@@ -380,7 +389,7 @@ export async function myDoctorCallback(bot, chatId, session, data) {
       session.data.pendingDoctor = null;
       resetFlow(chatId);
       await send(bot, chatId, t(lang, "dp_patient_cap_reached", {
-        name: sanitizeMd(pending.name || ""),
+        name: sanitizeMd(withDrPrefix(pending.name)),
       }), { markdown: true });
       // Fire-and-forget the doctor-side notification.
       const doctorUser = await getUserById(pending.user_id).catch(() => null);
@@ -399,7 +408,7 @@ export async function myDoctorCallback(bot, chatId, session, data) {
     session.data.pendingDoctor = null;
     resetFlow(chatId);
     await send(bot, chatId, t(lang, "my_doctor_linked_ok", {
-      name: sanitizeMd(pending.name || ""),
+      name: sanitizeMd(withDrPrefix(pending.name)),
     }), { markdown: true });
     return showMyDoctor(bot, chatId, session);
   }
@@ -435,7 +444,7 @@ export async function myDoctorText(bot, chatId, session, text) {
   session.data.pendingDoctor = doc;
   session.step = "confirm_link";
   return send(bot, chatId, t(lang, "my_doctor_confirm", {
-    name: sanitizeMd(doc.name || ""),
+    name: sanitizeMd(withDrPrefix(doc.name)),
     specialty: sanitizeMd(doc.specialization || "—"),
     location: sanitizeMd(doc.practice_location || "—"),
   }), {
