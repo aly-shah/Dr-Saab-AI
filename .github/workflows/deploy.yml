@@ -38,13 +38,13 @@ jobs:
             # Bot first — it's the critical path and needs no build, so restart
             # it up front. A slow website build can't block the bot going live.
             ( cd bot && npm install --omit=dev )
-            pm2 restart drsaab-bot --update-env
+            pm2 startOrReload ecosystem.config.cjs --only drsaab-bot --update-env
 
             # Website (Next.js) — rebuild so the /bot page + admin reflect changes,
             # then restart it. This is the slow part; it runs after the bot is up.
             npm install --include=dev
             npm run build
-            pm2 restart drsaab-web --update-env
+            pm2 startOrReload ecosystem.config.cjs --only drsaab-web --update-env
 
             pm2 save
             echo "Deployed $(git rev-parse --short HEAD)"
