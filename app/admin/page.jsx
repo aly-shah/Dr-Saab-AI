@@ -147,6 +147,102 @@ function Login({ onDone }) {
   );
 }
 
+const STATUS_TONE = {
+  in_range: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  borderline: "bg-amber-50 text-amber-700 ring-amber-200",
+  out_of_range: "bg-red-50 text-red-600 ring-red-200",
+};
+
+// One uploaded lab report: the original file the patient sent, the values the
+// parser pulled out of it, and the explanation that went back to them.
+function ReportCard({ report }) {
+  const [open, setOpen] = useState(false);
+  const values = Array.isArray(report.lab_values) ? report.lab_values : [];
+  const meta = report.metadata || {};
+  const fileUrl = `/api/admin/report?id=${report.id}`;
+  const title = meta.report_type || report.file_name || "Lab report";
+  const sub = [meta.lab_name, meta.report_date && `dated ${meta.report_date}`]
+    .filter(Boolean)
+    .join(" · ");
+  // For a typed / pasted report the raw input IS the report, so show it when
+  // there's no file. "[image]" is the placeholder older image uploads used
+  // before the file itself was stored — nothing to show for those.
+  const pasted =
+    !report.has_file && report.raw_input && report.raw_input !== "[image]"
+      ? report.raw_input
+      : null;
+
+  return (
+    <div className="rounded-xl bg-muted/50 p-3 ring-1 ring-line/50">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-[13px] font-semibold text-ink">{title}</p>
+          <p className="text-[11px] text-ink/45">
+            {new Date(report.created_at).toLocaleString()}
+            {sub ? ` · ${sub}` : ""}
+          </p>
+        </div>
+        {report.has_file ? (
+          <a href={`${fileUrl}&download=1`} className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] ring-1 ring-line">
+            Download
+          </a>
+        ) : (
+          <span className="shrink-0 text-[11px] text-ink/35">No file stored</span>
+        )}
+      </div>
+
+      {report.has_file && (
+        <div className="mt-2.5">
+          {report.media_type === "pdf" ? (
+            <a href={fileUrl} target="_blank" rel="noreferrer"
+              className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-[12px] text-primary ring-1 ring-line">
+              <span aria-hidden>📄</span>
+              <span className="truncate">{report.file_name || "Open PDF"}</span>
+            </a>
+          ) : (
+            <a href={fileUrl} target="_blank" rel="noreferrer">
+              <img src={fileUrl} alt="Uploaded report"
+                className="max-h-56 w-auto rounded-lg ring-1 ring-line/60" />
+            </a>
+          )}
+        </div>
+      )}
+
+      {pasted && (
+        <pre className="mt-2.5 max-h-40 overflow-y-auto whitespace-pre-wrap break-words rounded-lg bg-white p-2.5 text-[12px] leading-relaxed text-ink/70">
+          {pasted}
+        </pre>
+      )}
+
+      {values.length > 0 && (
+        <div className="mt-2.5 space-y-1">
+          {values.map((v, i) => (
+            <div key={i} className="flex items-center justify-between gap-2 text-[12px]">
+              <span className="truncate text-ink/65">{v.test}</span>
+              <span className={`shrink-0 rounded-full px-2 py-0.5 ring-1 ${STATUS_TONE[v.status] || "bg-white text-ink/70 ring-line"}`}>
+                {v.result}{v.unit ? ` ${v.unit}` : ""}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {report.analysis && (
+        <>
+          <button onClick={() => setOpen((o) => !o)} className="mt-2.5 text-[11px] font-semibold text-primary">
+            {open ? "Hide explanation" : "Show explanation"}
+          </button>
+          {open && (
+            <pre className="mt-1.5 whitespace-pre-wrap break-words rounded-lg bg-white p-2.5 text-[12px] leading-relaxed text-ink/75">
+              {report.analysis}
+            </pre>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function PatientDrawer({ id, onClose }) {
   const [data, setData] = useState(null);
   useEffect(() => {
@@ -191,6 +287,13 @@ function PatientDrawer({ id, onClose }) {
                 <pre className="whitespace-pre-wrap break-words rounded-xl bg-muted/60 p-3 text-[12px] leading-relaxed text-ink/75">{data.kb.content}</pre>
               </Panel>
             )}
+
+            <Panel title={`Uploaded reports (${data.reports?.length || 0})`}>
+              {!data.reports?.length && <p className="text-sm text-ink/45">No reports uploaded yet.</p>}
+              <div className="space-y-2.5">
+                {(data.reports || []).map((r) => <ReportCard key={r.id} report={r} />)}
+              </div>
+            </Panel>
 
             <Panel title={`Conversation (${data.messages.length})`}>
               {data.messages.length === 0 && <p className="text-sm text-ink/45">No coach messages yet.</p>}

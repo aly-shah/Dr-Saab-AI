@@ -207,7 +207,7 @@ export default function BotChatPage() {
       setMessages((prev) => [...prev, bubble]);
       setInput("");
       requestAnimationFrame(() => taRef.current && (taRef.current.style.height = "auto"));
-      callBot({ type: isImage ? "image" : "file", dataUrl, caption });
+      callBot({ type: isImage ? "image" : "file", dataUrl, caption, fileName: file.name || "" });
     };
     reader.readAsDataURL(file);
   };

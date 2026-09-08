@@ -45,7 +45,7 @@ async function processWeb(sessionId, type, payload) {
       //   • PDF (application/pdf) → text is extracted here and passed as the
       //     message text, so the lab flow can analyse it as if the user typed
       //     the values. Vision models can't read PDFs directly.
-      const { dataUrl, caption } = payload || {};
+      const { dataUrl, caption, fileName } = payload || {};
       const parsed = parseDataUrl(dataUrl);
       if (parsed && isPdfMime(parsed.mime)) {
         const text = await extractPdfText(parsed.buffer);
@@ -62,6 +62,13 @@ async function processWeb(sessionId, type, payload) {
           chat: { id: sessionId },
           from: { id: sessionId },
           text: combined,
+          // The PDF has already become text above, but the flows still want the
+          // original so it can be attached to the saved report and viewed in
+          // the admin panel. Deliberately NOT __documentBuffer: that would send
+          // the lab flow through a second, redundant text extraction.
+          __documentDataUrl: dataUrl,
+          __documentMime: parsed.mime,
+          __documentName: fileName || "",
           __source: "web",
         });
       } else if (parsed && isImageMime(parsed.mime)) {
@@ -71,6 +78,7 @@ async function processWeb(sessionId, type, payload) {
           text: caption || "",
           caption: caption || "",
           __imageDataUrl: dataUrl,
+          __documentName: fileName || "",
           __source: "web",
         });
       } else {

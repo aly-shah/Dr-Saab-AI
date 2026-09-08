@@ -51,6 +51,7 @@ import {
 } from "../supabase.js";
 import { explainLab } from "../openai.js";
 import { addLabReport } from "../supabase.js";
+import { inlineUpload, uploadFromMessage } from "./labreport.js";
 import { extractPdfText, isPdfMime } from "../pdf.js";
 import { computeAndPersistScores, HBA1C_BANDS } from "./challengeEngine.js";
 import { withDrPrefix } from "./doctor.js";
@@ -548,11 +549,21 @@ export async function chalHba1cText(bot, chatId, session, text, msg) {
   // Try image / PDF extraction first (spec: Upload Report or Enter Result).
   const imageDataUrl = msg ? await photoDataUrl(bot, msg) : null;
   let userText = (text || msg?.caption || "").trim();
+  // Kept alongside the extracted values so the uploaded report shows up in the
+  // admin panel, exactly like the Explain My Report flow.
+  let upload = uploadFromMessage(msg, imageDataUrl);
   if (!imageDataUrl && msg) {
     const doc = await documentBuffer(bot, msg);
     if (doc && isPdfMime(doc.mime)) {
       const extracted = await extractPdfText(doc.buffer);
-      if (extracted) userText = [userText, extracted].filter(Boolean).join("\n\n");
+      if (extracted) {
+        userText = [userText, extracted].filter(Boolean).join("\n\n");
+        upload = inlineUpload(
+          "pdf",
+          "data:" + doc.mime + ";base64," + doc.buffer.toString("base64"),
+          msg?.document?.file_name,
+        );
+      }
     }
   }
 
@@ -576,7 +587,8 @@ export async function chalHba1cText(bot, chatId, session, text, msg) {
       if (value != null) {
         await addLabReport(session.user.id, userText || "[image]",
           extracted?.analysis || "",
-          { metadata: extracted?.metadata, values: extracted?.values, lab_source: extracted?.labSource }
+          { metadata: extracted?.metadata, values: extracted?.values, lab_source: extracted?.labSource,
+            ...upload }
         ).catch(() => {});
       }
     } catch (e) {

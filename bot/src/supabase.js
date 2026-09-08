@@ -97,6 +97,9 @@ async function makeSupabaseBackend() {
         metadata: extras.metadata ?? null,
         lab_values: extras.values ?? null,
         lab_source: extras.lab_source ?? null,
+        media_type: extras.media_type ?? null,
+        media_data: extras.media_data ?? null,
+        file_name: extras.file_name ?? null,
       });
       if (error) throw error;
     },
@@ -927,6 +930,9 @@ async function makePostgresBackend() {
         metadata: extras.metadata ?? null,
         lab_values: extras.values ?? null,
         lab_source: extras.lab_source ?? null,
+        media_type: extras.media_type ?? null,
+        media_data: extras.media_data ?? null,
+        file_name: extras.file_name ?? null,
       });
     },
     async countLabReportsSince(userId, sinceIso) {
@@ -2080,6 +2086,9 @@ function makeMemoryBackend() {
         metadata: extras.metadata ?? null,
         values: extras.values ?? null,
         lab_source: extras.lab_source ?? null,
+        media_type: extras.media_type ?? null,
+        media_data: extras.media_data ?? null,
+        file_name: extras.file_name ?? null,
         created_at: nowISO(),
       });
     },

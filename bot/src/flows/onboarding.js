@@ -7,6 +7,8 @@ import { refreshKB } from "../kb.js";
 import { resetFlow } from "../session.js";
 import { startDoctorOnboarding } from "./doctorOnboarding.js";
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
@@ -99,12 +101,14 @@ function formatDob(dob) {
   return `${dob.day} ${MONTH_NAMES[dob.month - 1]} ${dob.year}`;
 }
 
-// Minimal onboarding: language (via welcome) → name → birth date → user_type.
-// The full clinical funnel, goals, motivation, disclaimer, etc. were removed —
-// we can enrich the profile later via the drip flow.
+// Minimal onboarding: language (via welcome) → name → email → birth date →
+// user_type. The full clinical funnel, goals, motivation, disclaimer, etc. were
+// removed — we can enrich the profile later via the drip flow.
 function nextStep(step) {
   switch (step) {
     case "name":
+      return "email";
+    case "email":
       return "dob";
     case "dob":
       return "user_type";
@@ -121,7 +125,8 @@ function nextStep(step) {
 // hard requirement).
 function previousStep(step) {
   switch (step) {
-    case "dob":       return "name";
+    case "email":     return "name";
+    case "dob":       return "email";
     case "user_type": return "dob";
     default:          return null;
   }
@@ -133,7 +138,8 @@ const BACK_RE    = /^(\/?back|⬅️?|←)$/i;
 const FORWARD_RE = /^(\/?forward|➡️?|→)$/i;
 
 // Prompt for the current step. `adminSkipKeyboard` is added to text-input
-// steps (name, dob) so admins can breeze through onboarding without typing.
+// steps (name, email, dob) so admins can breeze through onboarding without
+// typing.
 // It returns undefined for real users, so the prompt renders unchanged.
 async function promptStep(bot, chatId, session) {
   const lang = langOf(session);
@@ -142,6 +148,8 @@ async function promptStep(bot, chatId, session) {
   switch (s) {
     case "name":
       return send(bot, chatId, t(lang, "ask_name_v2"), { keyboard: skipKb, markdown: true });
+    case "email":
+      return send(bot, chatId, t(lang, "ask_email_v2"), { keyboard: skipKb, markdown: true });
     case "dob":
       return send(bot, chatId, t(lang, "ask_age_v2"), { keyboard: skipKb, markdown: true });
     case "user_type":
@@ -179,6 +187,7 @@ async function finish(bot, chatId, session) {
   const patch = {
     language: lang,
     name: d.name ?? null,
+    email: d.email ?? null,
     date_of_birth: d.date_of_birth ?? null,
     age: d.age ?? null,
     age_bracket: ageBracket,
@@ -232,8 +241,9 @@ export async function onboardingText(bot, chatId, session, text) {
   // Admin typed-skip shortcut. Same effect as tapping 🧪 Skip: null the
   // current field, advance. Only accepted on skippable steps.
   if (session.user?.is_admin && /^\/?skip$/i.test(val)) {
-    if (session.step === "name") { session.data.name = null; return advance(bot, chatId, session); }
-    if (session.step === "dob")  { session.data.date_of_birth = null; return advance(bot, chatId, session); }
+    if (session.step === "name")  { session.data.name = null; return advance(bot, chatId, session); }
+    if (session.step === "email") { session.data.email = null; return advance(bot, chatId, session); }
+    if (session.step === "dob")   { session.data.date_of_birth = null; return advance(bot, chatId, session); }
     // Fall through for non-skippable steps (welcome, user_type) — the normal
     // re-prompt below handles them.
   }
@@ -248,8 +258,9 @@ export async function onboardingText(bot, chatId, session, text) {
     return promptStep(bot, chatId, session);
   }
   if (session.user?.is_admin && FORWARD_RE.test(val)) {
-    if (session.step === "name") { session.data.name = null; return advance(bot, chatId, session); }
-    if (session.step === "dob")  { session.data.date_of_birth = null; return advance(bot, chatId, session); }
+    if (session.step === "name")  { session.data.name = null; return advance(bot, chatId, session); }
+    if (session.step === "email") { session.data.email = null; return advance(bot, chatId, session); }
+    if (session.step === "dob")   { session.data.date_of_birth = null; return advance(bot, chatId, session); }
     return promptStep(bot, chatId, session);
   }
 
@@ -263,6 +274,14 @@ export async function onboardingText(bot, chatId, session, text) {
       const first = name.split(/\s+/)[0] || name;
       session.data.first_name = first;
       await send(bot, chatId, t(lang, "name_ack", { name: sanitizeMd(first) }), { markdown: true });
+      return advance(bot, chatId, session);
+    }
+    case "email": {
+      const email = val.toLowerCase();
+      if (!EMAIL_RE.test(email)) {
+        return send(bot, chatId, t(lang, "email_invalid"), { markdown: true });
+      }
+      session.data.email = email;
       return advance(bot, chatId, session);
     }
     case "dob": {
@@ -297,12 +316,13 @@ export async function onboardingCallback(bot, chatId, session, data) {
   // isn't rendered elsewhere).
   if (data === "admin:skip") {
     if (session.step === "name") session.data.name = null;
+    if (session.step === "email") session.data.email = null;
     if (session.step === "dob") session.data.date_of_birth = null;
     return advance(bot, chatId, session);
   }
 
   // Language picker — at "welcome" step (after the welcome banner). Jumps to
-  // the name prompt; date of birth and user_type follow.
+  // the name prompt; email, date of birth and user_type follow.
   if (kind === "lang" && session.step === "welcome") {
     session.data.language = value;
     if (session.user) {

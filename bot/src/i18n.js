@@ -157,6 +157,9 @@ const STR = {
     ask_name_v2: "Before we begin, what's your name?",
     name_ack:
       "Nice to meet you, *{name}* 👋\nLet's build your profile so I can personalize my coaching for you.",
+    ask_email_v2: "Thanks. What's your *email address*? We'll use it for account recovery and to send you your health summaries.",
+    email_invalid: "That doesn't look like a valid email. Please send a full address like `name@example.com`.",
+
     ask_user_type: "Which best describes you?",
     ut_type1: "I have Type 1 Diabetes",
     ut_type2: "I have Type 2 Diabetes",
@@ -1773,6 +1776,9 @@ const STR = {
     ask_name_v2: "شروع کرنے سے پہلے، آپ کا نام کیا ہے؟",
     name_ack:
       "آپ سے مل کر خوشی ہوئی، *{name}* 👋\nآئیے آپ کا پروفائل مکمل کرتے ہیں تاکہ میں آپ کے لیے بہتر رہنمائی فراہم کر سکوں۔",
+    ask_email_v2: "شکریہ۔ آپ کا *ای میل ایڈریس* کیا ہے؟ ہم اسے اکاؤنٹ ریکوری اور آپ کی صحت کی رپورٹس بھیجنے کے لیے استعمال کریں گے۔",
+    email_invalid: "یہ درست ای میل نہیں لگ رہا۔ براہِ کرم مکمل پتہ بھیجیں جیسے `name@example.com`۔",
+
     ask_user_type: "ان میں سے کون سی بات آپ پر سب سے بہتر لاگو ہوتی ہے؟",
     ut_type1: "مجھے ٹائپ 1 ذیابیطس ہے",
     ut_type2: "مجھے ٹائپ 2 ذیابیطس ہے",
@@ -2906,6 +2912,9 @@ const STR = {
     ask_name_v2: "Shuru karnay se pehlay, aap ka naam kya hai?",
     name_ack:
       "Aap se mil kar khushi hui, *{name}* 👋\nAaiye aap ka profile mukammal karte hain taake main aap ke liye behtar rehnumai faraham kar sakoon.",
+    ask_email_v2: "Shukriya. Aap ka *email address* kya hai? Hum ise account recovery aur aap ki health summaries bhejne ke liye use karenge.",
+    email_invalid: "Ye valid email nahi lag raha. Poora address bhejein jaise `name@example.com`.",
+
     ask_user_type: "In mein se kaunsi baat aap par sab se zyada lagu hoti hai?",
     ut_type1: "Mujhe Type 1 diabetes hai",
     ut_type2: "Mujhe Type 2 diabetes hai",

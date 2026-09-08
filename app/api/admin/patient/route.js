@@ -10,7 +10,7 @@ export async function GET(req) {
   if (!id) return Response.json({ error: "id required" }, { status: 400 });
 
   try {
-    const [user, kb, glucose, messages, meds, health] = await Promise.all([
+    const [user, kb, glucose, messages, meds, health, reports] = await Promise.all([
       q(`select * from users where id=$1`, [id]),
       q(`select content, message_count, last_seen, updated_at from patient_kb where user_id=$1`, [id]),
       q(`select value_mgdl, context, created_at from glucose_logs
@@ -21,6 +21,12 @@ export async function GET(req) {
          where user_id=$1 order by created_at desc limit 10`, [id]),
       q(`select weight_kg, steps, mood, sleep_hours, water_glasses, created_at from health_logs
          where user_id=$1 order by created_at desc limit 10`, [id]),
+      // media_data is deliberately excluded — a report photo or PDF is
+      // megabytes of base64 and would bloat every drawer open. The UI asks for
+      // the file itself, one at a time, via /api/admin/report?id=.
+      q(`select id, raw_input, analysis, metadata, lab_values, media_type, file_name,
+                media_data is not null as has_file, created_at
+         from lab_reports where user_id=$1 order by created_at desc limit 20`, [id]),
     ]);
 
     if (!user[0]) return Response.json({ error: "not found" }, { status: 404 });
@@ -42,6 +48,7 @@ export async function GET(req) {
       messages,
       meds,
       health,
+      reports,
       clinic: { avg: avg != null ? Math.round(avg) : null, hba1c, bmi },
     });
   } catch (e) {

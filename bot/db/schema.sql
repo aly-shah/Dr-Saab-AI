@@ -85,6 +85,15 @@ alter table public.lab_reports add column if not exists metadata   jsonb;
 alter table public.lab_reports add column if not exists lab_values jsonb;
 alter table public.lab_reports add column if not exists lab_source jsonb;
 
+-- The uploaded file itself (report photo or PDF), stored inline as a
+-- self-contained data: URL exactly like coach_messages.media_data — no
+-- external file storage required. Lets the admin panel show the original
+-- document next to the analysis. Null when the user pasted values as text,
+-- or when the upload was too large to inline (see LAB_MAX_INLINE_BYTES).
+alter table public.lab_reports add column if not exists media_type text;   -- image | pdf | null
+alter table public.lab_reports add column if not exists media_data text;   -- data:<mime>;base64,... | null
+alter table public.lab_reports add column if not exists file_name text;    -- original upload filename when known
+
 -- ---------- Coach message history (optional, for context/audit) ----------
 create table if not exists public.coach_messages (
   id          uuid primary key default gen_random_uuid(),
@@ -164,6 +173,7 @@ alter table public.users add column if not exists last_summary_date  date;
 -- v2 onboarding journey (DrSaab MVP – ENG/URDU/WhatsApp-Urdu)
 alter table public.users add column if not exists user_type           text;   -- diabetes | prediabetes | healthier | notsure | parent | exploring
 alter table public.users add column if not exists date_of_birth       text;   -- free-form (free-text answer)
+alter table public.users add column if not exists email               text;   -- collected during onboarding
 alter table public.users add column if not exists diagnosis_duration  text;   -- lt1 | 1_5 | 6_10 | gt10 | notsure
 alter table public.users add column if not exists latest_hba1c        numeric;
 alter table public.users add column if not exists hba1c_date_bucket   text;   -- 1m | 1_3 | 3_6 | gt6

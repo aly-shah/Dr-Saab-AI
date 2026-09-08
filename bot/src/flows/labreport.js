@@ -43,6 +43,39 @@ function extractHba1cValue(values) {
   return Number.isFinite(n) && n >= 4 && n <= 20 ? n : null;
 }
 
+// Cap on the uploaded file we keep inline on the lab_reports row. Base64
+// inflates by ~33%, so this holds files up to ~3 MB — comfortably above a
+// phone photo or a scanned PDF, while keeping the admin patient payload sane.
+// Anything larger is still analysed and saved; only the original file is
+// dropped (the extracted text lives on in raw_input).
+const LAB_MAX_INLINE_BYTES = 4 * 1024 * 1024;
+
+// Build the { media_type, media_data, file_name } triple persisted with the
+// report so the admin panel can show the document the patient actually sent.
+export function inlineUpload(kind, dataUrl, fileName) {
+  if (!dataUrl) return {};
+  if (dataUrl.length > LAB_MAX_INLINE_BYTES) {
+    console.warn("lab upload too large to store inline:", dataUrl.length, "bytes");
+    return {};
+  }
+  return { media_type: kind, media_data: dataUrl, file_name: fileName || null };
+}
+
+// What the patient actually uploaded, in whatever shape the transport handed
+// it over: a Telegram/WhatsApp photo or image document (already resolved into
+// `imageDataUrl`), or a web upload that arrives pre-read as a data: URL. Web
+// PDFs are text-extracted at the HTTP boundary, so the file only reaches us
+// through __documentDataUrl. Returns {} when nothing was attached.
+export function uploadFromMessage(msg, imageDataUrl) {
+  const name = msg?.document?.file_name || msg?.__documentName || null;
+  if (imageDataUrl) return inlineUpload("image", imageDataUrl, name);
+  if (msg?.__documentDataUrl) {
+    const kind = isPdfMime(msg.__documentMime || "") ? "pdf" : "image";
+    return inlineUpload(kind, msg.__documentDataUrl, name);
+  }
+  return {};
+}
+
 // Free-tier ceiling. Paid users are unlimited. Spec: free users get a plan
 // limit rather than a hard block — see the "Explain My Report" write-up.
 const FREE_MONTHLY_LIMIT = 3;
@@ -82,6 +115,9 @@ export async function labText(bot, chatId, session, text, msg) {
   const imageDataUrl = msg ? await photoDataUrl(bot, msg) : null;
   const hasDocAttachment = !!(msg?.document?.file_id || msg?.__documentBuffer);
   let userText = (text || msg?.caption || "").trim();
+  // The original upload, kept so the report stays viewable in the admin panel
+  // instead of being reduced to the "[image]" placeholder raw_input carries.
+  let upload = uploadFromMessage(msg, imageDataUrl);
 
   // Off-topic guard (flexible mode). When there's no attachment and the
   // user's message doesn't look like lab data — most commonly a food or
@@ -124,6 +160,11 @@ export async function labText(bot, chatId, session, text, msg) {
       const extracted = await extractPdfText(doc.buffer);
       if (extracted) {
         userText = [userText, extracted].filter(Boolean).join("\n\n");
+        upload = inlineUpload(
+          "pdf",
+          "data:" + doc.mime + ";base64," + doc.buffer.toString("base64"),
+          msg?.document?.file_name,
+        );
       } else {
         return send(bot, chatId, t(lang, "lab_pdf_unreadable"), {
           keyboard: backKeyboard(lang),
@@ -200,6 +241,7 @@ export async function labText(bot, chatId, session, text, msg) {
         metadata,
         values,
         lab_source: labSource,
+        ...upload,
       });
       await send(bot, chatId, t(lang, "lab_saved"), { markdown: true });
     } catch (dbErr) {
