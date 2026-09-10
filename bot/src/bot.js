@@ -597,7 +597,7 @@ export async function handleMessage(bot, msg) {
   // for this user. Admins see the 🧪 subscription test buttons even when
   // TEST_ACTIVATION_ENABLED is off in prod. Checked before onboarding so a
   // brand-new tester can promote themselves without going through the wizard.
-  if (msg.text?.trim() === config.adminPassword) {
+  if (config.adminPassword && msg.text?.trim() === config.adminPassword) {
     session.user = await updateUser(session.user.id, { is_admin: true })
       .catch((e) => { console.error("admin promote:", e?.message); return session.user; });
     return send(bot, chatId, t(langOf(session), "admin_promoted"), { markdown: true });

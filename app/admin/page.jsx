@@ -130,8 +130,10 @@ function Login({ onDone }) {
       body: JSON.stringify({ password: pw }),
     });
     setBusy(false);
-    if (res.ok) onDone();
-    else setErr("Incorrect password");
+    if (res.ok) return onDone();
+    // 503 = server has no ADMIN_PASSWORD set; show that instead of "wrong password".
+    const data = await res.json().catch(() => ({}));
+    setErr(data.error || "Incorrect password");
   };
   return (
     <div className="grid min-h-dvh place-items-center bg-cloud/40 px-4">

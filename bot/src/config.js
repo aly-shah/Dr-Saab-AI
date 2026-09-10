@@ -72,8 +72,9 @@ export const config = {
 
   // Shared password that promotes the sender's account to `is_admin=true`.
   // An admin sees the same 🧪 test buttons as when the global flag is on.
-  // Change or unset this in prod to lock the door.
-  adminPassword: process.env.ADMIN_PASSWORD?.trim() || "admin123@",
+  // Sourced only from ADMIN_PASSWORD (same var the website admin uses); with
+  // it unset there is no password and the promotion shortcut is disabled.
+  adminPassword: process.env.ADMIN_PASSWORD?.trim() || "",
   useWebhook: String(process.env.USE_WEBHOOK).toLowerCase() === "true",
   webhookUrl: process.env.WEBHOOK_URL?.trim() || "",
   port: parseInt(process.env.PORT || "8080", 10),

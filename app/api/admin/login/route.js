@@ -1,4 +1,4 @@
-import { checkPassword, adminToken, COOKIE_NAME } from "@/lib/adminAuth";
+import { checkPassword, adminToken, isConfigured, COOKIE_NAME } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -7,6 +7,13 @@ export async function POST(req) {
   try {
     body = await req.json();
   } catch {}
+  // No ADMIN_PASSWORD in the environment => the panel is locked, not open.
+  if (!isConfigured()) {
+    return Response.json(
+      { ok: false, error: "Admin login is not configured on this server (ADMIN_PASSWORD is unset)." },
+      { status: 503 }
+    );
+  }
   if (!checkPassword(body.password)) {
     return Response.json({ ok: false, error: "Invalid password" }, { status: 401 });
   }

@@ -15,14 +15,18 @@ module.exports = {
       interpreter: "node",
       autorestart: true,
       max_memory_restart: "450M",
+      // Only forward DATABASE_URL / ADMIN_PASSWORD when they are actually set:
+      // an empty value here lands in process.env and would shadow the real one
+      // Next reads from .env.production. ADMIN_PASSWORD has no default — the
+      // admin panel stays locked until the environment supplies one.
       env: {
         NODE_ENV: "production",
         PORT: String(WEB_PORT),
         // /api/bot proxies to the bot's web API on the same host
         BOT_API_URL: `http://localhost:${WEB_API_PORT}/web/message`,
         // admin dashboard reads the same DB the bot uses
-        DATABASE_URL: process.env.DATABASE_URL || "",
-        ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || "admin123@",
+        ...(process.env.DATABASE_URL ? { DATABASE_URL: process.env.DATABASE_URL } : {}),
+        ...(process.env.ADMIN_PASSWORD ? { ADMIN_PASSWORD: process.env.ADMIN_PASSWORD } : {}),
       },
     },
     {

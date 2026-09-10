@@ -50,6 +50,13 @@ What it does:
 2. Creates the `drsaab` role + database and loads `bot/db/schema.sql`.
 3. Writes `bot/.env` (prompts for the Telegram + Groq keys if not passed as env vars)
    and `.env.production` (DATABASE_URL + ADMIN_PASSWORD for the website/admin).
+   `ADMIN_PASSWORD` is the only source of the admin password — there is no
+   built-in default. Pass one on the command line, or the script generates a
+   random one and prints it at the end. With it unset the panel stays locked
+   (`/admin` login returns "not configured") and the bot's admin-promotion
+   shortcut is disabled. To change it: edit `ADMIN_PASSWORD` in
+   `.env.production` and `bot/.env`, then `pm2 restart drsaab-web drsaab-bot
+   --update-env` (or just re-run `ADMIN_PASSWORD='new' ./deploy.sh`).
 4. `npm install` + `npm run build` for the website, `npm install` for the bot.
 5. Starts both via `ecosystem.config.cjs` under pm2 and enables boot startup.
 6. Configures the nginx vhost for `drsaabcoach.com`, opens the firewall, and

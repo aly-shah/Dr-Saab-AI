@@ -38,6 +38,75 @@ warn() { echo -e "\033[1;33m!  $*\033[0m"; }
 SUDO=""
 [ "$(id -u)" -ne 0 ] && SUDO="sudo"
 
+# ---------- service control (works with or without systemd) ----------
+# Some VPS images (LXC/OpenVZ containers, WSL, minimal Docker bases) ship
+# without systemd, so `systemctl` does not exist. Package post-install scripts
+# call it anyway and take dpkg down with them:
+#   /var/lib/dpkg/info/postgresql-16.postinst: 118: systemctl: not found
+#   E: Sub-process /usr/bin/dpkg returned an error code (1)
+# Detect that up front, drop in a small systemctl stand-in that maps service
+# actions onto sysvinit's `service`, and use the svc_* helpers below.
+HAS_SYSTEMD=0
+if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then
+  HAS_SYSTEMD=1
+fi
+
+install_systemctl_shim() {
+  command -v systemctl >/dev/null 2>&1 && return 0
+  warn "systemd not available on this host - installing a systemctl shim so package scripts do not abort dpkg"
+  # /usr/local/bin is first on dpkg's default PATH for maintainer scripts.
+  $SUDO tee /usr/local/bin/systemctl >/dev/null <<'SHIM'
+#!/bin/sh
+# Minimal `systemctl` stand-in for hosts without systemd, installed by
+# Dr-Saab-AI deploy.sh. Maps start/stop/restart/reload onto sysvinit
+# `service`; unit-management verbs are no-ops. Delete this file if real
+# systemd is ever installed.
+action="${1:-}"
+[ $# -gt 0 ] && shift
+now=0
+units=""
+for arg in "$@"; do
+  case "$arg" in
+    --now) now=1 ;;
+    -*) ;;
+    *) units="$units ${arg%.service}" ;;
+  esac
+done
+case "$action" in
+  start|stop|restart|reload|force-reload|try-restart|status)
+    for u in $units; do service "$u" "$action" >/dev/null 2>&1 || true; done ;;
+  enable)
+    if [ "$now" -eq 1 ]; then
+      for u in $units; do service "$u" start >/dev/null 2>&1 || true; done
+    fi ;;
+  disable)
+    if [ "$now" -eq 1 ]; then
+      for u in $units; do service "$u" stop >/dev/null 2>&1 || true; done
+    fi ;;
+  *) : ;;   # daemon-reload, is-enabled, mask, preset, ... nothing to do
+esac
+exit 0
+SHIM
+  $SUDO chmod +x /usr/local/bin/systemctl
+}
+
+# start (and enable at boot) a service under whichever init this host has
+svc_start() {
+  if [ "$HAS_SYSTEMD" -eq 1 ]; then
+    $SUDO systemctl enable --now "$1"
+  else
+    $SUDO service "$1" start >/dev/null 2>&1 || warn "could not start $1 via 'service' - continuing"
+  fi
+}
+
+svc_reload() {
+  if [ "$HAS_SYSTEMD" -eq 1 ]; then
+    $SUDO systemctl reload "$1"
+  else
+    $SUDO service "$1" reload >/dev/null 2>&1 || $SUDO service "$1" restart >/dev/null 2>&1 ||       warn "could not reload $1 - reload it manually once it is running"
+  fi
+}
+
 # set/replace a KEY=VALUE line in an env file
 set_env_kv() {
   local f="$1" k="$2" v="$3"
@@ -54,6 +123,15 @@ find_free()   { local p="$1"; while port_in_use "$p"; do p=$((p+1)); done; echo 
 # ---------- 1. system packages ----------
 log "Installing system dependencies"
 $SUDO apt-get update -y
+
+# Do this before the first install: without systemd, package postinst scripts
+# call a missing `systemctl` and abort dpkg. The shim keeps them happy, and
+# `dpkg --configure -a` finishes any package a previous run left half-installed.
+if [ "$HAS_SYSTEMD" -eq 0 ]; then
+  install_systemctl_shim
+  $SUDO dpkg --configure -a >/dev/null 2>&1 || true
+fi
+
 $SUDO apt-get install -y curl ca-certificates gnupg openssl git
 
 if ! command -v node >/dev/null 2>&1 || [ "$(node -v | sed 's/v\([0-9]*\).*/\1/')" -lt 18 ]; then
@@ -88,7 +166,19 @@ log "Using ports — website: ${WEB_PORT}  ·  bot web API: ${WEB_API_PORT}  · 
 
 # ---------- 3. PostgreSQL ----------
 log "Setting up PostgreSQL ($DB_NAME)"
-$SUDO systemctl enable --now postgresql
+svc_start postgresql
+
+# The init script is a no-op in some containers - start the cluster directly if
+# nothing is listening, then wait for it before issuing any psql commands.
+if ! pg_isready -q 2>/dev/null; then
+  PG_CLUSTER="$(pg_lsclusters -h 2>/dev/null | awk '$4 != "online" {print $1" "$2; exit}')"
+  [ -n "$PG_CLUSTER" ] && $SUDO pg_ctlcluster $PG_CLUSTER start >/dev/null 2>&1 || true
+fi
+for _ in $(seq 1 30); do
+  pg_isready -q 2>/dev/null && break
+  sleep 1
+done
+pg_isready -q 2>/dev/null || { warn "PostgreSQL is not accepting connections - check 'pg_lsclusters' and 'pg_ctlcluster <ver> main start'"; exit 1; }
 
 DB_PASS=""
 if [ -f bot/.env ] && grep -q '^DATABASE_URL=' bot/.env; then
@@ -167,6 +257,9 @@ if [ -z "$ADMIN_PASSWORD" ] && [ -f .env.production ] && grep -q '^ADMIN_PASSWOR
 fi
 [ -z "$ADMIN_PASSWORD" ] && ADMIN_PASSWORD="$(openssl rand -hex 8)"
 
+# The bot promotes admins with this same password, so keep its .env in sync.
+set_env_kv bot/.env ADMIN_PASSWORD "${ADMIN_PASSWORD}"
+
 # Website runtime env (read by next start + admin dashboard)
 cat > .env.production <<ENV
 BOT_API_URL=http://localhost:${WEB_API_PORT}/web/message
@@ -188,8 +281,12 @@ npm run build
 log "Starting services with pm2 (web:${WEB_PORT}, api:${WEB_API_PORT})"
 WEB_PORT="$WEB_PORT" WEB_API_PORT="$WEB_API_PORT" DATABASE_URL="$DATABASE_URL" ADMIN_PASSWORD="$ADMIN_PASSWORD" pm2 start ecosystem.config.cjs --update-env
 pm2 save
-$SUDO env PATH="$PATH" "$(command -v pm2)" startup systemd -u "$USER" --hp "$HOME" >/dev/null 2>&1 || \
-  warn "Could not auto-enable pm2 startup; run what 'pm2 startup' prints, then 'pm2 save'."
+if [ "$HAS_SYSTEMD" -eq 1 ]; then
+  $SUDO env PATH="$PATH" "$(command -v pm2)" startup systemd -u "$USER" --hp "$HOME" >/dev/null 2>&1 || \
+    warn "Could not auto-enable pm2 startup; run what 'pm2 startup' prints, then 'pm2 save'."
+else
+  warn "No systemd on this host — pm2 will not resurrect on reboot by itself. Run 'pm2 startup', follow its output, then 'pm2 save'."
+fi
 pm2 save
 
 # ---------- 7. nginx (idempotent, preserves existing SSL) ----------
@@ -256,7 +353,8 @@ NGINX
   $SUDO ln -sf "$NGINX_AVAIL" "$NGINX_ENABLED"
 fi
 $SUDO nginx -t
-$SUDO systemctl reload nginx
+svc_start nginx
+svc_reload nginx
 
 # ---------- 8. SSL (Let's Encrypt) ----------
 SSL_OK=0
