@@ -136,7 +136,16 @@ find_free()   { local p="$1"; while port_in_use "$p"; do p=$((p+1)); done; echo 
 
 # ---------- 1. system packages ----------
 log "Installing system dependencies"
-APT update -y
+# apt can sit silently for minutes when a mirror stalls - most often a broken
+# IPv6 route on a fresh VPS/container image. Cap the wait so it fails fast,
+# then retry the same thing over IPv4 only.
+APT_NET=(-o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 -o Acquire::Retries=1)
+if ! APT update -y "${APT_NET[@]}"; then
+  warn "apt-get update stalled or failed - retrying over IPv4 only"
+  APT_NET+=(-o Acquire::ForceIPv4=true)
+  APT update -y "${APT_NET[@]}"
+fi
+APT_OPTS+=("${APT_NET[@]}")
 
 # Do this before the first install: without systemd, package postinst scripts
 # call a missing `systemctl` and abort dpkg. The shim keeps them happy, and
