@@ -26,7 +26,7 @@ export async function GET(req) {
       // the file itself, one at a time, via /api/admin/report?id=.
       q(`select id, raw_input, analysis, metadata, lab_values, media_type, file_name,
                 media_data is not null as has_file, created_at
-         from lab_reports where user_id=$1 order by created_at desc limit 20`, [id]),
+         from lab_reports where user_id=$1 order by created_at desc limit 100`, [id]),
     ]);
 
     if (!user[0]) return Response.json({ error: "not found" }, { status: 404 });

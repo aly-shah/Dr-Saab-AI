@@ -117,6 +117,18 @@ async function makeSupabaseBackend() {
       if (error) throw error;
       return count || 0;
     },
+    // Every report a patient has sent, newest first, without the file bytes.
+    // Same shape the admin patient endpoint reads (see app/api/admin/patient).
+    async listLabReports(userId, limit) {
+      const { data, error } = await db
+        .from("lab_reports")
+        .select("id, raw_input, analysis, metadata, lab_values, media_type, file_name, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return data || [];
+    },
     async recentLabReports(userId, limit) {
       const { data, error } = await db
         .from("lab_reports")
@@ -986,6 +998,17 @@ async function makePostgresBackend() {
         [userId, sinceIso]
       );
       return rows[0]?.n || 0;
+    },
+    async listLabReports(userId, limit) {
+      const { rows } = await pool.query(
+        `select id, raw_input, analysis, metadata, lab_values, media_type, file_name, created_at
+           from lab_reports
+          where user_id=$1
+          order by created_at desc
+          limit $2`,
+        [userId, limit]
+      );
+      return rows;
     },
     async recentLabReports(userId, limit) {
       const { rows } = await pool.query(
@@ -2142,6 +2165,13 @@ function makeMemoryBackend() {
         (r) => r.user_id === userId && r.created_at >= sinceIso && r.analysis != null,
       ).length;
     },
+    async listLabReports(userId, limit) {
+      return labs
+        .filter((r) => r.user_id === userId)
+        .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+        .slice(0, limit)
+        .map(({ media_data, values, ...r }) => ({ ...r, lab_values: values }));
+    },
     async recentLabReports(userId, limit) {
       return labs
         .filter((r) => r.user_id === userId && r.values != null)
@@ -2656,6 +2686,7 @@ export const addHealthLog = (id, fields) => backend.addHealthLog(id, fields);
 export const addLabReport = (id, raw, analysis, extras) => backend.addLabReport(id, raw, analysis, extras);
 export const countLabReportsSince = (id, sinceIso) => backend.countLabReportsSince(id, sinceIso);
 export const recentLabReports = (id, limit = 3) => backend.recentLabReports(id, limit);
+export const listLabReports = (id, limit = 100) => backend.listLabReports(id, limit);
 export const saveCoachMessage = (id, kind, role, content) => backend.saveCoachMessage(id, kind, role, content);
 export const saveVoiceNote = (id, dataUrl, content) => backend.saveVoiceNote(id, dataUrl, content);
 export const recentGlucose = (id, limit = 5) => backend.recentGlucose(id, limit);

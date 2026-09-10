@@ -17,6 +17,7 @@ import {
 import { getSession, resetFlow, clearSession } from "./session.js";
 import {
   getOrCreateUser,
+  getUserById,
   updateUser,
   recordMessage,
   deleteUser,
@@ -549,12 +550,35 @@ async function dispatchFeature(bot, chatId, session, action) {
   }
 }
 
+// The user row is cached on the in-memory session, so a change made outside
+// this process — an admin switching someone's plan in the panel, a payment
+// approval, a manual DB edit — would otherwise not reach an active chat until
+// the bot restarted, making the change look like it did nothing. Re-read the
+// row when the cached copy is more than a minute old: one indexed lookup per
+// active chat per minute, and plan changes land on the patient's next message.
+const USER_REFRESH_MS = 60_000;
+
+async function ensureSessionUser(session, identifier) {
+  const now = Date.now();
+  if (!session.user) {
+    session.user = await getOrCreateUser(identifier, session.source);
+    session.userFetchedAt = now;
+    return session.user;
+  }
+  if (now - (session.userFetchedAt || 0) > USER_REFRESH_MS) {
+    session.userFetchedAt = now;
+    const fresh = await getUserById(session.user.id).catch(() => null);
+    if (fresh) session.user = fresh;
+  }
+  return session.user;
+}
+
 export async function handleMessage(bot, msg) {
   if (!msg.chat) return;
   const chatId = msg.chat.id;
   const session = getSession(chatId);
   session.source = msg.__source || "telegram";
-  if (!session.user) session.user = await getOrCreateUser(msg.from?.id ?? chatId, session.source);
+  await ensureSessionUser(session, msg.from?.id ?? chatId);
 
   // Account status gate (2026-07 spec — More → My Account).
   //   inactive → any inbound message reactivates + welcomes back, then falls
@@ -902,7 +926,7 @@ export async function handleCallback(bot, query) {
   if (!chatId) return;
   const session = getSession(chatId);
   session.source = query.__source || "telegram";
-  if (!session.user) session.user = await getOrCreateUser(query.from.id, session.source);
+  await ensureSessionUser(session, query.from.id);
   const data = query.data || "";
   bot.answerCallbackQuery(query.id).catch(() => {});
 

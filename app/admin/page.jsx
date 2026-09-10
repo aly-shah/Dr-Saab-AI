@@ -163,6 +163,7 @@ const UNREAD_REASON = {
   pdf_no_text: "Not analysed - scanned PDF with no readable text",
   unsupported_file: "Not analysed - unsupported file type",
   analysis_failed: "Not analysed - the AI request failed",
+  limit_reached: "Not analysed - free monthly limit reached, file kept for review",
 };
 
 // One uploaded lab report: the original file the patient sent, the values the
@@ -270,7 +271,108 @@ function ReportCard({ report }) {
   );
 }
 
-function PatientDrawer({ id, onClose }) {
+// Plan / tier control. Writes through /api/admin/plan, which mirrors what the
+// bot does when a payment is approved — so a plan granted here unlocks the
+// paid features immediately and expires on its own like a real subscription.
+const PLAN_OPTIONS = [
+  { slug: "free", label: "Starter (free)" },
+  { slug: "consistency", label: "Consistency Coach (paid)" },
+  { slug: "executive", label: "Executive Coach (premium)" },
+];
+
+// Mirrors normalizeTier() in bot/src/tiers.js so legacy rows select correctly.
+const TIER_ALIASES = {
+  free: "free", starter: "free",
+  consistency: "consistency", consistency_builder: "consistency",
+  consistency_coach: "consistency", paid: "consistency",
+  executive: "executive", executive_coach: "executive", premium: "executive",
+};
+const normalizeTier = (v) => TIER_ALIASES[String(v || "free").trim().toLowerCase()] || "free";
+
+const fmtDate = (v) => (v ? new Date(v).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : null);
+
+function PlanControl({ user, onUpdated }) {
+  const current = normalizeTier(user.tier);
+  const [tier, setTier] = useState(current);
+  const [months, setMonths] = useState("1");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  // Reset the form whenever the drawer switches to a different patient.
+  useEffect(() => { setTier(normalizeTier(user.tier)); setMsg(""); }, [user.id, user.tier]);
+
+  const expiry = fmtDate(user.sub_expires_at);
+  // Applying the same paid plan again is a legitimate action - it re-dates the
+  // subscription, which is how you extend one. Only free -> free is a no-op.
+  const dirty = !(tier === "free" && current === "free");
+
+  const save = async () => {
+    setBusy(true);
+    setMsg("");
+    const res = await fetch("/api/admin/plan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: user.id, tier, months: tier === "free" || months === "" ? null : Number(months) }),
+    });
+    const d = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { setMsg(d.error || "Could not change the plan"); return; }
+    setMsg(d.doctorProPreserved ? "Plan updated — Doctor Pro left untouched." : "Plan updated.");
+    onUpdated?.(d.user);
+  };
+
+  return (
+    <div className="space-y-2.5">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="rounded-full bg-white px-2.5 py-1 text-[12px] font-semibold text-ink ring-1 ring-line">
+          {PLAN_OPTIONS.find((p) => p.slug === current)?.label || current}
+        </span>
+        <span className="text-[12px] text-ink/50">
+          {user.sub_status && user.sub_status !== "free" ? user.sub_status.replace(/_/g, " ") : "no subscription"}
+          {expiry ? ` · until ${expiry}` : current !== "free" ? " · no expiry" : ""}
+        </span>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          value={tier}
+          onChange={(e) => setTier(e.target.value)}
+          className="rounded-lg bg-white px-2.5 py-1.5 text-[13px] text-ink ring-1 ring-line"
+        >
+          {PLAN_OPTIONS.map((p) => <option key={p.slug} value={p.slug}>{p.label}</option>)}
+        </select>
+        {tier !== "free" && (
+          <select
+            value={months}
+            onChange={(e) => setMonths(e.target.value)}
+            className="rounded-lg bg-white px-2.5 py-1.5 text-[13px] text-ink ring-1 ring-line"
+          >
+            <option value="1">1 month</option>
+            <option value="6">6 months</option>
+            <option value="12">12 months</option>
+            <option value="">No expiry</option>
+          </select>
+        )}
+        <button
+          onClick={save}
+          disabled={busy || !dirty}
+          className="rounded-lg bg-primary px-3 py-1.5 text-[13px] font-semibold text-white disabled:opacity-40"
+        >
+          {busy ? "Saving…" : "Apply"}
+        </button>
+      </div>
+
+      {tier !== "free" && (
+        <p className="text-[11px] leading-relaxed text-ink/45">
+          Starts today. {months === "" ? "It will not expire until you change it here." : "The patient gets renewal reminders and drops back to Starter when it expires."}
+        </p>
+      )}
+      {msg && <p className="text-[12px] font-medium text-primary">{msg}</p>}
+    </div>
+  );
+}
+
+function PatientDrawer({ id, onClose, onChanged }) {
   const [data, setData] = useState(null);
   useEffect(() => {
     setData(null);
@@ -295,10 +397,19 @@ function PatientDrawer({ id, onClose }) {
                 <span className="text-ink/45">City</span><span>{data.user.city || "—"}</span>
                 <span className="text-ink/45">Language</span><span>{data.user.language}</span>
                 <span className="text-ink/45">Diabetes</span><span>{data.user.diabetes_status || "—"}</span>
-                <span className="text-ink/45">Plan</span><span className="capitalize">{data.user.tier}</span>
                 <span className="text-ink/45">Streak</span><span>{data.user.streak || 0} days</span>
                 <span className="text-ink/45">Doctor code</span><span>{data.user.doctor_code || "—"}</span>
               </div>
+            </Panel>
+
+            <Panel title="Plan">
+              <PlanControl
+                user={data.user}
+                onUpdated={(u) => {
+                  setData((d) => ({ ...d, user: { ...d.user, ...u } }));
+                  onChanged?.();
+                }}
+              />
             </Panel>
 
             <div className="grid grid-cols-3 gap-3">
@@ -750,7 +861,7 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {selected && <PatientDrawer id={selected} onClose={() => setSelected(null)} />}
+      {selected && <PatientDrawer id={selected} onClose={() => setSelected(null)} onChanged={load} />}
     </div>
   );
 }

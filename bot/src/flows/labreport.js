@@ -45,11 +45,14 @@ function extractHba1cValue(values) {
 }
 
 // Cap on the uploaded file we keep inline on the lab_reports row. Base64
-// inflates by ~33%, so this holds files up to ~3 MB — comfortably above a
-// phone photo or a scanned PDF, while keeping the admin patient payload sane.
-// Anything larger is still analysed and saved; only the original file is
-// dropped (the extracted text lives on in raw_input).
-const LAB_MAX_INLINE_BYTES = 4 * 1024 * 1024;
+// inflates by ~33%, so this holds files up to ~9 MB — well above a phone
+// photo or a multi-page scanned PDF. The admin patient endpoint never
+// selects media_data (the file is streamed on demand by /api/admin/report),
+// so a large row costs nothing until someone opens it. Anything larger is
+// still analysed and saved; only the bytes are dropped (the extracted text
+// lives on in raw_input) and the file name is kept so the admin panel still
+// shows that a document was sent.
+const LAB_MAX_INLINE_BYTES = 12 * 1024 * 1024;
 
 // Build the { media_type, media_data, file_name } triple persisted with the
 // report so the admin panel can show the document the patient actually sent.
@@ -57,9 +60,33 @@ export function inlineUpload(kind, dataUrl, fileName) {
   if (!dataUrl) return {};
   if (dataUrl.length > LAB_MAX_INLINE_BYTES) {
     console.warn("lab upload too large to store inline:", dataUrl.length, "bytes");
-    return {};
+    return { file_name: fileName || null };
   }
   return { media_type: kind, media_data: dataUrl, file_name: fileName || null };
+}
+
+// Original filename of an attached document, from whichever transport sent it
+// (Telegram puts it on msg.document; web and WhatsApp pass __documentName).
+export function documentName(msg) {
+  return msg?.document?.file_name || msg?.__documentName || null;
+}
+
+// Resolve a document attachment (Telegram / WhatsApp PDF or image-as-file)
+// into the inline-upload triple, downloading the bytes if needed. Used on
+// paths that bail out before the normal PDF handling below runs, so the file
+// still reaches the patient's record. Returns {} when there is no document.
+async function uploadFromDocument(bot, msg) {
+  const doc = msg ? await documentBuffer(bot, msg) : null;
+  if (!doc) return {};
+  const name = documentName(msg);
+  if (isPdfMime(doc.mime) || doc.mime.startsWith("image/")) {
+    return inlineUpload(
+      isPdfMime(doc.mime) ? "pdf" : "image",
+      "data:" + doc.mime + ";base64," + doc.buffer.toString("base64"),
+      name,
+    );
+  }
+  return { file_name: name };
 }
 
 // What the patient actually uploaded, in whatever shape the transport handed
@@ -68,7 +95,7 @@ export function inlineUpload(kind, dataUrl, fileName) {
 // PDFs are text-extracted at the HTTP boundary, so the file only reaches us
 // through __documentDataUrl. Returns {} when nothing was attached.
 export function uploadFromMessage(msg, imageDataUrl) {
-  const name = msg?.document?.file_name || msg?.__documentName || null;
+  const name = documentName(msg);
   if (imageDataUrl) return inlineUpload("image", imageDataUrl, name);
   if (msg?.__documentDataUrl) {
     const kind = isPdfMime(msg.__documentMime || "") ? "pdf" : "image";
@@ -161,7 +188,7 @@ export async function labText(bot, chatId, session, text, msg) {
   const lang = langOf(session);
 
   const imageDataUrl = msg ? await photoDataUrl(bot, msg) : null;
-  const hasDocAttachment = !!(msg?.document?.file_id || msg?.__documentBuffer);
+  const hasDocAttachment = !!(msg?.document?.file_id || msg?.__documentBuffer || msg?.__documentDataUrl);
   let userText = (text || msg?.caption || "").trim();
   // The original upload, kept so the report stays viewable in the admin panel
   // instead of being reduced to the "[image]" placeholder raw_input carries.
@@ -191,6 +218,20 @@ export async function labText(bot, chatId, session, text, msg) {
   if (!isPaid(session.user)) {
     const used = await countLabReportsSince(session.user.id, firstOfThisMonthIso()).catch(() => 0);
     if (used >= FREE_MONTHLY_LIMIT) {
+      // The patient still sent a report. It isn't analysed (that's what the
+      // cap is for) but it must reach their record in the admin panel like
+      // every other upload, so save it with the reason and no analysis —
+      // which also keeps it from counting against next month's allowance.
+      if (userText || imageDataUrl || hasDocAttachment) {
+        const kept = upload.media_data || !hasDocAttachment ? upload : await uploadFromDocument(bot, msg);
+        await saveUnanalysedReport(
+          session.user.id,
+          userText || "[upload]",
+          kept,
+          "limit_reached",
+          `free plan: ${FREE_MONTHLY_LIMIT} analyses already used this month`,
+        );
+      }
       return send(bot, chatId, t(lang, "lab_limit_reached", { limit: FREE_MONTHLY_LIMIT }), {
         keyboard: backKeyboard(lang),
         markdown: true,
@@ -211,13 +252,13 @@ export async function labText(bot, chatId, session, text, msg) {
         upload = inlineUpload(
           "pdf",
           "data:" + doc.mime + ";base64," + doc.buffer.toString("base64"),
-          msg?.document?.file_name,
+          documentName(msg),
         );
       } else {
         await saveUnanalysedReport(
           session.user.id,
           userText || "[pdf]",
-          inlineUpload("pdf", "data:" + doc.mime + ";base64," + doc.buffer.toString("base64"), msg?.document?.file_name),
+          inlineUpload("pdf", "data:" + doc.mime + ";base64," + doc.buffer.toString("base64"), documentName(msg)),
           "pdf_no_text",
           "PDF carried no extractable text (likely a scan)",
         );
@@ -233,7 +274,7 @@ export async function labText(bot, chatId, session, text, msg) {
       await saveUnanalysedReport(
         session.user.id,
         userText || `[unsupported file: ${doc.mime}]`,
-        { file_name: msg?.document?.file_name || msg?.__documentName || null },
+        { file_name: documentName(msg) },
         "unsupported_file",
         doc.mime,
       );

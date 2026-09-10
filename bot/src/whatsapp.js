@@ -342,6 +342,7 @@ async function onInbound(value) {
           caption,
           __documentBuffer: bin?.buffer || null,
           __documentMime: bin?.mime || null,
+          __documentName: m.document?.filename || "",
           __imageDataUrl: isImage && bin ? `data:${bin.mime};base64,${bin.buffer.toString("base64")}` : null,
           __source: "whatsapp",
         });

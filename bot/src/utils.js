@@ -127,6 +127,9 @@ export function hasAttachment(msg) {
   if (!msg) return false;
   if (msg.__imageDataUrl) return true;
   if (msg.__documentBuffer && msg.__documentMime) return true;
+  // Web PDF: text was extracted at the HTTP boundary, the file itself rides
+  // along as a data: URL so it can be saved with the report.
+  if (msg.__documentDataUrl) return true;
   if (Array.isArray(msg.photo) && msg.photo.length) return true;
   if (msg.document?.file_id) return true;
   return false;
