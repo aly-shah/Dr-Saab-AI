@@ -7,6 +7,7 @@ import { addLabReport, countLabReportsSince, recentLabReports } from "../supabas
 import { extractPdfText, isPdfMime } from "../pdf.js";
 import { awardEventToChallenges } from "./challengeEngine.js";
 import { errorKey, adminErrorDetail } from "../errors.js";
+import { logError } from "../log.js";
 import { isFoodQuestion } from "../shortcuts.js";
 import { askDrsaabText } from "./askdrsaab.js";
 import { coachText } from "./coach.js";
@@ -95,8 +96,11 @@ export async function saveUnanalysedReport(userId, rawInput, upload, status, det
       metadata: { status, status_detail: detail ? String(detail).slice(0, 500) : null },
       ...(upload || {}),
     });
+    return true;
   } catch (e) {
-    console.error("unanalysed lab save failed:", e?.stack || e?.message || e);
+    logError("Lab report save", e?.message || String(e));
+    console.error(e?.stack || e);
+    return false;
   }
 }
 
@@ -321,7 +325,20 @@ export async function labText(bot, chatId, session, text, msg) {
       });
       await send(bot, chatId, t(lang, "lab_saved"), { markdown: true });
     } catch (dbErr) {
-      console.error("lab history save failed:", dbErr?.stack || dbErr?.message || dbErr);
+      // The user has their explanation either way, but a report that never
+      // reaches the database also never reaches the admin panel - so say so
+      // loudly in the log, and in the chat when an admin is the one testing.
+      logError("Lab report save", dbErr?.message || String(dbErr));
+      console.error(dbErr?.stack || dbErr);
+      if (session.user?.is_admin) {
+        await send(
+          bot,
+          chatId,
+          "🧪 *Admin detail:* the report was analysed but NOT saved to the database - " +
+            sanitizeMd(dbErr?.message || String(dbErr)),
+          { markdown: true },
+        );
+      }
     }
 
     // Challenges hook: every valid, analyzable report earns 3 participation

@@ -844,11 +844,50 @@ async function makePostgresBackend() {
     throw new Error(why);
   }
 
+  // Columns each table actually has, read once per table and cached.
+  //
+  // A plain INSERT naming a column the deployed database never got (an
+  // `alter table ... add column` that was added to schema.sql after the DB
+  // was created, and never re-applied) fails the WHOLE row with 42703. For
+  // lab reports that meant one un-migrated column silently threw away every
+  // uploaded report. Dropping the unknown columns instead saves the row with
+  // everything the table CAN hold, and says loudly what is missing.
+  const columnCache = new Map();
+  const columnsOf = async (table) => {
+    if (columnCache.has(table)) return columnCache.get(table);
+    let cols = new Set();
+    try {
+      const { rows } = await pool.query(
+        "select column_name from information_schema.columns where table_schema = current_schema() and table_name = $1",
+        [table],
+      );
+      cols = new Set(rows.map((r) => r.column_name));
+    } catch (e) {
+      // Can't introspect (permissions?) — fall back to inserting everything.
+      logWarn("Database", `could not read the column list for ${table}: ${e?.message}`);
+    }
+    columnCache.set(table, cols);
+    return cols;
+  };
+
   const insertDynamic = async (table, obj) => {
-    const keys = Object.keys(obj);
-    const cols = keys.join(", ");
-    const ph = keys.map((_, i) => `$${i + 1}`).join(", ");
-    await pool.query(`insert into ${table} (${cols}) values (${ph})`, Object.values(obj));
+    const cols = await columnsOf(table);
+    const known = cols.size ? Object.keys(obj).filter((k) => cols.has(k)) : Object.keys(obj);
+    const missing = cols.size ? Object.keys(obj).filter((k) => !cols.has(k)) : [];
+    if (missing.length) {
+      logError(
+        `Database ${table}`,
+        `saved without column(s) the deployed table does not have: ${missing.join(", ")}. ` +
+          "Re-run bot/db/schema.sql against this database to add them.",
+      );
+    }
+    if (!known.length) throw new Error(`no insertable columns for ${table}`);
+    const names = known.join(", ");
+    const ph = known.map((_, i) => `$${i + 1}`).join(", ");
+    await pool.query(
+      `insert into ${table} (${names}) values (${ph})`,
+      known.map((k) => obj[k]),
+    );
   };
 
   return {
