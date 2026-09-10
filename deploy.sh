@@ -135,6 +135,12 @@ port_in_use() { ss -ltnH 2>/dev/null | awk '{print $4}' | sed 's/.*://' | grep -
 find_free()   { local p="$1"; while port_in_use "$p"; do p=$((p+1)); done; echo "$p"; }
 
 # ---------- 1. system packages ----------
+# SKIP_APT=1 skips this whole section - use it when the packages are already
+# installed by hand, or when apt on this host is wedged and you don't want the
+# deploy blocked behind it.
+if [ "${SKIP_APT:-0}" = "1" ]; then
+  warn "SKIP_APT=1 - assuming node, postgresql, nginx and pm2 are already installed"
+else
 log "Installing system dependencies"
 # apt can sit silently for minutes when a mirror stalls - most often a broken
 # IPv6 route on a fresh VPS/container image. Cap the wait so it fails fast,
@@ -165,6 +171,9 @@ if ! command -v node >/dev/null 2>&1 || [ "$(node -v | sed 's/v\([0-9]*\).*/\1/'
 fi
 
 APT install "${APT_OPTS[@]}" postgresql nginx
+fi
+
+[ "$HAS_SYSTEMD" -eq 1 ] || install_systemctl_shim
 command -v pm2 >/dev/null 2>&1 || { log "Installing pm2"; $SUDO npm install -g pm2; }
 
 # Stop any existing drsaab apps first so their ports free up (and we recreate
