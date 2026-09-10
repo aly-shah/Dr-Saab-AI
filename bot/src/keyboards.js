@@ -300,17 +300,22 @@ export function backKeyboard(lang, target = "menu") {
 
 // Keyboard shown on the "Explain My Report" prompt.
 //
-// Both "📸 Take a Photo" and "📎 Attach Report" were removed 2026-07-14:
-// WhatsApp/Telegram callback buttons cannot open the camera or file picker,
-// so they were misleading affordances. The intro copy now asks the user
-// directly to send the report in the chat (photo / image / PDF / text),
-// which works via the client's native paperclip on every channel.
-export function labStartKeyboard(lang) {
-  return {
-    inline_keyboard: [
-      [{ text: t(lang, "btn_back"), callback_data: "menu" }],
-    ],
-  };
+// "📎 Attach Report" is web-only. On WhatsApp/Telegram a callback button
+// cannot open the file picker, so there it stays a misleading affordance
+// (removed 2026-07-14) and the intro copy asks the user to send the report
+// through the client's native paperclip instead. The web chat can open its
+// own picker, so it gets the button back: the frontend intercepts
+// `feat:upload_lab` and clicks the hidden file input locally instead of
+// round-tripping the callback to the bot. It puts the upload one tap away
+// on the screen that asks for it, rather than only behind the small
+// paperclip in the composer.
+export function labStartKeyboard(lang, source) {
+  const rows = [];
+  if (source === "web") {
+    rows.push([{ text: t(lang, "btn_upload_lab"), callback_data: "feat:upload_lab" }]);
+  }
+  rows.push([{ text: t(lang, "btn_back"), callback_data: "menu" }]);
+  return { inline_keyboard: rows };
 }
 
 export function profileKeyboard(lang) {

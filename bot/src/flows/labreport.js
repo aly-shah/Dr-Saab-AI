@@ -106,7 +106,10 @@ function priorValuesLine(reports) {
 export async function startLab(bot, chatId, session) {
   const lang = langOf(session);
   session.state = "lab";
-  await send(bot, chatId, t(lang, "lab_prompt"), { keyboard: labStartKeyboard(lang), markdown: true });
+  await send(bot, chatId, t(lang, "lab_prompt"), {
+    keyboard: labStartKeyboard(lang, session.source),
+    markdown: true,
+  });
 }
 
 export async function labText(bot, chatId, session, text, msg) {
@@ -180,7 +183,12 @@ export async function labText(bot, chatId, session, text, msg) {
   }
 
   if (!userText && !imageDataUrl) {
-    return send(bot, chatId, t(lang, "lab_prompt"), { keyboard: backKeyboard(lang), markdown: true });
+    // Same screen as startLab — keep the web attach button on the re-prompt,
+    // otherwise an empty send strands the user with no way to pick a file.
+    return send(bot, chatId, t(lang, "lab_prompt"), {
+      keyboard: labStartKeyboard(lang, session.source),
+      markdown: true,
+    });
   }
 
   await typing(bot, chatId);

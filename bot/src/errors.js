@@ -59,6 +59,14 @@ export function errorKey(err) {
   const code = err?.code || err?.cause?.code;
   const msg = err?.message || err?.error?.message || "";
   if (status === 413 || /too\s*large|payload too large/i.test(msg)) return "error_too_large";
+  // Providers also reject an oversized inline image with a plain 400. Without
+  // this the user is told the AI is misconfigured when all they did was send a
+  // big photo — and re-sending the same photo can never work.
+  if (
+    status === 400 &&
+    /exceed|too\s*(?:large|big)|maximum size|size limit|max(?:imum)? allowed/i.test(msg)
+  )
+    return "error_too_large";
   if (
     status === 400 ||
     status === 401 ||

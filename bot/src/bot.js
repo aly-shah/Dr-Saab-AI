@@ -503,6 +503,11 @@ async function dispatchFeature(bot, chatId, session, action) {
       return startCoach(bot, chatId, session, "fitness");
     case "lab":
       return startLab(bot, chatId, session);
+    // The web chat intercepts "feat:upload_lab" locally and opens the file
+    // picker, so it normally never reaches us. A stale frontend build still
+    // could — re-show the lab prompt rather than bouncing to the main menu.
+    case "upload_lab":
+      return startLab(bot, chatId, session);
     case "summary":
       return showSummary(bot, chatId, session);
     case "learn":
@@ -548,7 +553,8 @@ export async function handleMessage(bot, msg) {
   if (!msg.chat) return;
   const chatId = msg.chat.id;
   const session = getSession(chatId);
-  if (!session.user) session.user = await getOrCreateUser(msg.from?.id ?? chatId, msg.__source || "telegram");
+  session.source = msg.__source || "telegram";
+  if (!session.user) session.user = await getOrCreateUser(msg.from?.id ?? chatId, session.source);
 
   // Account status gate (2026-07 spec — More → My Account).
   //   inactive → any inbound message reactivates + welcomes back, then falls
@@ -586,9 +592,10 @@ export async function handleMessage(bot, msg) {
       "Your profile and chat history have been deleted. Let's set you up again."
     );
     const freshSession = getSession(chatId);
+    freshSession.source = session.source;
     freshSession.user = await getOrCreateUser(
       msg.from?.id ?? chatId,
-      msg.__source || "telegram",
+      freshSession.source,
     );
     return startOnboarding(bot, chatId, freshSession, "eng");
   }
@@ -894,7 +901,8 @@ export async function handleCallback(bot, query) {
   const chatId = query.message?.chat?.id;
   if (!chatId) return;
   const session = getSession(chatId);
-  if (!session.user) session.user = await getOrCreateUser(query.from.id, query.__source || "telegram");
+  session.source = query.__source || "telegram";
+  if (!session.user) session.user = await getOrCreateUser(query.from.id, session.source);
   const data = query.data || "";
   bot.answerCallbackQuery(query.id).catch(() => {});
 

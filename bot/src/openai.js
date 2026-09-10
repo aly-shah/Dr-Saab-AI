@@ -123,7 +123,37 @@ const KIND_ROLE = {
     "You are the FITNESS COACH. Suggest safe, realistic movement for someone with the user's profile (e.g. short post-meal walks, light strength work). Respect any limitations and keep goals achievable.",
 };
 
+// Groq accepts a much smaller image when it's inlined as base64 than when it's
+// fetched from a URL (the documented 20 MB request ceiling is the URL case),
+// and it rejects an oversized one with a bare HTTP 400 — indistinguishable from
+// a real misconfiguration, so the user used to get "something is off on our
+// side" for nothing worse than a big photo. Check it ourselves and raise a 413
+// instead, which every caller already maps to the "that file is too large"
+// message via errorKey().
+const MAX_INLINE_IMAGE_BYTES = 4 * 1024 * 1024;
+
+function oversizedImageBytes(messages) {
+  for (const m of messages) {
+    if (!Array.isArray(m?.content)) continue;
+    for (const part of m.content) {
+      const url = part?.image_url?.url;
+      if (typeof url === "string" && url.length > MAX_INLINE_IMAGE_BYTES) return url.length;
+    }
+  }
+  return 0;
+}
+
 async function complete(messages, { maxTokens = 600, model, jsonMode = false, paid = false } = {}) {
+  const tooBig = oversizedImageBytes(messages);
+  if (tooBig) {
+    const e = new Error(
+      `image too large to send inline: ${Math.round(tooBig / 1024 / 1024)} MB base64 ` +
+        `(limit ${MAX_INLINE_IMAGE_BYTES / 1024 / 1024} MB)`,
+    );
+    e.status = 413;
+    logError(`${config.llm.provider.toUpperCase()} LLM`, e.message);
+    throw e;
+  }
   const useOpenAI = paid && paidClient;
   const chosenClient = useOpenAI ? paidClient : client;
   const usedModel =

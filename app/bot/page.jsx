@@ -42,6 +42,9 @@ function ChipIcon({ data }) {
     case "food": return I(<><path d="M4 11h16a8 8 0 0 1-16 0z" /><path d="M7 21h10M12 11V3" /></>);
     case "fitness": return I(<><path d="M6.5 6.5l11 11M4 9l2-2M20 15l-2 2M2.5 11.5l3 3M21.5 12.5l-3-3" /></>);
     case "lab": return I(<><path d="M9 3h6M10 3v6l-5 8a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-8V3" /></>);
+    // Same paperclip / camera glyphs as the composer buttons these chips fire.
+    case "upload_lab": return I(<path d="M21.4 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 1 1 4.95 4.95l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.49" />);
+    case "take_photo_lab": return I(<><path d="M4 8h3l2-2h6l2 2h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2z" /><circle cx="12" cy="13" r="4" /></>);
     case "summary": return I(<><rect x="3.5" y="4.5" width="17" height="16" rx="2.5" /><path d="M3.5 9h17M8 3v3M16 3v3" /></>);
     case "learn": return I(<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5z" />);
     case "profile": return I(<><circle cx="12" cy="8" r="3.5" /><path d="M5 20a7 7 0 0 1 14 0" /></>);
@@ -52,6 +55,59 @@ function ChipIcon({ data }) {
     case "skip": return I(<path d="M5 5l7 7-7 7M13 5l7 7-7 7" />);
     case "menu": return I(<path d="M4 6h16M4 12h16M4 18h16" />);
     default: return I(<circle cx="12" cy="12" r="3" />);
+  }
+}
+
+// Report photos go to the vision model as base64 inside the JSON request, and
+// the provider rejects an oversized base64 image with a hard 400 — which the
+// user only ever saw as "something is off on our side". A 12 MP phone photo is
+// 3–6 MB (≈33% more once base64-encoded), far past that ceiling, so shrink and
+// re-encode here before it ever leaves the browser.
+//
+// Re-encoding to JPEG also normalises formats the model doesn't accept (an
+// iPhone HEIC that Safari hands over untouched) and strips EXIF weight. Falls
+// back to the untouched file on any failure — a slightly-too-big upload that
+// might work beats a broken one that definitely doesn't.
+const MAX_IMAGE_EDGE = 1600; // plenty for OCR of a lab table
+const JPEG_QUALITY = 0.85;
+
+function readAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result || ""));
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(file);
+  });
+}
+
+async function toUploadableImage(file) {
+  const original = await readAsDataUrl(file);
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("decode failed"));
+      el.src = original;
+    });
+    const w = img.naturalWidth || img.width;
+    const h = img.naturalHeight || img.height;
+    if (!w || !h) return original;
+    const scale = Math.min(1, MAX_IMAGE_EDGE / Math.max(w, h));
+    // Already small and already a format the model accepts — send as-is.
+    if (scale === 1 && /^data:image\/(jpe?g|png|webp);/i.test(original)) return original;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(w * scale));
+    canvas.height = Math.max(1, Math.round(h * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return original;
+    // White ground so a transparent PNG scan doesn't come out black.
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const out = canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+    return out && out.length < original.length ? out : original;
+  } catch {
+    return original;
   }
 }
 
@@ -196,9 +252,8 @@ export default function BotChatPage() {
       ]);
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = String(reader.result || "");
+    (async () => {
+      const dataUrl = isImage ? await toUploadableImage(file) : await readAsDataUrl(file);
       if (!dataUrl) return;
       const caption = input.trim();
       const bubble = isImage
@@ -208,8 +263,13 @@ export default function BotChatPage() {
       setInput("");
       requestAnimationFrame(() => taRef.current && (taRef.current.style.height = "auto"));
       callBot({ type: isImage ? "image" : "file", dataUrl, caption, fileName: file.name || "" });
-    };
-    reader.readAsDataURL(file);
+    })().catch((err) => {
+      console.error("attachment read failed:", err);
+      setMessages((prev) => [
+        ...prev,
+        { from: "bot", text: "I couldn't read that file — please try attaching it again.", rows: [] },
+      ]);
+    });
   };
 
   const resetChat = () => {

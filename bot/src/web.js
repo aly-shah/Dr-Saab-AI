@@ -144,13 +144,23 @@ export function startWebServer() {
         if (aborted) return sendJson(res, 413, { error: "payload too large" });
         try {
           const parsed = JSON.parse(body || "{}");
-          const { sessionId, type = "text", text = "", data = "", dataUrl = "", caption = "" } = parsed;
+          const {
+            sessionId,
+            type = "text",
+            text = "",
+            data = "",
+            dataUrl = "",
+            caption = "",
+            fileName = "",
+          } = parsed;
           if (sessionId === undefined || sessionId === null) {
             return sendJson(res, 400, { error: "sessionId required" });
           }
           let payload;
           if (type === "callback") payload = data;
-          else if (type === "image" || type === "file") payload = { dataUrl, caption };
+          // fileName is what the admin panel labels the stored report with —
+          // it was being dropped here, so every web upload landed unnamed.
+          else if (type === "image" || type === "file") payload = { dataUrl, caption, fileName };
           else payload = text;
           const messages = await processWeb(sessionId, type, payload);
           return sendJson(res, 200, { messages });

@@ -8,7 +8,10 @@ const sessions = new Map();
 export function getSession(chatId) {
   let s = sessions.get(chatId);
   if (!s) {
-    s = { state: "idle", step: null, data: {}, history: [], user: null };
+    // `source` is the channel this chat arrived on ("web" | "whatsapp" |
+    // "telegram"). Set on every inbound message/callback and deliberately
+    // NOT cleared by resetFlow — it describes the transport, not the flow.
+    s = { state: "idle", step: null, data: {}, history: [], user: null, source: null };
     sessions.set(chatId, s);
   }
   return s;

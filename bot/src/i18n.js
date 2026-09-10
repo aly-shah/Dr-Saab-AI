@@ -154,7 +154,7 @@ const STR = {
     btn_lang_whatsapp_urdu: "WhatsApp Urdu",
 
     voice_note_saved: "Thanks — I've received your voice note and saved it. For the fastest help, you can also type your question.",
-    ask_name_v2: "Before we begin, what's your name?",
+    ask_name_v2: "Before we begin, what's your full name?",
     name_ack:
       "Nice to meet you, *{name}* 👋\nLet's build your profile so I can personalize my coaching for you.",
     ask_email_v2: "Thanks. What's your *email address*? We'll use it for account recovery and to send you your health summaries.",
@@ -1713,7 +1713,7 @@ const STR = {
       "🏃 *فٹنس کوچ*۔ اپنا دن یا توانائی بتائیں، میں محفوظ ورزش تجویز کروں گا۔\n_مینو پر واپس دبائیں۔_",
     lab_prompt:
       "📋 *اپنی رپورٹ سمجھیں*\n\n📸 *اپنی رپورٹ اسی چیٹ میں بھیج دیں* — تصویر یا PDF۔ چاہیں تو ویلیوز ٹیکسٹ میں بھی لکھ سکتے ہیں۔\n\nمیں آپ کے نتائج آسان الفاظ میں سمجھاؤں گا، اہم چیزوں پر روشنی ڈالوں گا، اور بتاؤں گا کہ آپ کی ذیابیطس کے لیے اس کا کیا مطلب ہو سکتا ہے۔\n\n*قابل قبول رپورٹس:*\n• خون کے ٹیسٹ\n• HbA1c رپورٹ\n• کولیسٹرول / لپڈ پروفائل\n• گردے کے ٹیسٹ\n• جگر کے ٹیسٹ\n• پیشاب کے ٹیسٹ\n• ہسپتال کی لیبارٹری رپورٹس\n• ذیابیطس سے متعلق تحقیقات\n_مینو پر واپس دبائیں۔_",
-    btn_upload_lab: "📎 تصویر اپلوڈ کریں",
+    btn_upload_lab: "📎 رپورٹ اپلوڈ کریں",
     upload_lab_hint:
       "📸 بس رپورٹ کی تصویر منسلک کر کے بھیج دیں۔\n\n_چیٹ میں اٹیچ (پیپر کلپ) کے نشان پر کلک کریں، اپنی رپورٹ کی تصویر منتخب کریں اور بھیج دیں۔ میں تجزیہ کر کے آپ کے ریکارڈ میں محفوظ کر دوں گا۔_",
     lab_image_unreadable:
@@ -1773,7 +1773,7 @@ const STR = {
     btn_lang_urdu: "اردو",
     btn_lang_whatsapp_urdu: "WhatsApp Urdu",
 
-    ask_name_v2: "شروع کرنے سے پہلے، آپ کا نام کیا ہے؟",
+    ask_name_v2: "شروع کرنے سے پہلے، آپ کا پورا نام کیا ہے؟",
     name_ack:
       "آپ سے مل کر خوشی ہوئی، *{name}* 👋\nآئیے آپ کا پروفائل مکمل کرتے ہیں تاکہ میں آپ کے لیے بہتر رہنمائی فراہم کر سکوں۔",
     ask_email_v2: "شکریہ۔ آپ کا *ای میل ایڈریس* کیا ہے؟ ہم اسے اکاؤنٹ ریکوری اور آپ کی صحت کی رپورٹس بھیجنے کے لیے استعمال کریں گے۔",
@@ -2849,7 +2849,7 @@ const STR = {
       "🏃 *Fitness Coach*. Apna din ya energy batayein, main mehfooz exercise tajweez karoonga.\n_Menu par wapas dabayein._",
     lab_prompt:
       "📋 *Apni Report Samjhein*\n\n📸 *Apni report yahin chat mein bhej dein* — tasveer ya PDF. Ya values text mein bhi likh sakte hain.\n\nMain aap ke natayij asaan alfaaz mein samjhaonga, ahem cheezon par roshni daaloonga, aur bataonga ke aap ki diabetes ke liye is ka kya matlab ho sakta hai.\n\n*Qabil qabool reports:*\n• Blood tests\n• HbA1c reports\n• Cholesterol / Lipid Profile\n• Gurdon ke tests\n• Jigar ke tests\n• Peshab ke tests\n• Hospital laboratory reports\n• Diabetes se mutalliq tehqeeqat\n_Menu par wapas dabayein._",
-    btn_upload_lab: "📎 Tasveer Upload Karein",
+    btn_upload_lab: "📎 Report Upload Karein",
     upload_lab_hint:
       "📸 Bas report ki tasveer attach kar ke bhej dein.\n\n_Chat mein attach (paper-clip) icon dabayein, apni report ki tasveer chunein aur bhej dein. Main tajziya kar ke aap ke record mein mehfooz kar doonga._",
     lab_image_unreadable:
@@ -2909,7 +2909,7 @@ const STR = {
     btn_lang_urdu: "اردو",
     btn_lang_whatsapp_urdu: "WhatsApp Urdu",
 
-    ask_name_v2: "Shuru karnay se pehlay, aap ka naam kya hai?",
+    ask_name_v2: "Shuru karnay se pehlay, aap ka poora naam kya hai?",
     name_ack:
       "Aap se mil kar khushi hui, *{name}* 👋\nAaiye aap ka profile mukammal karte hain taake main aap ke liye behtar rehnumai faraham kar sakoon.",
     ask_email_v2: "Shukriya. Aap ka *email address* kya hai? Hum ise account recovery aur aap ki health summaries bhejne ke liye use karenge.",
