@@ -32,6 +32,14 @@ INCLUDE_WWW="${INCLUDE_WWW:-0}"
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$APP_DIR"
 
+# Never let apt/dpkg stop on an interactive prompt: this script runs unattended
+# and a hidden debconf or "keep your modified config file?" question just looks
+# like a hang. Keep existing conffiles, skip the needrestart service picker.
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
+export NEEDRESTART_SUSPEND=1
+APT_OPTS=(-y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold)
+
 log()  { echo -e "\n\033[1;36m==> $*\033[0m"; }
 warn() { echo -e "\033[1;33m!  $*\033[0m"; }
 
@@ -117,30 +125,37 @@ set_env_kv() {
   fi
 }
 
+# apt/dpkg through `sudo env ...` so the noninteractive settings survive the
+# sudo environment reset (plain `sudo -E` is refused by some sudoers policies).
+NONINT=(DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a NEEDRESTART_SUSPEND=1)
+APT()  { $SUDO env "${NONINT[@]}" apt-get "$@"; }
+DPKG() { $SUDO env "${NONINT[@]}" dpkg "$@"; }
+
 port_in_use() { ss -ltnH 2>/dev/null | awk '{print $4}' | sed 's/.*://' | grep -qx "$1"; }
 find_free()   { local p="$1"; while port_in_use "$p"; do p=$((p+1)); done; echo "$p"; }
 
 # ---------- 1. system packages ----------
 log "Installing system dependencies"
-$SUDO apt-get update -y
+APT update -y
 
 # Do this before the first install: without systemd, package postinst scripts
 # call a missing `systemctl` and abort dpkg. The shim keeps them happy, and
 # `dpkg --configure -a` finishes any package a previous run left half-installed.
 if [ "$HAS_SYSTEMD" -eq 0 ]; then
   install_systemctl_shim
-  $SUDO dpkg --configure -a >/dev/null 2>&1 || true
+  # Output stays visible on purpose - this is where a stuck deploy shows why.
+  DPKG --configure -a --force-confdef --force-confold </dev/null     || warn "dpkg --configure -a reported errors - continuing, apt may fix them below"
 fi
 
-$SUDO apt-get install -y curl ca-certificates gnupg openssl git
+APT install "${APT_OPTS[@]}" curl ca-certificates gnupg openssl git
 
 if ! command -v node >/dev/null 2>&1 || [ "$(node -v | sed 's/v\([0-9]*\).*/\1/')" -lt 18 ]; then
   log "Installing Node.js 20"
   curl -fsSL https://deb.nodesource.com/setup_20.x | $SUDO ${SUDO:+-E} bash -
-  $SUDO apt-get install -y nodejs
+  APT install "${APT_OPTS[@]}" nodejs
 fi
 
-$SUDO apt-get install -y postgresql nginx
+APT install "${APT_OPTS[@]}" postgresql nginx
 command -v pm2 >/dev/null 2>&1 || { log "Installing pm2"; $SUDO npm install -g pm2; }
 
 # Stop any existing drsaab apps first so their ports free up (and we recreate
@@ -360,7 +375,7 @@ svc_reload nginx
 SSL_OK=0
 if [ "$SETUP_SSL" = "1" ]; then
   log "Issuing HTTPS certificate via certbot for ${SERVER_NAMES}"
-  $SUDO apt-get install -y certbot python3-certbot-nginx
+  APT install "${APT_OPTS[@]}" certbot python3-certbot-nginx
   CB_ARGS=(--nginx --non-interactive --agree-tos -m "$SSL_EMAIL" --redirect -d "$DOMAIN")
   [ "$INCLUDE_WWW" = "1" ] && CB_ARGS+=(-d "www.${DOMAIN}")
   if $SUDO certbot "${CB_ARGS[@]}"; then
