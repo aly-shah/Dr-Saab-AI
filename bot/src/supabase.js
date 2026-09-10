@@ -103,11 +103,16 @@ async function makeSupabaseBackend() {
       });
       if (error) throw error;
     },
+    // Only analysed reports count against the free-tier monthly cap. Rows
+    // with a null analysis are uploads we saved for the admin panel after
+    // failing to read them - charging the user for those would let a bad
+    // photo or an AI outage eat their allowance.
     async countLabReportsSince(userId, sinceIso) {
       const { count, error } = await db
         .from("lab_reports")
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId)
+        .not("analysis", "is", null)
         .gte("created_at", sinceIso);
       if (error) throw error;
       return count || 0;
@@ -937,7 +942,8 @@ async function makePostgresBackend() {
     },
     async countLabReportsSince(userId, sinceIso) {
       const { rows } = await pool.query(
-        "select count(*)::int as n from lab_reports where user_id=$1 and created_at>=$2",
+        // analysis is null => an upload we could not read; see saveUnanalysedReport
+        "select count(*)::int as n from lab_reports where user_id=$1 and created_at>=$2 and analysis is not null",
         [userId, sinceIso]
       );
       return rows[0]?.n || 0;
@@ -2093,7 +2099,9 @@ function makeMemoryBackend() {
       });
     },
     async countLabReportsSince(userId, sinceIso) {
-      return labs.filter((r) => r.user_id === userId && r.created_at >= sinceIso).length;
+      return labs.filter(
+        (r) => r.user_id === userId && r.created_at >= sinceIso && r.analysis != null,
+      ).length;
     },
     async recentLabReports(userId, limit) {
       return labs

@@ -34,7 +34,7 @@ if (!KEY) {
 }
 
 const BODY = JSON.stringify({
-  model: process.env.LLM_MODEL || "llama-3.3-70b-versatile",
+  model: process.env.LLM_MODEL || "openai/gpt-oss-120b",
   // Ask for a large response — that is what triggers the mid-body drop.
   messages: [{ role: "user", content: "Write 600 words about the benefits of walking for people with diabetes." }],
   max_tokens: 900,

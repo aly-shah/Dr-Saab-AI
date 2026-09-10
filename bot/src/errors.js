@@ -89,6 +89,19 @@ export function errorKey(err) {
   return "error_generic";
 }
 
+// Compact, one-line technical detail for an admin-only diagnostic message.
+// errorKey() decides what the *patient* sees; this is what an admin testing
+// the bot needs in order to tell "the provider rejected our request" from
+// "the network dropped" without shell access to the server log.
+export function adminErrorDetail(err) {
+  const status = err?.status ?? err?.response?.status;
+  const code = err?.code || err?.cause?.code;
+  const msg =
+    err?.error?.message || err?.response?.data?.error?.message || err?.message || "";
+  const parts = [status ? `HTTP ${status}` : "", code || "", msg].filter(Boolean);
+  return parts.join(" · ").slice(0, 400) || "no detail available";
+}
+
 // ---- WhatsApp Cloud API (Meta direct / 360dialog) --------------------------
 export function describeWhatsAppError(status, body, provider = "meta") {
   let msg = typeof body === "string" ? body : "";

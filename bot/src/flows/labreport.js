@@ -1,12 +1,12 @@
 import { t } from "../i18n.js";
-import { send, typing, langOf, photoDataUrl, documentBuffer, isPremium } from "../utils.js";
+import { send, typing, langOf, photoDataUrl, documentBuffer, isPremium, sanitizeMd } from "../utils.js";
 import { isPaid } from "../tiers.js";
-import { backKeyboard, labStartKeyboard } from "../keyboards.js";
+import { backKeyboard, labStartKeyboard, labRetryKeyboard } from "../keyboards.js";
 import { explainLab } from "../openai.js";
 import { addLabReport, countLabReportsSince, recentLabReports } from "../supabase.js";
 import { extractPdfText, isPdfMime } from "../pdf.js";
 import { awardEventToChallenges } from "./challengeEngine.js";
-import { errorKey } from "../errors.js";
+import { errorKey, adminErrorDetail } from "../errors.js";
 import { isFoodQuestion } from "../shortcuts.js";
 import { askDrsaabText } from "./askdrsaab.js";
 import { coachText } from "./coach.js";
@@ -76,6 +76,30 @@ export function uploadFromMessage(msg, imageDataUrl) {
   return {};
 }
 
+// Persist an upload we could NOT explain — an unreadable photo, a scanned PDF
+// with no text layer, a file type we don't handle, or an analysis that failed
+// outright (provider down, quota, bad response). The patient's document is
+// still their record: it has to reach the admin panel under their name so a
+// human can read what the model couldn't, so we save the row with a null
+// analysis and the reason on `metadata.status`.
+//
+// Best-effort by design — a failed save must never replace the message the
+// user is already getting about the failure.
+//
+// Rows saved this way carry no lab_values, so they stay out of the
+// prior-readings context, and no analysis, so they don't consume a free-tier
+// slot (see countLabReportsSince).
+export async function saveUnanalysedReport(userId, rawInput, upload, status, detail) {
+  try {
+    await addLabReport(userId, rawInput || "[upload]", null, {
+      metadata: { status, status_detail: detail ? String(detail).slice(0, 500) : null },
+      ...(upload || {}),
+    });
+  } catch (e) {
+    console.error("unanalysed lab save failed:", e?.stack || e?.message || e);
+  }
+}
+
 // Free-tier ceiling. Paid users are unlimited. Spec: free users get a plan
 // limit rather than a hard block — see the "Explain My Report" write-up.
 const FREE_MONTHLY_LIMIT = 3;
@@ -107,6 +131,23 @@ export async function startLab(bot, chatId, session) {
   const lang = langOf(session);
   session.state = "lab";
   await send(bot, chatId, t(lang, "lab_prompt"), {
+    keyboard: labStartKeyboard(lang, session.source),
+    markdown: true,
+  });
+}
+
+// "🔁 Resend Report" — offered whenever the last upload came back
+// unreadable, partly blurred, or as a text-less scanned PDF. Puts the flow
+// back into the lab state and repeats the short attach hint instead of the
+// full Explain My Report intro, which the user has just read.
+//
+// The web chat intercepts this callback and opens the file picker directly,
+// so in practice only WhatsApp/Telegram reach here — where the user attaches
+// through the client's own paperclip.
+export async function labRetry(bot, chatId, session) {
+  const lang = langOf(session);
+  session.state = "lab";
+  return send(bot, chatId, t(lang, "upload_lab_hint"), {
     keyboard: labStartKeyboard(lang, session.source),
     markdown: true,
   });
@@ -169,12 +210,29 @@ export async function labText(bot, chatId, session, text, msg) {
           msg?.document?.file_name,
         );
       } else {
+        await saveUnanalysedReport(
+          session.user.id,
+          userText || "[pdf]",
+          inlineUpload("pdf", "data:" + doc.mime + ";base64," + doc.buffer.toString("base64"), msg?.document?.file_name),
+          "pdf_no_text",
+          "PDF carried no extractable text (likely a scan)",
+        );
         return send(bot, chatId, t(lang, "lab_pdf_unreadable"), {
-          keyboard: backKeyboard(lang),
+          keyboard: labRetryKeyboard(lang),
           markdown: true,
         });
       }
     } else if (doc && !doc.mime.startsWith("image/")) {
+      // Keep a record of the attempt (file name + type) even though we can't
+      // store or read the bytes — the admin panel should show that the patient
+      // did send something on this date.
+      await saveUnanalysedReport(
+        session.user.id,
+        userText || `[unsupported file: ${doc.mime}]`,
+        { file_name: msg?.document?.file_name || msg?.__documentName || null },
+        "unsupported_file",
+        doc.mime,
+      );
       return send(bot, chatId, t(lang, "lab_unsupported_file"), {
         keyboard: backKeyboard(lang),
         markdown: true,
@@ -210,8 +268,15 @@ export async function labText(bot, chatId, session, text, msg) {
     // through to the generic error. Only applies when the user actually sent
     // an image (a garbled text paste is handled by the generic path).
     if (unreadable && imageDataUrl) {
+      await saveUnanalysedReport(
+        session.user.id,
+        userText || "[image]",
+        upload,
+        "unreadable",
+        unreadableReason || "the model could not read any values from the image",
+      );
       return send(bot, chatId, t(lang, "lab_image_unreadable"), {
-        keyboard: backKeyboard(lang),
+        keyboard: labRetryKeyboard(lang),
         markdown: true,
       });
     }
@@ -237,7 +302,10 @@ export async function labText(bot, chatId, session, text, msg) {
     // fall back to a generic note.
     if (partialUnreadable && imageDataUrl) {
       const noteKey = unreadableReason ? "lab_partial_unreadable" : "lab_partial_unreadable_generic";
-      await send(bot, chatId, t(lang, noteKey, { reason: unreadableReason }), { markdown: true });
+      await send(bot, chatId, t(lang, noteKey, { reason: unreadableReason }), {
+        keyboard: labRetryKeyboard(lang),
+        markdown: true,
+      });
     }
 
     await send(bot, chatId, t(lang, "lab_disclaimer"), { markdown: true });
@@ -264,6 +332,24 @@ export async function labText(bot, chatId, session, text, msg) {
     }).catch(() => {});
   } catch (e) {
     console.error("lab error:", e?.stack || e?.message || e);
-    await send(bot, chatId, t(lang, errorKey(e)), { keyboard: backKeyboard(lang) });
+    // The analysis failed, but the patient still uploaded a report - keep it
+    // under their name in the admin panel so nothing is lost while the AI side
+    // is down, and so someone can read it manually.
+    await saveUnanalysedReport(
+      session.user.id,
+      userText || "[image]",
+      upload,
+      "analysis_failed",
+      adminErrorDetail(e),
+    );
+    await send(bot, chatId, t(lang, errorKey(e)), { keyboard: labRetryKeyboard(lang) });
+    // Admins get the provider's own words. Without this the only place the
+    // real cause appears is the server log, which is not reachable from the
+    // web chat where these failures are usually first noticed.
+    if (session.user?.is_admin) {
+      await send(bot, chatId, "🧪 *Admin detail:* " + sanitizeMd(adminErrorDetail(e)), {
+        markdown: true,
+      });
+    }
   }
 }

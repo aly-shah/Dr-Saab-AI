@@ -12,6 +12,7 @@ import { startWebServer } from "./web.js";
 import { startScheduler } from "./scheduler.js";
 import { startWhatsApp, whatsappBot } from "./whatsapp.js";
 import { logError } from "./log.js";
+import { verifyModels } from "./openai.js";
 // import { describeTelegramError } from "./errors.js"; // TELEGRAM DISABLED
 
 // WhatsApp Cloud API is the primary delivery channel. Telegram is currently
@@ -66,6 +67,11 @@ const telegram = null; // TELEGRAM DISABLED — see block below to re-enable.
 //   console.log("   Telegram adapter: dormant (set TELEGRAM_BOT_TOKEN to enable the fallback).");
 // }
 console.log("   Telegram adapter: DISABLED (source commented out in index.js).");
+
+// Confirm the configured LLM models still exist in the provider catalog.
+// Fire-and-forget: it only logs, and a retired model is the difference
+// between "the AI is broken" and one obvious red line at boot.
+verifyModels();
 
 // Web chat GUI API (always on) — powers the /bot page on the website.
 startWebServer();

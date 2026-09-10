@@ -53,6 +53,7 @@ function ChipIcon({ data }) {
     case "gender": return I(<><circle cx="12" cy="8" r="3.5" /><path d="M6 20a6 6 0 0 1 12 0" /></>);
     case "diabetes": return I(<path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 12 5 5.5 5.5 0 0 0 2 8.5C2 12 5 14 12 21c2-2 4-3.8 5.5-5.3" />);
     case "skip": return I(<path d="M5 5l7 7-7 7M13 5l7 7-7 7" />);
+    case "lab:retry": return I(<><path d="M20 11.5A8 8 0 1 1 17.6 6" /><path d="M20.5 3.5V8H16" /></>);
     case "menu": return I(<path d="M4 6h16M4 12h16M4 18h16" />);
     default: return I(<circle cx="12" cy="12" r="3" />);
   }
@@ -221,9 +222,10 @@ export default function BotChatPage() {
 
   const sendCallback = (btn) => {
     if (loading) return;
-    // Special-case: the two attach chips on the Explain My Report screen open
-    // the browser file picker / camera instead of firing the bot callback.
-    if (btn.data === "feat:upload_lab") {
+    // Special-case: the attach chips on the Explain My Report screen — and the
+    // "Resend Report" chip offered after an unreadable upload — open the
+    // browser file picker / camera instead of firing the bot callback.
+    if (btn.data === "feat:upload_lab" || btn.data === "lab:retry") {
       fileRef.current?.click();
       return;
     }

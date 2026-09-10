@@ -76,6 +76,7 @@ const STR = {
     lab_prompt:
       "📋 *Explain My Report*\n\n📸 *Just send your report right here in the chat* — a photo, image, or PDF. You can also paste the values as text.\n\nI'll explain your results in simple language, highlight anything important, and tell you what it may mean for your diabetes.\n\n*Supported reports:*\n• Blood tests\n• HbA1c reports\n• Cholesterol / Lipid Profile\n• Kidney function tests\n• Liver function tests\n• Urine tests\n• Hospital laboratory reports\n• Diabetes-related investigations\n_Tap Back to Menu when done._",
     btn_upload_lab: "📎 Attach Report",
+    btn_resubmit_report: "🔁 Resend Report",
     btn_take_photo_lab: "📸 Take a Photo",
     upload_lab_hint:
       "📸 Attach the report and send.\n\n_Tap the attach icon (paperclip) in your chat, pick your report (image or PDF) or take a fresh photo, and hit send. I'll analyse it and add it to your record._",
@@ -1714,6 +1715,7 @@ const STR = {
     lab_prompt:
       "📋 *اپنی رپورٹ سمجھیں*\n\n📸 *اپنی رپورٹ اسی چیٹ میں بھیج دیں* — تصویر یا PDF۔ چاہیں تو ویلیوز ٹیکسٹ میں بھی لکھ سکتے ہیں۔\n\nمیں آپ کے نتائج آسان الفاظ میں سمجھاؤں گا، اہم چیزوں پر روشنی ڈالوں گا، اور بتاؤں گا کہ آپ کی ذیابیطس کے لیے اس کا کیا مطلب ہو سکتا ہے۔\n\n*قابل قبول رپورٹس:*\n• خون کے ٹیسٹ\n• HbA1c رپورٹ\n• کولیسٹرول / لپڈ پروفائل\n• گردے کے ٹیسٹ\n• جگر کے ٹیسٹ\n• پیشاب کے ٹیسٹ\n• ہسپتال کی لیبارٹری رپورٹس\n• ذیابیطس سے متعلق تحقیقات\n_مینو پر واپس دبائیں۔_",
     btn_upload_lab: "📎 رپورٹ اپلوڈ کریں",
+    btn_resubmit_report: "🔁 رپورٹ دوبارہ بھیجیں",
     upload_lab_hint:
       "📸 بس رپورٹ کی تصویر منسلک کر کے بھیج دیں۔\n\n_چیٹ میں اٹیچ (پیپر کلپ) کے نشان پر کلک کریں، اپنی رپورٹ کی تصویر منتخب کریں اور بھیج دیں۔ میں تجزیہ کر کے آپ کے ریکارڈ میں محفوظ کر دوں گا۔_",
     lab_image_unreadable:
@@ -2850,6 +2852,7 @@ const STR = {
     lab_prompt:
       "📋 *Apni Report Samjhein*\n\n📸 *Apni report yahin chat mein bhej dein* — tasveer ya PDF. Ya values text mein bhi likh sakte hain.\n\nMain aap ke natayij asaan alfaaz mein samjhaonga, ahem cheezon par roshni daaloonga, aur bataonga ke aap ki diabetes ke liye is ka kya matlab ho sakta hai.\n\n*Qabil qabool reports:*\n• Blood tests\n• HbA1c reports\n• Cholesterol / Lipid Profile\n• Gurdon ke tests\n• Jigar ke tests\n• Peshab ke tests\n• Hospital laboratory reports\n• Diabetes se mutalliq tehqeeqat\n_Menu par wapas dabayein._",
     btn_upload_lab: "📎 Report Upload Karein",
+    btn_resubmit_report: "🔁 Dobara Bhejein",
     upload_lab_hint:
       "📸 Bas report ki tasveer attach kar ke bhej dein.\n\n_Chat mein attach (paper-clip) icon dabayein, apni report ki tasveer chunein aur bhej dein. Main tajziya kar ke aap ke record mein mehfooz kar doonga._",
     lab_image_unreadable:

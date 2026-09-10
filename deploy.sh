@@ -20,7 +20,7 @@ DEFAULT_API_PORT="${WEB_API_PORT:-8321}"
 DB_NAME="${DB_NAME:-drsaab}"
 DB_USER="${DB_USER:-drsaab}"
 DEFAULT_TIER="${DEFAULT_TIER:-consistency_builder}"
-LLM_MODEL="${LLM_MODEL:-llama-3.3-70b-versatile}"
+LLM_MODEL="${LLM_MODEL:-openai/gpt-oss-120b}"
 LLM_VISION_MODEL="${LLM_VISION_MODEL:-qwen/qwen3.6-27b}"
 
 # HTTPS via Let's Encrypt — on by default. Needs DNS for $DOMAIN pointing here
@@ -280,6 +280,13 @@ else
   if grep -q '^LLM_VISION_MODEL=meta-llama/llama-4-scout-17b-16e-instruct$' bot/.env; then
     warn "LLM_VISION_MODEL was set to a deprecated Groq model — migrating to ${LLM_VISION_MODEL}."
     set_env_kv bot/.env LLM_VISION_MODEL "${LLM_VISION_MODEL}"
+  fi
+  # Groq also retired the Llama chat models. An .env still pinned to one gets a
+  # 404 model_not_found on EVERY text call — which surfaced to users as
+  # "something is off on our side" on typed questions and PDF/typed reports.
+  if grep -qE '^LLM_MODEL=(llama-3\.3-70b-versatile|llama-3\.1-8b-instant|llama3-[0-9]+b-8192|mixtral-8x7b-32768|qwen/qwen3-32b)$' bot/.env; then
+    warn "LLM_MODEL was set to a retired Groq model — migrating to ${LLM_MODEL}."
+    set_env_kv bot/.env LLM_MODEL "${LLM_MODEL}"
   fi
 fi
 

@@ -30,7 +30,10 @@ export const config = {
     baseURL: usingGroq
       ? "https://api.groq.com/openai/v1"
       : process.env.LLM_BASE_URL?.trim() || undefined,
-    model: process.env.LLM_MODEL?.trim() || (usingGroq ? "llama-3.3-70b-versatile" : "gpt-4o-mini"),
+    // Groq retired the Llama chat models — a key that once worked now gets
+    // 404 model_not_found on every text call. Verified against the live
+    // catalog 2026-09-11: openai/gpt-oss-120b is the production text model.
+    model: process.env.LLM_MODEL?.trim() || (usingGroq ? "openai/gpt-oss-120b" : "gpt-4o-mini"),
     visionModel:
       process.env.LLM_VISION_MODEL?.trim() ||
       (usingGroq ? "qwen/qwen3.6-27b" : "gpt-4o-mini"),

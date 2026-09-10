@@ -318,6 +318,23 @@ export function labStartKeyboard(lang, source) {
   return { inline_keyboard: rows };
 }
 
+// Shown under every "I couldn't read that report" reply — fully unreadable,
+// partially blurred, or a scanned PDF with no text layer. In all three the
+// next step is the same: send it again, better. The button saves the user
+// having to find the attach control themselves after a failure.
+//
+// One callback for every channel: the web chat intercepts `lab:retry` and
+// opens the file picker without a round trip, while WhatsApp/Telegram let it
+// reach the bot, which re-arms the lab flow and repeats the attach hint.
+export function labRetryKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [{ text: t(lang, "btn_resubmit_report"), callback_data: "lab:retry" }],
+      [{ text: t(lang, "btn_back"), callback_data: "menu" }],
+    ],
+  };
+}
+
 export function profileKeyboard(lang) {
   return {
     inline_keyboard: [

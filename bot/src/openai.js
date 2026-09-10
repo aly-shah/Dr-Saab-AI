@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import https from "node:https";
 import nodeFetch from "node-fetch";
 import { config } from "./config.js";
-import { logError } from "./log.js";
+import { logError, logWarn, logOk } from "./log.js";
 import { describeLlmError } from "./errors.js";
 
 // Node's built-in fetch (undici) intermittently — and on some VPS networks
@@ -225,6 +225,42 @@ async function complete(messages, { maxTokens = 600, model, jsonMode = false, pa
     }
     logError(`${config.llm.provider.toUpperCase()} LLM`, describeLlmError(e, config.llm.provider, usedModel));
     throw e;
+  }
+}
+
+// Boot-time sanity check on the configured models.
+//
+// Providers retire models. When that happens every call returns 404
+// model_not_found, which reaches the patient as "something is off on our side"
+// and looks like an outage — the failure gives no hint that a name in .env has
+// simply gone stale. One catalog lookup at startup turns that into an obvious
+// red line in the log the moment the bot restarts.
+//
+// Never throws: a provider whose catalog endpoint is unreachable or shaped
+// differently must not stop the bot from booting.
+export async function verifyModels() {
+  try {
+    const list = await client.models.list();
+    const ids = new Set((list?.data || []).map((m) => m.id));
+    if (!ids.size) return;
+    const configured = [
+      ["LLM_MODEL", config.llm.model],
+      ["LLM_VISION_MODEL", config.llm.visionModel],
+    ];
+    let ok = true;
+    for (const [envName, model] of configured) {
+      if (model && !ids.has(model)) {
+        ok = false;
+        logError(
+          "LLM model check",
+          `${envName}="${model}" is NOT in the ${config.llm.provider} catalog — every call using it will fail with 404. ` +
+            `Set ${envName} in bot/.env to one of: ${[...ids].slice(0, 12).join(", ")}`,
+        );
+      }
+    }
+    if (ok) logOk(`LLM models verified: ${config.llm.model} (text) · ${config.llm.visionModel} (vision)`);
+  } catch (e) {
+    logWarn("LLM model check", `could not read the model catalog: ${e?.message || e}`);
   }
 }
 

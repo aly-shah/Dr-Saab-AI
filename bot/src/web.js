@@ -5,6 +5,8 @@
 import http from "node:http";
 import { handleMessage, handleCallback } from "./bot.js";
 import { parseDataUrl, isPdfMime, isImageMime, extractPdfText } from "./pdf.js";
+import { saveUnanalysedReport, inlineUpload } from "./flows/labreport.js";
+import { getOrCreateUser } from "./supabase.js";
 
 function createVirtualBot(buffer) {
   return {
@@ -50,10 +52,27 @@ async function processWeb(sessionId, type, payload) {
       if (parsed && isPdfMime(parsed.mime)) {
         const text = await extractPdfText(parsed.buffer);
         if (!text) {
+          // We return before the lab flow runs, so record the upload here:
+          // a scan we cannot read is still the patient's document and has to
+          // show up under their name in the admin panel.
+          try {
+            const user = await getOrCreateUser(sessionId, "web");
+            await saveUnanalysedReport(
+              user.id,
+              caption?.trim() || "[pdf]",
+              inlineUpload("pdf", dataUrl, fileName),
+              "pdf_no_text",
+              "PDF carried no extractable text (likely a scan)",
+            );
+          } catch (saveErr) {
+            console.error("web pdf save failed:", saveErr?.message || saveErr);
+          }
           buffer.push({
             text:
               "I received the PDF but couldn't read any text from it — it may be a scanned image. Please share a photo or screenshot of the report instead.",
-            rows: [],
+            // Same "Resend Report" chip the flows attach to an unreadable
+            // upload — the page opens the file picker on this callback.
+            rows: [[{ label: "Resend Report", data: "lab:retry" }]],
           });
           return buffer;
         }

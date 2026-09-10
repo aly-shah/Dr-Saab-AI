@@ -77,7 +77,7 @@ import {
 import { startMyHealth, myHealthText, myHealthCallback } from "./flows/myhealth.js";
 import { startCoach, coachText } from "./flows/coach.js";
 import { startAskDrsaab, askDrsaabText } from "./flows/askdrsaab.js";
-import { startLab, labText } from "./flows/labreport.js";
+import { startLab, labText, labRetry } from "./flows/labreport.js";
 import { showSummary } from "./flows/progress.js";
 import { showEducation } from "./flows/education.js";
 import { showT1Community, dispatchT1Community } from "./flows/t1community.js";
@@ -966,6 +966,10 @@ export async function handleCallback(bot, query) {
     }
     return;
   }
+
+  // "🔁 Resend Report" from an unreadable-report reply. Only reaches the
+  // bot on WhatsApp/Telegram — the web chat opens its file picker instead.
+  if (data === "lab:retry") return labRetry(bot, chatId, session);
 
   // ❤️ My Health — start / confirm (ok/edit/skip) / glucose-context picker.
   if (data.startsWith("mh:")) return myHealthCallback(bot, chatId, session, data);

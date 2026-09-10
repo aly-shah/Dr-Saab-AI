@@ -155,6 +155,16 @@ const STATUS_TONE = {
   out_of_range: "bg-red-50 text-red-600 ring-red-200",
 };
 
+// Uploads the bot saved without an explanation. The file is still on the
+// row and still viewable here - only the AI reading of it is missing, so the
+// card says which step failed rather than looking like an empty report.
+const UNREAD_REASON = {
+  unreadable: "Not analysed - the photo was too unclear to read",
+  pdf_no_text: "Not analysed - scanned PDF with no readable text",
+  unsupported_file: "Not analysed - unsupported file type",
+  analysis_failed: "Not analysed - the AI request failed",
+};
+
 // One uploaded lab report: the original file the patient sent, the values the
 // parser pulled out of it, and the explanation that went back to them.
 function ReportCard({ report }) {
@@ -169,10 +179,12 @@ function ReportCard({ report }) {
   // For a typed / pasted report the raw input IS the report, so show it when
   // there's no file. "[image]" is the placeholder older image uploads used
   // before the file itself was stored — nothing to show for those.
+  // "[image]", "[pdf]", "[upload]", "[unsupported file: …]" are the
+  // placeholders the bot stores when the report was a file rather than typed
+  // text - there is nothing to render for those.
+  const isPlaceholder = /^\[[^\]]*\]$/.test(String(report.raw_input || "").trim());
   const pasted =
-    !report.has_file && report.raw_input && report.raw_input !== "[image]"
-      ? report.raw_input
-      : null;
+    !report.has_file && report.raw_input && !isPlaceholder ? report.raw_input : null;
 
   return (
     <div className="rounded-xl bg-muted/50 p-3 ring-1 ring-line/50">
@@ -226,6 +238,19 @@ function ReportCard({ report }) {
               </span>
             </div>
           ))}
+        </div>
+      )}
+
+      {!report.analysis && meta.status && (
+        <div className="mt-2.5 rounded-lg bg-amber-50 px-2.5 py-2 ring-1 ring-amber-200">
+          <p className="text-[12px] font-semibold text-amber-800">
+            {UNREAD_REASON[meta.status] || "Not analysed"}
+          </p>
+          {meta.status_detail && (
+            <p className="mt-0.5 break-words text-[11px] leading-relaxed text-amber-700/80">
+              {meta.status_detail}
+            </p>
+          )}
         </div>
       )}
 
