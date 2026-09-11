@@ -12,6 +12,20 @@ const daysAgoISO = (n) => new Date(Date.now() - n * 86400000).toISOString();
 
 let backend;
 
+// node-pg serialises a plain JS object as JSON, but a JS *array* as a Postgres
+// array literal ('{"a","b"}'), which a json/jsonb column rejects as invalid
+// JSON. That silently lost every analysed lab report: `lab_values` is an
+// array of {test, result, status} objects. Stringify anything object-shaped
+// that is headed for a json column; when the column type is unknown (could
+// not introspect) fall back to stringifying arrays, since none of the tables
+// written this way have real array columns.
+export function toPgParam(value, dataType) {
+  if (value == null || typeof value !== "object") return value;
+  if (value instanceof Date || Buffer.isBuffer(value)) return value;
+  const json = dataType ? /^jsonb?$/i.test(dataType) : Array.isArray(value);
+  return json ? JSON.stringify(value) : value;
+}
+
 // ----------------------------------------------------------------
 // Supabase backend
 // ----------------------------------------------------------------
@@ -865,15 +879,17 @@ async function makePostgresBackend() {
   // uploaded report. Dropping the unknown columns instead saves the row with
   // everything the table CAN hold, and says loudly what is missing.
   const columnCache = new Map();
+  // Map of column name -> data_type ("jsonb", "text", "ARRAY", ...). Empty
+  // when the catalog could not be read.
   const columnsOf = async (table) => {
     if (columnCache.has(table)) return columnCache.get(table);
-    let cols = new Set();
+    let cols = new Map();
     try {
       const { rows } = await pool.query(
-        "select column_name from information_schema.columns where table_schema = current_schema() and table_name = $1",
+        "select column_name, data_type from information_schema.columns where table_schema = current_schema() and table_name = $1",
         [table],
       );
-      cols = new Set(rows.map((r) => r.column_name));
+      cols = new Map(rows.map((r) => [r.column_name, r.data_type]));
     } catch (e) {
       // Can't introspect (permissions?) — fall back to inserting everything.
       logWarn("Database", `could not read the column list for ${table}: ${e?.message}`);
@@ -898,7 +914,7 @@ async function makePostgresBackend() {
     const ph = known.map((_, i) => `$${i + 1}`).join(", ");
     await pool.query(
       `insert into ${table} (${names}) values (${ph})`,
-      known.map((k) => obj[k]),
+      known.map((k) => toPgParam(obj[k], cols.get(k))),
     );
   };
 

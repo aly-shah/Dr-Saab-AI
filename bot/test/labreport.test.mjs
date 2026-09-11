@@ -19,6 +19,7 @@ import { test } from "node:test";
 const { labText, inlineUpload, uploadFromMessage } = await import("../src/flows/labreport.js");
 const { hasAttachment } = await import("../src/utils.js");
 const supabase = await import("../src/supabase.js");
+const { toPgParam } = supabase;
 
 const PNG = "data:image/png;base64,iVBORw0KGgo=";
 const PDF = "data:application/pdf;base64,JVBERi0xLjQK";
@@ -106,4 +107,17 @@ test("free user over the cap sending a web PDF: file is saved with the extracted
   assert.equal(kept.media_type, "pdf");
   assert.equal(kept.file_name, "lipid.pdf");
   assert.equal(kept.raw_input, "Glucose 140 mg/dL");
+});
+
+test("toPgParam: arrays and objects headed for a jsonb column are sent as JSON text", () => {
+  const values = [{ test: "HbA1c", result: "7.1", status: "borderline" }];
+  // node-pg would otherwise turn the array into '{"{...}"}' - a Postgres array
+  // literal that jsonb rejects, which lost every analysed report on the server.
+  assert.equal(toPgParam(values, "jsonb"), JSON.stringify(values));
+  assert.equal(toPgParam({ lab_name: "X" }, "json"), JSON.stringify({ lab_name: "X" }));
+  assert.equal(toPgParam(values, undefined), JSON.stringify(values), "unknown column type: arrays still stringified");
+  assert.deepEqual(toPgParam(["a"], "ARRAY"), ["a"], "real array columns are left to node-pg");
+  assert.equal(toPgParam("text", "jsonb"), "text");
+  assert.equal(toPgParam(null, "jsonb"), null);
+  assert.equal(toPgParam(42, "integer"), 42);
 });
