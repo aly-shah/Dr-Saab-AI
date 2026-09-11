@@ -60,9 +60,15 @@ if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then
 fi
 
 install_systemctl_shim() {
-  command -v systemctl >/dev/null 2>&1 && return 0
+  # Real systemd ships /usr/bin/systemctl (or /bin/systemctl on older layouts).
+  # Check those paths directly rather than `command -v`: the deploying user's
+  # PATH is not what dpkg gives maintainer scripts, so "systemctl is found from
+  # my shell" says nothing about whether libc6's postinst will find it.
+  local real
+  for real in /usr/bin/systemctl /bin/systemctl; do
+    if [ -x "$real" ] && ! grep -q "Dr-Saab-AI deploy.sh" "$real" 2>/dev/null; then return 0; fi
+  done
   warn "systemd not available on this host - installing a systemctl shim so package scripts do not abort dpkg"
-  # /usr/local/bin is first on dpkg's default PATH for maintainer scripts.
   $SUDO tee /usr/local/bin/systemctl >/dev/null <<'SHIM'
 #!/bin/sh
 # Minimal `systemctl` stand-in for hosts without systemd, installed by
@@ -96,6 +102,10 @@ esac
 exit 0
 SHIM
   $SUDO chmod +x /usr/local/bin/systemctl
+  # Maintainer scripts run with whatever PATH dpkg inherited, which does not
+  # always include /usr/local/bin (seen as "libc6 postinst: systemctl: not
+  # found"). Link the shim where every PATH looks.
+  [ -e /usr/bin/systemctl ] || $SUDO ln -s /usr/local/bin/systemctl /usr/bin/systemctl
 }
 
 # start (and enable at boot) a service under whichever init this host has
@@ -134,6 +144,17 @@ DPKG() { $SUDO env "${NONINT[@]}" dpkg "$@"; }
 port_in_use() { ss -ltnH 2>/dev/null | awk '{print $4}' | sed 's/.*://' | grep -qx "$1"; }
 find_free()   { local p="$1"; while port_in_use "$p"; do p=$((p+1)); done; echo "$p"; }
 
+# Without systemd, package postinst scripts call a missing `systemctl` and
+# abort dpkg - and a package left half-configured by an earlier failed run
+# (libc6, typically) breaks EVERY later apt install, including certbot's.
+# Install the shim and finish those packages first, on every run, whether or
+# not the apt section below is skipped.
+if [ "$HAS_SYSTEMD" -eq 0 ]; then
+  install_systemctl_shim
+  # Output stays visible on purpose - this is where a stuck deploy shows why.
+  DPKG --configure -a --force-confdef --force-confold </dev/null     || warn "dpkg --configure -a reported errors - continuing, apt may fix them below"
+fi
+
 # ---------- 1. system packages ----------
 # SKIP_APT=1 skips this whole section - use it when the packages are already
 # installed by hand, or when apt on this host is wedged and you don't want the
@@ -153,15 +174,6 @@ if ! APT update -y "${APT_NET[@]}"; then
 fi
 APT_OPTS+=("${APT_NET[@]}")
 
-# Do this before the first install: without systemd, package postinst scripts
-# call a missing `systemctl` and abort dpkg. The shim keeps them happy, and
-# `dpkg --configure -a` finishes any package a previous run left half-installed.
-if [ "$HAS_SYSTEMD" -eq 0 ]; then
-  install_systemctl_shim
-  # Output stays visible on purpose - this is where a stuck deploy shows why.
-  DPKG --configure -a --force-confdef --force-confold </dev/null     || warn "dpkg --configure -a reported errors - continuing, apt may fix them below"
-fi
-
 APT install "${APT_OPTS[@]}" curl ca-certificates gnupg openssl git
 
 if ! command -v node >/dev/null 2>&1 || [ "$(node -v | sed 's/v\([0-9]*\).*/\1/')" -lt 18 ]; then
@@ -173,7 +185,6 @@ fi
 APT install "${APT_OPTS[@]}" postgresql nginx
 fi
 
-[ "$HAS_SYSTEMD" -eq 1 ] || install_systemctl_shim
 command -v pm2 >/dev/null 2>&1 || { log "Installing pm2"; $SUDO npm install -g pm2; }
 
 # Stop any existing drsaab apps first so their ports free up (and we recreate
