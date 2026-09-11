@@ -16,7 +16,9 @@ import path from "node:path";
 function loadEnv(file) {
   const out = {};
   try {
-    for (const line of fs.readFileSync(file, "utf8").split("\n")) {
+    // Split on \r?\n: a Windows-edited .env has CRLF endings, and "." does
+    // not match "\r", so the regex below would silently skip every line.
+    for (const line of fs.readFileSync(file, "utf8").split(/\r?\n/)) {
       const m = /^\s*([A-Z0-9_]+)\s*=\s*(.*)$/.exec(line);
       if (m) out[m[1]] = m[2].trim().replace(/^["']|["']$/g, "");
     }
@@ -28,7 +30,9 @@ function loadEnv(file) {
 
 const root = process.cwd();
 const botEnv = loadEnv(path.join(root, "bot/.env"));
-const webEnv = loadEnv(path.join(root, ".env.production"));
+// deploy.sh writes .env.production on the server; a local `next dev` reads
+// .env.local instead, so accept either.
+const webEnv = { ...loadEnv(path.join(root, ".env.local")), ...loadEnv(path.join(root, ".env.production")) };
 
 const redact = (url) => String(url || "").replace(/:\/\/([^:]+):([^@]+)@/, "://$1:****@");
 const line = "-".repeat(72);
