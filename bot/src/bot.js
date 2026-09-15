@@ -56,6 +56,7 @@ import { detectGreetingScenario } from "./welcome.js";
 import {
   startGlucose,
   glucoseText,
+  logGlucoseFromText,
   startMedication,
   medicationText,
   medicationCallback,
@@ -396,9 +397,9 @@ async function routeIntent(bot, chatId, session, resolved) {
       }
       if (resolved.structured?.kind === "hba1c") {
         // Pre-parsed HbA1c value from the sugar detector — the user
-        // likely wants to add it to their record. Route into the lab
-        // flow with the raw text so its parser handles the save.
-        return startLab(bot, chatId, session);
+        // wants it on their record. The blood-sugar check-in already
+        // accepts "HbA1c 7.2" and stores it as an hba1c reading.
+        return logGlucoseFromText(bot, chatId, session, resolved.structured.raw);
       }
       return startGlucose(bot, chatId, session);
     case INTENT.MEDICATION:
@@ -747,7 +748,19 @@ export async function handleMessage(bot, msg) {
   // slash form ("/sugar"). Slash commands already consumed above
   // (/start, /menu, /cancel, /upgrade) never reach this point.
   if (session.user.onboarded && text) {
-    const resolved = resolveIntent(text, { inFlow: inResumableFlow || inCoachlike });
+    let resolved = resolveIntent(text, { inFlow: inResumableFlow || inCoachlike });
+    // Already in the blood-sugar check-in: a typed reading ("HbA1c 7.2",
+    // "glucose 140 fasting") is the answer to our own prompt, not a
+    // shortcut. Let glucoseText parse and save it rather than restarting
+    // the flow or bouncing an HbA1c value to Explain My Report.
+    if (
+      resolved &&
+      activeState === "glucose" &&
+      /\d/.test(text) &&
+      (resolved.intent === INTENT.SUGAR_LOG || resolved.intent === INTENT.HBA1C_SHOW)
+    ) {
+      resolved = null;
+    }
     if (resolved) {
       logShortcutEvent("shortcut_detected", {
         canonical_intent: resolved.intent,
@@ -994,7 +1007,7 @@ export async function handleCallback(bot, query) {
       return startGlucoseWithValue(bot, chatId, session, { value, kind: "glucose" });
     }
     if (kind === "hba1c") {
-      return startLab(bot, chatId, session);
+      return logGlucoseFromText(bot, chatId, session, `HbA1c ${value}`);
     }
     return;
   }

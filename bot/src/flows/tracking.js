@@ -52,7 +52,9 @@ export async function startGlucose(bot, chatId, session) {
 // Return { value_mgdl, unit, measure_kind } or null.
 function parseGlucose(text) {
   const s = String(text || "").toLowerCase();
-  const numM = s.match(/(\d+(?:\.\d+)?)/);
+  // Drop the test name before hunting for the number: "hba1c 7.2" must
+  // yield 7.2, not the "1" inside "hba1c".
+  const numM = s.replace(/hba1c|a1c/g, " ").match(/(\d+(?:\.\d+)?)/);
   if (!numM) return null;
   const raw = parseFloat(numM[1]);
   if (!Number.isFinite(raw)) return null;
@@ -93,6 +95,18 @@ function glucoseFeedback(lang, value_mgdl, kind) {
   const highThreshold = kind === "fasting" ? 130 : 180;
   if (value_mgdl > highThreshold) return t(lang, "glucose_high");
   return t(lang, "glucose_normal");
+}
+
+// Log a reading that arrived as free text from outside the flow (the
+// "HbA1c 7.2" shortcut, the save-reading offer). Enters the blood-sugar
+// flow silently and hands the text to the normal parser so an HbA1c
+// value is stored as a reading instead of being bounced to the lab
+// report explainer.
+export async function logGlucoseFromText(bot, chatId, session, text) {
+  session.state = "glucose";
+  session.step = null;
+  if (session.data) session.data.pendingSugar = null;
+  return glucoseText(bot, chatId, session, text);
 }
 
 export async function glucoseText(bot, chatId, session, text) {
