@@ -2,19 +2,20 @@
 // Spec: "My Health" (2026-07).
 //
 // One-time 7-question guided setup builds the profile; afterwards the user
-// simply tells DrSaab what changed in free text and the AI updates the right
-// record. There are NO submenus — the whole feature is one conversation.
+// lands on a small sub-menu (Goals, My Health Summary, Update Profile, My
+// Doctor). Free text typed on the sub-menu or the summary is still an
+// AI-driven update ("My weight is now 79 kg").
 //
 // Profile states (users.health_profile_status):
 //   not_started → show intro + Start
 //   in_progress → resume automatically from the next unanswered question
-//   completed   → show the health summary; free text becomes an AI-driven update
+//   completed   → show the sub-menu; Goals / Summary / free-text updates
 //
 // users.health_setup_step holds the NEXT unanswered question (1..7) so setup
 // resumes seamlessly across restarts.
 
 import { t } from "../i18n.js";
-import { send, typing, langOf, sanitizeMd, photoDataUrl } from "../utils.js";
+import { send, typing, langOf, sanitizeMd, photoDataUrl, splitGoalLines } from "../utils.js";
 import { resetFlow } from "../session.js";
 import { backKeyboard } from "../keyboards.js";
 import {
@@ -23,7 +24,13 @@ import {
   myHealthContextKeyboard,
   myHealthSummaryKeyboard,
   myHealthUpdateConfirmKeyboard,
+  myHealthMenuKeyboard,
+  myHealthGoalsKeyboard,
+  myHealthGoalsInputKeyboard,
+  myHealthTrendsKeyboard,
 } from "../keyboards.js";
+import { assembleTrendData, analyzeTrends, renderTrends } from "../trends.js";
+import { startSnapshot } from "./snapshot.js";
 import {
   updateUser,
   addConditions,
@@ -91,8 +98,7 @@ export async function startMyHealth(bot, chatId, session) {
   const status = session.user.health_profile_status || "not_started";
 
   if (status === "completed") {
-    session.step = "update";
-    return showSummary(bot, chatId, session);
+    return showHealthMenu(bot, chatId, session);
   }
 
   if (status === "in_progress") {
@@ -143,6 +149,20 @@ export async function myHealthCallback(bot, chatId, session, data) {
       });
     }
     return promptQuestion(bot, chatId, session, 1);
+  }
+
+  // Returning-user sub-menu (completed profile) and the Goals section.
+  if (action === "menu") return showHealthMenu(bot, chatId, session);
+  if (action === "summary") return showSummary(bot, chatId, session);
+  if (action === "goals") return showGoals(bot, chatId, session);
+  if (action === "trends") return showTrends(bot, chatId, session);
+  // 📊 Health Snapshot — the Executive Health Snapshot PDF (paid; the flow
+  // shows the upgrade card to free users).
+  if (action === "snapshot") return startSnapshot(bot, chatId, session);
+  if (action === "goals_yes") return promptGoals(bot, chatId, session, true);
+  if (action === "goals_no") {
+    await send(bot, chatId, t(lang, "mh_goals_kept"), { markdown: true });
+    return showHealthMenu(bot, chatId, session);
   }
 
   // Confirmation card for the current setup question.
@@ -214,8 +234,24 @@ export async function myHealthText(bot, chatId, session, text, msg) {
     });
   }
 
-  // Completed profile → free-text AI-driven update.
-  if (session.step === "update") return handleUpdate(bot, chatId, session, val, imageDataUrl);
+  // Goals section: the typed goals list, or a typed yes/no to "update them?".
+  if (session.step === "goals_input") return saveGoals(bot, chatId, session, val);
+  if (session.step === "goals_view") {
+    if (/^(y|yes|yeah|yep|ok|okay|sure|update|haan|han|ji|jee)\b/i.test(val)) {
+      return promptGoals(bot, chatId, session, true);
+    }
+    if (/^(n|no|nope|nahi|nahin|keep)\b/i.test(val)) {
+      await send(bot, chatId, t(lang, "mh_goals_kept"), { markdown: true });
+      return showHealthMenu(bot, chatId, session);
+    }
+    // They skipped the question and typed their new goals straight away.
+    return saveGoals(bot, chatId, session, val);
+  }
+
+  // Completed profile (sub-menu or summary) → free-text AI-driven update.
+  if (session.step === "update" || session.step === "menu") {
+    return handleUpdate(bot, chatId, session, val, imageDataUrl);
+  }
   if (session.step === "update_context") {
     // They typed instead of tapping — re-show the picker.
     return send(bot, chatId, t(lang, "mh_glucose_context_q"), {
@@ -328,14 +364,28 @@ async function extractForQuestion(bot, chatId, session, q, val, imageDataUrl) {
     if (parsed.height_cm != null) patch.height_cm = parsed.height_cm;
     if (parsed.weight_kg != null) patch.weight_kg = parsed.weight_kg;
 
-    const missingBefore = Object.entries(knownAboutYou(user)).filter(([, v]) => v == null).map(([k]) => k);
+    const known = knownAboutYou(user);
+    const missingBefore = Object.entries(known).filter(([, v]) => v == null).map(([k]) => k);
 
     if (parsed.ackOnly && !missingBefore.length) {
       await send(bot, chatId, t(lang, "mh_aboutyou_ok_ack"), { markdown: true });
       return advanceAfter(bot, chatId, session, q);
     }
 
-    if (!Object.keys(patch).length && !parsed.ackOnly) {
+    // Units rule (2026-09-15): a number without a unit is ambiguous — in
+    // "78 170" we can't know which is the weight. A single bare number is
+    // accepted as the age only when the age is the one thing still missing
+    // (height and weight settled). Otherwise we keep whatever carried a
+    // unit (and the gender) and explicitly ask for units on the rest.
+    const unitless = parsed.unitless || [];
+    const heightSettled = known.height_cm != null || parsed.height_cm != null;
+    const weightSettled = known.weight_kg != null || parsed.weight_kg != null;
+    const bareIsAge =
+      unitless.length === 1 && parsed.ageFromBare && heightSettled && weightSettled && known.age == null;
+    const needUnits = unitless.length > 0 && !bareIsAge;
+    if (needUnits && parsed.ageFromBare) delete patch.age;
+
+    if (!Object.keys(patch).length && !parsed.ackOnly && !needUnits) {
       return send(bot, chatId, t(lang, "mh_none_aboutyou"), {
         keyboard: myHealthStepKeyboard(lang, q),
         markdown: true,
@@ -345,6 +395,13 @@ async function extractForQuestion(bot, chatId, session, q, val, imageDataUrl) {
     if (Object.keys(patch).length) {
       session.user = await updateUser(user.id, patch).catch(() => user);
       await send(bot, chatId, t(lang, "mh_aboutyou_updated"), { markdown: true });
+    }
+
+    if (needUnits) {
+      return send(bot, chatId, t(lang, "mh_aboutyou_need_units", { numbers: unitless.join(", ") }), {
+        keyboard: myHealthStepKeyboard(lang, q),
+        markdown: true,
+      });
     }
 
     const missingAfter = Object.entries(knownAboutYou(session.user)).filter(([, v]) => v == null).map(([k]) => k);
@@ -522,6 +579,104 @@ async function finishSetup(bot, chatId, session) {
 // ===================================================================
 // Completed profile: summary + free-text update
 // ===================================================================
+// ===================================================================
+// Returning-user sub-menu + Goals section
+// ===================================================================
+export async function showHealthMenu(bot, chatId, session) {
+  const lang = langOf(session);
+  session.state = "myhealth";
+  session.step = "menu";
+  if (session.data) session.data.pending = null;
+  return send(bot, chatId, t(lang, "mh_menu_title"), {
+    keyboard: myHealthMenuKeyboard(lang, session.user),
+    markdown: true,
+  });
+}
+
+// The goals on record: the active user_health_goal row (written by setup Q6,
+// a free-text update, or this section), falling back to the users.goals
+// mirror that the AI context and reports already read.
+async function storedGoalsText(session) {
+  const active = await getLatestHealthGoal(session.user.id).catch(() => null);
+  return String(active?.goal || session.user.goals || session.user.primary_goal || "").trim();
+}
+
+function formatGoalList(text) {
+  return splitGoalLines(text).map((g) => `• ${sanitizeMd(g)}`).join("\n");
+}
+
+async function showGoals(bot, chatId, session) {
+  const lang = langOf(session);
+  session.state = "myhealth";
+  const stored = await storedGoalsText(session);
+  if (!stored) return promptGoals(bot, chatId, session, false);
+  session.step = "goals_view";
+  return send(bot, chatId, t(lang, "mh_goals_stored", { goals: formatGoalList(stored) }), {
+    keyboard: myHealthGoalsKeyboard(lang),
+    markdown: true,
+  });
+}
+
+async function promptGoals(bot, chatId, session, isUpdate) {
+  const lang = langOf(session);
+  session.state = "myhealth";
+  session.step = "goals_input";
+  return send(bot, chatId, t(lang, isUpdate ? "mh_goals_update_prompt" : "mh_goals_prompt_first"), {
+    keyboard: myHealthGoalsInputKeyboard(lang),
+    markdown: true,
+  });
+}
+
+// Store the goals verbatim (no AI rewrite): a new active user_health_goal
+// row replaces the previous one, and users.goals / primary_goal are
+// mirrored so the coach prompts, KB and reports pick them up as baseline.
+async function saveGoals(bot, chatId, session, val) {
+  const lang = langOf(session);
+  const text = String(val || "").trim().slice(0, 600);
+  if (!splitGoalLines(text).length) {
+    return send(bot, chatId, t(lang, "mh_goals_empty_hint"), {
+      keyboard: myHealthGoalsInputKeyboard(lang),
+      markdown: true,
+    });
+  }
+  const uid = session.user.id;
+  try {
+    await addHealthGoal(uid, { goal: text });
+    session.user = await updateUser(uid, { primary_goal: text, goals: text });
+  } catch (e) {
+    console.error("myhealth goals save error:", e?.stack || e?.message || e);
+    return send(bot, chatId, t(lang, errorKey(e)), {
+      keyboard: myHealthGoalsInputKeyboard(lang),
+      markdown: true,
+    });
+  }
+  await refreshKB(session.user).catch(() => {});
+  await send(bot, chatId, t(lang, "mh_goals_saved", { goals: formatGoalList(text) }), { markdown: true });
+  return showHealthMenu(bot, chatId, session);
+}
+
+// 📈 Trends — stored glucose / HbA1c / weight analysed against the goals.
+// Pure computation (see trends.js); the user stays on the sub-menu step so
+// typed text afterwards is still a free-text health update.
+async function showTrends(bot, chatId, session) {
+  const lang = langOf(session);
+  session.state = "myhealth";
+  session.step = "menu";
+  await typing(bot, chatId);
+  let text;
+  try {
+    const data = await assembleTrendData(session.user);
+    text = renderTrends(lang, analyzeTrends(data));
+  } catch (e) {
+    console.error("myhealth trends error:", e?.stack || e?.message || e);
+    return send(bot, chatId, t(lang, "error_generic"), {
+      keyboard: myHealthMenuKeyboard(lang, session.user),
+      markdown: true,
+    });
+  }
+  return send(bot, chatId, text, { keyboard: myHealthTrendsKeyboard(lang), markdown: true });
+}
+
 async function showSummary(bot, chatId, session) {
   const lang = langOf(session);
   const uid = session.user.id;

@@ -15,6 +15,14 @@ import { assembleDoctorReport } from "./doctorReportData.js";
 import { renderDoctorWeeklyPdf, renderPatientSnapshotPdf } from "./doctorReportPdf.js";
 import { dayKey } from "./snapshotData.js";
 import { logWarn, logError } from "./log.js";
+import { runBroadcast, resolveRecipients, AUDIENCES } from "./broadcast.js";
+
+// Channel adapters the admin broadcast sends through — the same map the
+// scheduler gets ({ whatsapp, telegram }); index.js registers it at boot.
+let broadcastBots = {};
+export function setBroadcastChannels(bots) {
+  broadcastBots = bots || {};
+}
 
 function createVirtualBot(buffer) {
   return {
@@ -230,6 +238,38 @@ function handleAdminReport(req, res) {
   });
 }
 
+// Ad hoc messaging (website admin panel → /api/admin/broadcast → here).
+//   { audience, dryRun: true } → { recipients }
+//   { text, audience }         → { recipients, sent, failed, skipped, id }
+function handleAdminBroadcast(req, res) {
+  const expected = config.adminPassword;
+  if (!expected) return sendJson(res, 503, { error: "ADMIN_PASSWORD is not configured on the bot" });
+  if ((req.headers["x-admin-password"] || "") !== expected) return sendJson(res, 401, { error: "unauthorized" });
+  let body = "";
+  req.on("data", (c) => {
+    body += c;
+    if (body.length > 64 * 1024) req.destroy();
+  });
+  req.on("end", async () => {
+    try {
+      const { text = "", audience = "all", dryRun = false, sentBy = "admin" } = JSON.parse(body || "{}");
+      if (!AUDIENCES.includes(audience)) return sendJson(res, 400, { error: "audience must be all, patients or doctors" });
+      if (dryRun) {
+        const users = await resolveRecipients(audience);
+        return sendJson(res, 200, { recipients: users.length, audience });
+      }
+      if (!Object.values(broadcastBots).some(Boolean)) {
+        return sendJson(res, 503, { error: "no messaging channel is configured on the bot (WhatsApp is off)" });
+      }
+      const out = await runBroadcast(broadcastBots, { text, audience, sentBy });
+      sendJson(res, 200, out);
+    } catch (e) {
+      logError("Admin broadcast", e?.message || String(e));
+      sendJson(res, e?.message?.startsWith("message ") ? 400 : 500, { error: e?.message || "broadcast failed" });
+    }
+  });
+}
+
 function sendJson(res, status, obj) {
   res.writeHead(status, { "Content-Type": "application/json" });
   res.end(JSON.stringify(obj));
@@ -253,6 +293,9 @@ export function startWebServer() {
     }
     if (req.method === "POST" && req.url === "/web/admin/report") {
       return handleAdminReport(req, res);
+    }
+    if (req.method === "POST" && req.url === "/web/admin/broadcast") {
+      return handleAdminBroadcast(req, res);
     }
     if (req.method === "POST" && req.url === "/web/message") {
       let body = "";

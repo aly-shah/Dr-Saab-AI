@@ -14,8 +14,10 @@ import {
   listMedications,
   listUserChallengesActive,
   listUserChallengesHistory,
+  getLatestHealthGoal,
 } from "./supabase.js";
 import { bmi, bmiCategory } from "./clinic.js";
+import { splitGoalLines } from "./utils.js";
 
 export const TZ = "Asia/Karachi";
 const DAY_MS = 86400000;
@@ -399,13 +401,18 @@ export function computeScore({ glucose30, medLogs30, health30, hasMeds, activeCh
 // Assemble everything
 // ---------------------------------------------------------------------------
 export async function assembleSnapshotData(user, now = Date.now()) {
-  const [raw, metrics, meds, activeChal, pastChal] = await Promise.all([
+  const [raw, metrics, meds, activeChal, pastChal, goalRow] = await Promise.all([
     snapshotRaw(user.id),
     latestMetrics(user.id).catch(() => []),
     currentMedicines(user),
     listUserChallengesActive(user.id).catch(() => []),
     listUserChallengesHistory(user.id).catch(() => []),
+    getLatestHealthGoal(user.id).catch(() => null),
   ]);
+
+  // The patient's stated goals (My Health → Goals) — the baseline the
+  // report's insights are written against.
+  const goals = splitGoalLines(goalRow?.goal || user.goals || user.primary_goal || "");
 
   const glucoseAll = (raw.glucose || []).filter((r) => bucketOf(r.context) !== "hba1c");
   const hba1cLogs = (raw.glucose || []).filter((r) => bucketOf(r.context) === "hba1c");
@@ -544,6 +551,7 @@ export async function assembleSnapshotData(user, now = Date.now()) {
     labs,
     medicines: meds.slice(0, 6),
     lifestyle,
+    goals,
     score,
   };
   data.facts = factsBlock(data);
@@ -597,6 +605,12 @@ export function factsBlock(d) {
   );
   L.push(
     `Health score ${d.score.total}/100 (${d.score.rating}): ${d.score.components.map((c) => `${c.label} ${c.score}/${c.max}`).join(", ")}.`
+  );
+  const goals = Array.isArray(d.goals) ? d.goals : [];
+  L.push(
+    goals.length
+      ? `Patient's stated goals (baseline for this report): ${goals.join("; ")}.`
+      : "Patient's stated goals: none set yet."
   );
   return L.join("\n");
 }

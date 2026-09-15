@@ -11,7 +11,10 @@ export async function GET(req) {
 
   try {
     const [user, kb, glucose, messages, meds, health, reports] = await Promise.all([
-      q(`select * from users where id=$1`, [id]),
+      q(`select u.*,
+                (select count(*)::int from user_activity_days a
+                   where a.user_id=u.id and a.day >= ((now() at time zone 'Asia/Karachi')::date - 29)) as active_days_30
+         from users u where u.id=$1`, [id]),
       q(`select content, message_count, last_seen, updated_at from patient_kb where user_id=$1`, [id]),
       q(`select value_mgdl, context, created_at from glucose_logs
          where user_id=$1 order by created_at desc limit 30`, [id]),

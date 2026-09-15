@@ -20,6 +20,7 @@ function makeSessionId() {
 // ---- quick-reply icons mapped from the bot's callback_data ----
 function chipKey(data = "") {
   if (data.startsWith("feat:")) return data.slice(5);
+  if (data.startsWith("mh:")) return data.slice(3); // My Health sub-menu (mh:snapshot → snapshot icon)
   if (data.startsWith("lang:")) return "language";
   if (data.startsWith("gender:")) return "gender";
   if (data.startsWith("ds:")) return "diabetes";
@@ -37,6 +38,7 @@ function ChipIcon({ data }) {
     case "glucose": return I(<path d="M12 3.5l5 5a7 7 0 1 1-10 0l5-5z" />);
     case "medication": return I(<><rect x="3" y="9" width="18" height="6" rx="3" transform="rotate(45 12 12)" /><path d="M8.5 8.5l7 7" /></>);
     case "health": return I(<><rect x="5" y="3.5" width="14" height="17" rx="2.5" /><path d="M9 8h6M9 12l1.5 1.5L14 10" /></>);
+    case "shortcuts": return I(<path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" />);
     case "progress": return I(<path d="M3 17l5-5 3 3 7-7M21 8V5h-3" />);
     case "coach": return I(<path d="M21 11.5a8.4 8.4 0 0 1-12.3 7.5L3 21l2-5.7A8.4 8.4 0 1 1 21 11.5z" />);
     case "food": return I(<><path d="M4 11h16a8 8 0 0 1-16 0z" /><path d="M7 21h10M12 11V3" /></>);

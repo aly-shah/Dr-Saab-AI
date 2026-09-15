@@ -35,6 +35,7 @@ const NAV = [
   { key: "overview", label: "Overview", d: "M4 13h6V4H4v9zm10 7h6V4h-6v16zM4 20h6v-5H4v5z" },
   { key: "patients", label: "Patients", d: "M16 11a4 4 0 1 0-8 0M3 20a6 6 0 0 1 18 0" },
   { key: "doctors", label: "Doctors", d: "M9 3v4a3 3 0 0 0 6 0V3M6 21v-2a6 6 0 0 1 12 0v2" },
+  { key: "messages", label: "Messages", d: "M4 5h16v10H9l-5 4V5z" },
   { key: "leaderboard", label: "Leaderboard", d: "M8 21h8M12 17v4M5 4h14v4a7 7 0 0 1-14 0V4z" },
   { key: "t1", label: "T1 Content", d: "M12 3v18M3 12h18" },
 ];
@@ -438,6 +439,167 @@ function ReportButton({ params, label, small = false, primary = true }) {
   );
 }
 
+// User Status (2026-09-15): active days in the last 30 → Idle / Low / Medium / High.
+const USER_STATUS_TONE = {
+  Idle: "bg-muted text-ink/50",
+  Low: "bg-muted text-ink/80",
+  Medium: "bg-primary/10 text-primary",
+  High: "bg-accent/12 text-accent",
+};
+function userStatusOf(days) {
+  const n = Number(days) || 0;
+  return n === 0 ? "Idle" : n === 1 ? "Low" : n <= 3 ? "Medium" : "High";
+}
+function UserStatusBadge({ days }) {
+  const s = userStatusOf(days);
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${USER_STATUS_TONE[s]}`}
+          title={`${Number(days) || 0} active day(s) in the last 30 days`}>
+      {s}
+    </span>
+  );
+}
+
+// Ad hoc messaging (2026-09-15): send one custom message to every user. The
+// bot engine does the sending on each user's own channel; the panel shows
+// the recipient count, asks for confirmation and keeps a history.
+const AUDIENCE_LABEL = { all: "All users", patients: "Patients only", doctors: "Doctors only" };
+function BroadcastView() {
+  const [text, setText] = useState("");
+  const [audience, setAudience] = useState("all");
+  const [count, setCount] = useState(null); // null = counting, -1 = bot unreachable
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null);
+  const [err, setErr] = useState("");
+  const [history, setHistory] = useState([]);
+
+  const loadHistory = useCallback(async () => {
+    const res = await fetch("/api/admin/broadcast");
+    const d = await res.json().catch(() => ({}));
+    if (Array.isArray(d.items)) setHistory(d.items);
+  }, []);
+  useEffect(() => { loadHistory(); }, [loadHistory]);
+
+  useEffect(() => {
+    let alive = true;
+    setCount(null);
+    fetch("/api/admin/broadcast", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ audience, dryRun: true }),
+    })
+      .then(async (r) => { const d = await r.json().catch(() => ({})); return r.ok ? d : null; })
+      .then((d) => { if (alive) setCount(d && typeof d.recipients === "number" ? d.recipients : -1); })
+      .catch(() => { if (alive) setCount(-1); });
+    return () => { alive = false; };
+  }, [audience]);
+
+  const sendNow = async () => {
+    setBusy(true); setErr(""); setResult(null);
+    try {
+      const res = await fetch("/api/admin/broadcast", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, audience }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || "Failed (" + res.status + ")");
+      setResult(d); setText(""); setConfirm(false); loadHistory();
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const chars = text.trim().length;
+  const canSend = chars > 0 && chars <= 4000 && !busy && count !== -1;
+  const countLabel = count === null ? "Counting recipients…"
+    : count === -1 ? "Bot engine not reachable — start it to send"
+    : count + " recipient" + (count === 1 ? "" : "s");
+
+  return (
+    <div className="space-y-4">
+      <Panel title="Send a message to users">
+        <div className="grid gap-3">
+          <label className="text-sm text-ink/70">Audience
+            <select value={audience} onChange={(e) => { setAudience(e.target.value); setConfirm(false); }}
+              className="mt-1 block w-full max-w-xs rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink">
+              {Object.entries(AUDIENCE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </label>
+          <label className="text-sm text-ink/70">Message
+            <textarea value={text} onChange={(e) => { setText(e.target.value); setConfirm(false); }} rows={6} maxLength={4000}
+              placeholder="Type the message exactly as users should receive it…"
+              className="mt-1 block w-full rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink" />
+          </label>
+          <div className="flex flex-wrap items-center gap-3 text-sm text-ink/60">
+            <span>{chars} / 4000 characters</span>
+            <span>·</span>
+            <span>{countLabel}</span>
+          </div>
+          {!confirm ? (
+            <button disabled={!canSend} onClick={() => setConfirm(true)}
+              className="w-fit rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
+              Review and send
+            </button>
+          ) : (
+            <div className="rounded-xl bg-muted p-3 text-sm">
+              <p className="font-medium text-ink">
+                Send this message to {count} {AUDIENCE_LABEL[audience].toLowerCase()} now? This cannot be undone.
+              </p>
+              <p className="mt-2 whitespace-pre-wrap rounded-lg bg-white p-3 text-ink/80">{text}</p>
+              <div className="mt-3 flex gap-2">
+                <button disabled={busy} onClick={sendNow}
+                  className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
+                  {busy ? "Sending…" : "Yes, send"}
+                </button>
+                <button disabled={busy} onClick={() => setConfirm(false)}
+                  className="rounded-xl bg-white px-4 py-2 text-sm ring-1 ring-line">Cancel</button>
+              </div>
+            </div>
+          )}
+          {err && <p className="text-sm text-red-500">{err}</p>}
+          {result && (
+            <p className="text-sm text-ink/80">
+              Done — sent {result.sent} of {result.recipients}
+              {result.failed ? ", " + result.failed + " failed" : ""}
+              {result.skipped ? ", " + result.skipped + " skipped (no channel)" : ""}.
+            </p>
+          )}
+          <p className="text-[11px] leading-relaxed text-ink/45">
+            WhatsApp delivers a business-initiated message only to users who wrote to DrSaab in the last 24 hours, unless it is an approved template. Sends outside that window are counted as failed.
+          </p>
+        </div>
+      </Panel>
+      <Panel title="Sent messages">
+        {history.length === 0 ? <p className="text-sm text-ink/50">Nothing sent yet.</p> : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-line/60 text-[11px] uppercase tracking-wider text-ink/40">
+                  <th className="py-2 pr-3">When</th><th className="px-3">Audience</th><th className="px-3">Message</th>
+                  <th className="px-3">Sent</th><th className="px-3">Failed</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((b) => (
+                  <tr key={b.id} className="border-b border-line/40 align-top">
+                    <td className="whitespace-nowrap py-2 pr-3 text-ink/60">{timeAgo(b.created_at)}</td>
+                    <td className="px-3 text-ink/70">{AUDIENCE_LABEL[b.audience] || b.audience}</td>
+                    <td className="max-w-md whitespace-pre-wrap px-3 text-ink/80">{b.text}</td>
+                    <td className="px-3 text-ink/70">{b.sent} / {b.recipients}</td>
+                    <td className="px-3 text-ink/70">{b.failed || 0}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
 function PatientDrawer({ id, onClose, onChanged }) {
   const [data, setData] = useState(null);
   useEffect(() => {
@@ -464,6 +626,7 @@ function PatientDrawer({ id, onClose, onChanged }) {
                 <span className="text-ink/45">Language</span><span>{data.user.language}</span>
                 <span className="text-ink/45">Diabetes</span><span>{data.user.diabetes_status || "—"}</span>
                 <span className="text-ink/45">Streak</span><span>{data.user.streak || 0} days</span>
+                <span className="text-ink/45">Status</span><span><UserStatusBadge days={data.user.active_days_30} /></span>
                 <span className="text-ink/45">Doctor code</span><span>{data.user.doctor_code || "—"}</span>
               </div>
             </Panel>
@@ -978,9 +1141,10 @@ export default function AdminPage() {
                 <Panel title="Messages / day (14 days)"><BarChart data={data.messages} color="#059669" /></Panel>
                 <Panel title="Avg glucose / day"><LineChart data={data.glucoseByDay.map((d) => ({ value_mgdl: d.avg }))} /></Panel>
               </div>
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid gap-4 lg:grid-cols-3">
                 <Panel title="Diabetes status"><Donut data={data.statuses} labelKey="status" /></Panel>
                 <Panel title="Plan breakdown"><Donut data={data.tiers} labelKey="tier" /></Panel>
+                <Panel title="User status (last 30 days)"><Donut data={data.activity || []} labelKey="status" /></Panel>
               </div>
             </>
           )}
@@ -996,7 +1160,7 @@ export default function AdminPage() {
                       <tr className="border-b border-line/60 text-[11px] uppercase tracking-wider text-ink/40">
                         <th className="py-2 pr-3">Name</th><th className="px-3">Age</th><th className="px-3">City</th>
                         <th className="px-3">Diabetes</th><th className="px-3">Lang</th><th className="px-3">Plan</th>
-                        <th className="px-3">Streak</th><th className="px-3">Avg sugar</th><th className="px-3">Doctor</th><th className="px-3">Last seen</th><th className="px-3">Report</th>
+                        <th className="px-3">Streak</th><th className="px-3">Avg sugar</th><th className="px-3">Doctor</th><th className="px-3">Status</th><th className="px-3">Last seen</th><th className="px-3">Report</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1015,6 +1179,7 @@ export default function AdminPage() {
                           <td className="px-3 text-ink/70">{p.streak || 0}</td>
                           <td className="px-3 text-ink/70">{p.glucose_avg_week ?? "—"}</td>
                           <td className="px-3 text-ink/70">{p.doctor_name || "—"}</td>
+                          <td className="px-3"><UserStatusBadge days={p.active_days_30} /></td>
                           <td className="px-3 text-ink/50">{timeAgo(p.last_seen)}</td>
                           <td className="px-3" onClick={(e) => e.stopPropagation()}>
                             <ReportButton params={{ kind: "patient", userId: p.id }} label="Generate report" small />
@@ -1032,6 +1197,14 @@ export default function AdminPage() {
             <>
               <h2 className="text-xl font-bold text-ink">Doctors</h2>
               <DoctorsView onOpenPatient={(id) => setSelected(id)} />
+            </>
+          )}
+
+          {view === "messages" && (
+            <>
+              <h2 className="text-xl font-bold text-ink">Messages</h2>
+              <p className="-mt-3 text-sm text-ink/55">Send a custom message to every user. It goes out through the bot on each user's own channel.</p>
+              <BroadcastView />
             </>
           )}
 

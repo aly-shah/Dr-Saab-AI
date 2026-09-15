@@ -741,6 +741,7 @@ const STR = {
     // btn_myprogress removed — "Goals & Progress" retired per 2026-07 revision.
     btn_askdrsaab: "💬 Ask DrSaab",
     btn_more: "🌟 More",
+    btn_shortcuts: "⚡ Shortcuts",
     btn_main_menu: "🏠 Main Menu",
     btn_myhealth: "❤️ My Health",
 
@@ -776,11 +777,13 @@ const STR = {
     mh_q_aboutyou:
       "👋 *About You*\n\n{known_block}{ask}",
     mh_q_aboutyou_ask_confirm:
-      "Everything look right? Reply *ok* to keep it, or type any updates (e.g. \"weight 76kg\", \"female, 32\").",
+      "Everything look right? Reply *ok* to keep it, or type any updates with units (e.g. \"weight 76 kg\", \"female, 32 years\").",
     mh_q_aboutyou_ask_missing:
-      "Please also tell me your *{missing}* — just type naturally.",
+      "Please also tell me your *{missing}* — with units, e.g. *78 kg*, *174 cm*, *42 years*.",
     mh_q_aboutyou_ask_none:
-      "Tell me your *gender*, *age*, *height* and *current weight* — just type naturally (e.g. \"female, 32, 168cm, 62kg\").",
+      "Tell me your *gender*, *age*, *height* and *current weight* — separated by spaces or commas, with units (e.g. \"female, 32 years, 168 cm, 62 kg\").",
+    mh_aboutyou_need_units:
+      "I saw *{numbers}* but no units, so I can't tell which is which. Please add the unit to each number — for example *78 kg*, *174 cm*, *42 years*.",
     mh_q_aboutyou_missing_gender: "gender",
     mh_q_aboutyou_missing_age: "age",
     mh_q_aboutyou_missing_height: "height",
@@ -792,7 +795,7 @@ const STR = {
     mh_aboutyou_ok_ack: "Great — thanks for confirming.",
     mh_aboutyou_updated: "✅ Updated your basics.",
     mh_none_aboutyou:
-      "I didn't catch any details there. Try something like \"male, 42, 174cm, 78kg\" — or just the parts I'm missing.",
+      "I didn't catch any details there. Try something like \"male, 42 years, 174 cm, 78 kg\" — or just the parts I'm missing.",
     // Q2 — Health conditions
     mh_q_conditions:
       "❤️ *Your Health*\n\nWhich health conditions do you currently have? Just tell me naturally.\n\nExample: \"I have Type 2 diabetes, high blood pressure and cholesterol.\"",
@@ -852,6 +855,59 @@ const STR = {
     // Summary card buttons (spec 2026-07: Update My Health Profile + Main Menu)
     btn_mh_update_profile: "✏️ Update My Health Profile",
     btn_mh_main_menu: "🏠 Main Menu",
+    // Returning-user sub-menu (shown once the 7-question setup is complete)
+    mh_menu_title: "❤️ *My Health*\n\nWhat would you like to do?",
+    btn_mh_goals: "🎯 Goals",
+    btn_mh_summary: "📋 My Health Summary",
+    // Goals section
+    mh_goals_prompt_first:
+      "🎯 *Goals*\n\nLet's set up your health goals. Tell me some of your achievable goals.\n\nFor example: lose 5kg, reduce HbA1c by 1%, go to the gym 3 times a week, etc.",
+    mh_goals_update_prompt:
+      "Sure — tell me your updated goals and I'll replace the ones I have stored.\n\nFor example: lose 5kg, reduce HbA1c by 1%, go to the gym 3 times a week, etc.",
+    mh_goals_stored:
+      "🎯 *Goals*\n\nHere are the goals I have stored for you:\n\n{goals}\n\nDo you want to update them?",
+    btn_mh_goals_yes: "✏️ Yes, update them",
+    btn_mh_goals_no: "👍 No, keep them",
+    mh_goals_saved:
+      "✅ *Goals saved:*\n\n{goals}\n\nI'll use these as your baseline in your reports and progress analysis.",
+    mh_goals_kept: "👍 Your goals are unchanged.",
+    mh_goals_empty_hint:
+      "Please type your goals in a message — for example: lose 5kg, reduce HbA1c by 1%.",
+    // Trends section
+    btn_mh_trends: "📈 Trends",
+    mh_trends_title: "📈 *Health Trends* _(last {days} days)_",
+    mh_trends_nodata:
+      "📈 *Health Trends*\n\nI don't have any health data for you yet. To get health trends, add your health data consistently — log your blood sugar, HbA1c and weight through Check In. Even one reading a day soon builds a trend.",
+    mh_trends_nogoals:
+      "🎯 You haven't set any goals yet. Add them under My Health → Goals and I'll compare your trends against them for a better analysis.",
+    mh_tr_fasting: "🩸 *Fasting sugar*",
+    mh_tr_random: "🩸 *Random sugar*",
+    mh_tr_hba1c: "🧪 *HbA1c*",
+    mh_tr_weight: "⚖️ *Weight*",
+    mh_tr_name_fasting: "fasting sugar",
+    mh_tr_name_random: "random sugar",
+    mh_tr_name_hba1c: "HbA1c",
+    mh_tr_name_weight: "weight",
+    mh_tr_glucose_stats: "{count} readings · avg {avg} mg/dL · {pct}% in range",
+    mh_tr_glucose_move: "Early avg {early} → recent avg {late} mg/dL ({arrow} {delta}, {word})",
+    mh_tr_latest: "Latest: {value} on {date}",
+    mh_tr_limited: "Only {count} on record — not enough for a trend yet. Last entries:",
+    mh_tr_entry: "• {date} — {value}",
+    mh_tr_change: "{from} ({fromDate}) → {to} ({toDate}): {arrow} {delta}, {word}",
+    mh_tr_word_improving: "improving",
+    mh_tr_word_rising: "rising",
+    mh_tr_word_steady: "steady",
+    mh_tr_word_down: "down",
+    mh_tr_word_up: "up",
+    mh_tr_goals_header: "🎯 *Against your goals*",
+    mh_tr_goal_done: "• {goal} — ✅ achieved ({current} now)",
+    mh_tr_goal_relative: "• {goal} — {arrow} {achieved} so far, {remaining} to go{note}",
+    mh_tr_goal_wrongway: " (heading the other way — let's turn it around)",
+    mh_tr_goal_absolute: "• {goal} — now {current}, target {target} ({gap} to go)",
+    mh_tr_goal_watch: "• {goal} — now {current} (was {baseline} on {date})",
+    mh_tr_goal_nodata: "• {goal} — no {metric} logged yet, so I can't measure this one",
+    mh_tr_goal_unmeasured: "• {goal} — I can't measure this from your logs yet",
+    mh_tr_not_tracked: "_Not tracked yet: {list}. Log these through Check In to see their trends._",
     mh_update_profile_confirm:
       "Restarting your health profile will walk you through the 7 questions again. Your existing conditions, medicines and history stay saved. Continue?",
     btn_mh_update_yes: "✅ Yes, restart",
@@ -1665,13 +1721,13 @@ const STR = {
     pg_cl_breastfeeding: "Breastfeeding Basics",
     pg_cl_snacks: "Healthy Snacks During Pregnancy",
     pg_cl_activity: "Safe Activity During Pregnancy",
-    // ===== 📊 Generate Report — Executive Health Snapshot (paid) =====
-    btn_snapshot: "📊 Generate Report",
+    // ===== 📊 Health Snapshot — Executive Health Snapshot PDF (paid; My Health sub-menu) =====
+    btn_snapshot: "📊 Health Snapshot",
     btn_snap_skip: "Skip ⏭",
     btn_snap_again: "🔄 Generate again",
-    shortcut_flow_snapshot: "health report",
+    shortcut_flow_snapshot: "health snapshot",
     snapshot_required:
-      "💎 *Generate Report* is a *Consistency Coach* feature.\n\nUpgrade to get your *Executive Health Snapshot* — a premium one-page PDF with your glucose trends, lab results, medicines, DrSaab Health Score and AI insights, ready to share with your doctor.",
+      "💎 *Health Snapshot* is a *Consistency Coach* feature.\n\nUpgrade to get your *Executive Health Snapshot* — a premium one-page PDF with your glucose trends, lab results, medicines, DrSaab Health Score and AI insights, ready to share with your doctor.",
     snapshot_intro_missing:
       "📊 *Executive Health Snapshot*\n\nI'll build your premium one-page report from your record. A few details are missing, so let me ask for them first — it takes under a minute.",
     snapshot_ask_name: "What's your *full name*, as it should appear on the report?",
@@ -2862,12 +2918,12 @@ const STR = {
     pg_cl_snacks: "حمل کے دوران صحت مند سنیکس",
     pg_cl_activity: "حمل کے دوران محفوظ سرگرمی",
     // ===== 📊 رپورٹ بنائیں — ایگزیکٹو ہیلتھ اسنیپ شاٹ (پیڈ) =====
-    btn_snapshot: "📊 رپورٹ بنائیں",
+    btn_snapshot: "📊 ہیلتھ اسنیپ شاٹ",
     btn_snap_skip: "چھوڑیں ⏭",
     btn_snap_again: "🔄 دوبارہ بنائیں",
     shortcut_flow_snapshot: "ہیلتھ رپورٹ",
     snapshot_required:
-      "💎 *رپورٹ بنائیں* ایک *Consistency Coach* فیچر ہے۔\n\nاپ گریڈ کریں اور اپنا *Executive Health Snapshot* حاصل کریں — ایک پریمیم ایک صفحے کی PDF جس میں آپ کے شوگر ٹرینڈز، لیب رزلٹس، ادویات، DrSaab ہیلتھ اسکور اور AI بصیرتیں شامل ہیں، ڈاکٹر کے ساتھ شیئر کرنے کے لیے تیار۔",
+      "💎 *ہیلتھ اسنیپ شاٹ* ایک *Consistency Coach* فیچر ہے۔\n\nاپ گریڈ کریں اور اپنا *Executive Health Snapshot* حاصل کریں — ایک پریمیم ایک صفحے کی PDF جس میں آپ کے شوگر ٹرینڈز، لیب رزلٹس، ادویات، DrSaab ہیلتھ اسکور اور AI بصیرتیں شامل ہیں، ڈاکٹر کے ساتھ شیئر کرنے کے لیے تیار۔",
     snapshot_intro_missing:
       "📊 *Executive Health Snapshot*\n\nمیں آپ کے ریکارڈ سے آپ کی پریمیم رپورٹ بناؤں گا۔ کچھ معلومات کم ہیں، پہلے وہ پوچھ لیتا ہوں — ایک منٹ سے بھی کم لگے گا۔",
     snapshot_ask_name: "آپ کا *پورا نام* کیا ہے، جیسا رپورٹ پر آنا چاہیے؟",
@@ -4058,12 +4114,12 @@ const STR = {
     pg_cl_snacks: "Healthy Snacks During Pregnancy",
     pg_cl_activity: "Safe Activity During Pregnancy",
     // ===== 📊 Report Banayein — Executive Health Snapshot (paid) =====
-    btn_snapshot: "📊 Report Banayein",
+    btn_snapshot: "📊 Health Snapshot",
     btn_snap_skip: "Skip ⏭",
     btn_snap_again: "🔄 Dobara Banayein",
     shortcut_flow_snapshot: "health report",
     snapshot_required:
-      "💎 *Report Banayein* ek *Consistency Coach* feature hai.\n\nUpgrade karein aur apna *Executive Health Snapshot* hasil karein — ek premium one-page PDF jis mein aap ke sugar trends, lab results, adwiyat, DrSaab Health Score aur AI insights hon, doctor ke saath share karne ke liye tayyar.",
+      "💎 *Health Snapshot* ek *Consistency Coach* feature hai.\n\nUpgrade karein aur apna *Executive Health Snapshot* hasil karein — ek premium one-page PDF jis mein aap ke sugar trends, lab results, adwiyat, DrSaab Health Score aur AI insights hon, doctor ke saath share karne ke liye tayyar.",
     snapshot_intro_missing:
       "📊 *Executive Health Snapshot*\n\nMain aap ke record se aap ki premium report banaunga. Kuch details missing hain, pehle woh pooch leta hoon — ek minute se bhi kam lagega.",
     snapshot_ask_name: "Aap ka *poora naam* kya hai, jaisa report par aana chahiye?",

@@ -16,6 +16,7 @@ export async function GET(req) {
       glucoseByDay,
       patients,
       leaderboard,
+      activity,
     ] = await Promise.all([
       q(`select
            count(*) filter (where coalesce(u.user_type,'') <> 'doctor')::int                 as total_patients,
@@ -44,6 +45,8 @@ export async function GET(req) {
                 u.tier, u.streak, u.created_at,
                 (select d.name from doctors d where d.id = u.doctor_id and u.doctor_link_status = 'active') as doctor_name,
                 coalesce(kb.message_count,0) as message_count, kb.last_seen,
+                (select count(*)::int from user_activity_days a
+                   where a.user_id=u.id and a.day >= ((now() at time zone 'Asia/Karachi')::date - 29)) as active_days_30,
                 (select round(avg(value_mgdl)) from glucose_logs g
                    where g.user_id=u.id and g.created_at >= now() - interval '7 days') as glucose_avg_week
          from users u left join patient_kb kb on kb.user_id=u.id
@@ -58,6 +61,21 @@ export async function GET(req) {
          where u.onboarded and coalesce(u.user_type,'') <> 'doctor'
          order by u.streak desc, readings_week desc, messages desc
          limit 10`),
+      // User Status (bot/src/userStatus.js keeps the same thresholds):
+      // active days in the last 30 → Idle 0 / Low 1 / Medium 2–3 / High 4+.
+      q(`select status, count(*)::int as n from (
+           select case when coalesce(a.days,0) = 0 then 'Idle'
+                       when a.days = 1 then 'Low'
+                       when a.days <= 3 then 'Medium'
+                       else 'High' end as status
+           from users u
+           left join (select user_id, count(*)::int as days from user_activity_days
+                        where day >= ((now() at time zone 'Asia/Karachi')::date - 29)
+                        group by user_id) a on a.user_id = u.id
+           where u.onboarded and coalesce(u.user_type,'') <> 'doctor'
+         ) s
+         group by status
+         order by array_position(array['High','Medium','Low','Idle'], status)`),
     ]);
 
     return Response.json({
@@ -69,6 +87,7 @@ export async function GET(req) {
       glucoseByDay,
       patients,
       leaderboard,
+      activity,
     });
   } catch (e) {
     return Response.json({ error: e.message }, { status: 500 });

@@ -275,7 +275,7 @@ test("repeat user: in_progress resumes at the next unanswered question", async (
   assert.ok(texts.includes("Question 3 of 5"), "next question is Q3");
 });
 
-test("repeat user: completed profile lands on the summary and accepts free-text updates", async () => {
+test("repeat user: completed profile lands on the sub-menu (Goals, Trends, My Doctor, Main Menu)", async () => {
   const user = await seedUser({ health_profile_status: "completed" });
   await supabase.addConditions(user.id, ["Type 2 Diabetes"], "text", null);
   const session = makeSession(user);
@@ -284,9 +284,15 @@ test("repeat user: completed profile lands on the summary and accepts free-text 
   await startMyHealth(bot, 1010, session);
 
   assert.equal(session.state, "myhealth");
-  assert.equal(session.step, "update", "completed users get the summary + update prompt");
+  assert.equal(session.step, "menu", "completed users land on the sub-menu");
   assert.ok(lastText(bot).includes("My Health"));
-  assert.ok(lastText(bot).includes("Type 2 Diabetes"), "summary shows saved condition");
+  const keyboard = bot.sent.at(-1)?.opts?.reply_markup?.inline_keyboard;
+  const buttons = keyboard.flat().map((b) => b.callback_data);
+  assert.ok(buttons.includes("mh:goals"), "sub-menu offers Goals");
+  assert.ok(buttons.includes("mh:trends"), "sub-menu offers Trends");
+  assert.ok(!buttons.includes("mh:summary"), "Summary row removed (2026-09-15)");
+  assert.ok(!buttons.includes("mh:update_profile"), "Update My Health Profile row removed (2026-09-15)");
+  assert.ok(buttons.includes("mydoc:open") && buttons.includes("menu"));
 });
 
 test("regression: mh:ok on q1_confirm after a lost session re-asserts state", async () => {

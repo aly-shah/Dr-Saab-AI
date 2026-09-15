@@ -114,7 +114,7 @@ export function reportsKeyboard(lang) {
 }
 
 // ===================================================================
-// 📊 Generate Report — Executive Health Snapshot. Callback prefix `snap:`.
+// 📊 Health Snapshot — Executive Health Snapshot PDF. Callback prefix `snap:`.
 // ===================================================================
 export function snapGenderKeyboard(lang) {
   return stack([
@@ -433,7 +433,56 @@ export function myHealthSummaryKeyboard(lang) {
     inline_keyboard: [
       [{ text: t(lang, "btn_mh_update_profile"), callback_data: "mh:update_profile" }],
       [{ text: t(lang, "btn_my_doctor"), callback_data: "mydoc:open" }],
+      [{ text: t(lang, "btn_back"), callback_data: "mh:menu" }],
       [{ text: t(lang, "btn_mh_main_menu"), callback_data: "menu" }],
+    ],
+  };
+}
+
+// Returning-user sub-menu: shown instead of the summary once the 7-question
+// setup is complete. Goals, Trends and (for paid tiers) the Health Snapshot
+// PDF, then My Doctor and Main Menu (summary / profile re-run rows removed 2026-09-15).
+export function myHealthMenuKeyboard(lang, user) {
+  return {
+    inline_keyboard: [
+      [{ text: t(lang, "btn_mh_goals"), callback_data: "mh:goals" }],
+      [{ text: t(lang, "btn_mh_trends"), callback_data: "mh:trends" }],
+      // Consistency Coach and above only — free users never see the item
+      // (startSnapshot gates again on tap).
+      ...(isPaid(user) ? [[{ text: t(lang, "btn_snapshot"), callback_data: "mh:snapshot" }]] : []),
+      [{ text: t(lang, "btn_my_doctor"), callback_data: "mydoc:open" }],
+      [{ text: t(lang, "btn_mh_main_menu"), callback_data: "menu" }],
+    ],
+  };
+}
+
+// "Here are the goals I have stored for you … update them?" Yes / No.
+export function myHealthGoalsKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "btn_mh_goals_yes"), callback_data: "mh:goals_yes" },
+        { text: t(lang, "btn_mh_goals_no"), callback_data: "mh:goals_no" },
+      ],
+      [{ text: t(lang, "btn_back"), callback_data: "mh:menu" }],
+    ],
+  };
+}
+
+// While the user is typing their goals — just a way back.
+export function myHealthGoalsInputKeyboard(lang) {
+  return {
+    inline_keyboard: [[{ text: t(lang, "btn_back"), callback_data: "mh:menu" }]],
+  };
+}
+
+// Under the Trends card: log more data, set / change goals, or go back.
+export function myHealthTrendsKeyboard(lang) {
+  return {
+    inline_keyboard: [
+      [{ text: t(lang, "btn_checkin"), callback_data: "feat:checkin" }],
+      [{ text: t(lang, "btn_mh_goals"), callback_data: "mh:goals" }],
+      [{ text: t(lang, "btn_back"), callback_data: "mh:menu" }],
     ],
   };
 }
@@ -675,11 +724,11 @@ export function mainMenuKeyboardV2(lang, user) {
     b("btn_checkin", "checkin"),
     b("btn_foodhelp", "foodhelp"),
     b("btn_checkreport", "lab"),
-    // 📊 Generate Report — Executive Health Snapshot. Consistency Coach and
-    // above only; free users never see the item (gated again on tap).
-    ...(isPaid(user) ? [b("btn_snapshot", "snapshot")] : []),
+    // 📊 Health Snapshot moved into the ❤️ My Health sub-menu (2026-09-15).
     b("btn_askdrsaab", "askdrsaab"),
     b("btn_challenges", "challenges"),
+    // ⚡ Shortcuts — the Quick Shortcuts card (same as typing "help").
+    b("btn_shortcuts", "shortcuts"),
     b("btn_more", "more"),
   );
   // keepEmoji: the main menu is designed to show its icons, so opt this
@@ -729,11 +778,10 @@ export function patientMenuForDoctorKeyboard(lang, user) {
     b("btn_checkin", "checkin"),
     b("btn_foodhelp", "foodhelp"),
     b("btn_checkreport", "lab"),
-    // 📊 Generate Report — Executive Health Snapshot. Consistency Coach and
-    // above only; free users never see the item (gated again on tap).
-    ...(isPaid(user) ? [b("btn_snapshot", "snapshot")] : []),
+    // 📊 Health Snapshot moved into the ❤️ My Health sub-menu (2026-09-15).
     b("btn_askdrsaab", "askdrsaab"),
     b("btn_challenges", "challenges"),
+    b("btn_shortcuts", "shortcuts"),
     b("btn_more", "more"),
     { text: t(lang, "btn_doc_switch_doctor"), callback_data: "doc:menu" },
   );

@@ -48,6 +48,7 @@ import {
   latestMetrics,
   getDoctorById,
   enqueueChallengeDoctorNotification,
+  deactivateRemindersByTarget,
 } from "../supabase.js";
 import { explainLab } from "../openai.js";
 import { addLabReport } from "../supabase.js";
@@ -652,6 +653,8 @@ async function applyHba1cFinal(bot, chatId, session, finalValue, finalDate) {
     completed_at: new Date().toISOString(),
   };
   await updateUserChallenge(uc.id, patch);
+  // The challenge is over — stop its check-in nudges and the final-result prompt.
+  await deactivateRemindersByTarget(uc.id).catch(() => {});
 
   // Recompute cohort scores & ranks; write back this user's row.
   const { rank, total, band } = await computeAndPersistScores(uc.challenge_id, session.user.id);
@@ -1008,6 +1011,7 @@ async function withdrawChallenge(bot, chatId, session, ucId) {
     status: "withdrawn_by_user",
     withdrawn_at: new Date().toISOString(),
   });
+  await deactivateRemindersByTarget(uc.id).catch(() => {});
   // Recompute cohort ranks so the withdrawing user drops out cleanly.
   if (uc.challenge_id) {
     await computeAndPersistScores(uc.challenge_id, uc.user_id).catch(() => {});

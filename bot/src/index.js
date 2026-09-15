@@ -8,7 +8,7 @@ import { config } from "./config.js";
 // as "Premature close" mid-response. Prefer IPv4 to avoid that path entirely.
 dns.setDefaultResultOrder("ipv4first");
 // import { registerHandlers } from "./bot.js"; // TELEGRAM DISABLED
-import { startWebServer } from "./web.js";
+import { startWebServer, setBroadcastChannels } from "./web.js";
 import { startScheduler } from "./scheduler.js";
 import { startWhatsApp, whatsappBot } from "./whatsapp.js";
 import { logError } from "./log.js";
@@ -83,10 +83,13 @@ startWhatsApp();
 // Proactive template reminders / streak / summary / win-back (no AI cost).
 // Routed to each user on their own channel (WhatsApp only for now — Telegram
 // wiring is commented out with the adapter above).
-startScheduler({
+const channels = {
   telegram, // TELEGRAM DISABLED — always null while commented out.
   whatsapp: config.whatsapp.enabled ? whatsappBot() : null,
-});
+};
+startScheduler(channels);
+// Admin panel "Messages" → ad hoc broadcasts go out through the same adapters.
+setBroadcastChannels(channels);
 
 process.on("unhandledRejection", (e) => logError("Unhandled rejection", e?.message || String(e)));
 process.on("SIGTERM", () => process.exit(0));

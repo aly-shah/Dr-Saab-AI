@@ -51,6 +51,9 @@ function api() {
   };
 }
 
+// Returns true when the Cloud API accepted the message, false otherwise (the
+// error is logged either way). Callers that need to count deliveries — the
+// admin broadcast — read this; the flows ignore it.
 async function sendRaw(payload) {
   const { url, headers } = api();
   try {
@@ -58,9 +61,12 @@ async function sendRaw(payload) {
     if (!res.ok) {
       const body = await res.text();
       logError("WhatsApp send", describeWhatsAppError(res.status, body, config.whatsapp.provider));
+      return false;
     }
+    return true;
   } catch (e) {
     logError("WhatsApp send", `network error reaching the WhatsApp API: ${e?.message}`);
+    return false;
   }
 }
 
@@ -283,17 +289,18 @@ export function whatsappBot() {
     async sendMessage(to, text, opts = {}) {
       const kb = opts.reply_markup?.inline_keyboard;
       const interactive = kb ? interactiveFor(text, kb) : null;
+      let ok;
       if (interactive) {
-        await sendRaw({ messaging_product: "whatsapp", to: String(to), type: "interactive", interactive });
+        ok = await sendRaw({ messaging_product: "whatsapp", to: String(to), type: "interactive", interactive });
       } else {
-        await sendRaw({
+        ok = await sendRaw({
           messaging_product: "whatsapp",
           to: String(to),
           type: "text",
           text: { body: trunc(stripMd(text || "…"), 4096) },
         });
       }
-      return { message_id: Date.now() };
+      return { message_id: Date.now(), ok };
     },
     // Image message with optional caption + inline buttons. Accepts a
     // base64 data URL (the inbound path already produces this shape). Falls

@@ -821,7 +821,7 @@ export function extractAboutYou(text) {
   // Gender: male / female / other. Match whole words so "Female" is fine but
   // "malegorged" (nonsense) isn't. Also accept "M" / "F" as standalone tokens.
   if (/\b(female|woman|f)\b/i.test(raw)) out.gender = "female";
-  else if (/\b(male|man|m)\b/i.test(raw)) out.gender = "male";
+  else if (/\b(male|man)\b/i.test(raw) || /(?<![\d.]\s*)\bm\b/i.test(raw)) out.gender = "male";
   else if (/\b(other|non-?binary|nb)\b/i.test(raw)) out.gender = "other";
 
   // Weight: "78kg", "76 kg", "weight 76", "wt 76" — prefer explicit "kg" tokens
@@ -848,20 +848,41 @@ export function extractAboutYou(text) {
   // Age: prefer explicit "age 32" / "32 years / yrs old". Fall back to a
   // small standalone number (1–120) only if we haven't already parsed a
   // height/weight above (to avoid grabbing the wrong number).
+  // Numbers with no unit and no label ("78 170", "male 78, 170"). Values can
+  // be separated by spaces or commas; a number is "unit-less" unless a unit
+  // follows it (kg, cm, m, ft, years…) or a label precedes it (weight:,
+  // height, age). The My Health flow refuses to guess which of two bare
+  // numbers is the weight and asks the user to add units instead.
+  const UNIT_AFTER = /^\s*(?:kgs?|kilo|lbs?|pounds?|cm\b|centimet|m\b|meters?|metres?|'|"|ft\b|feet|in\b|inch|years?|yrs?|yo\b|y\b|%)/i;
+  const LABEL_BEFORE = /(?:weight|wt|wgt|height|age|ft|feet|')[\s:]*$/i;
+  const unitless = [];
+  const numRe = /\d+(?:\.\d+)?/g;
+  let nm;
+  while ((nm = numRe.exec(lower))) {
+    const after = lower.slice(nm.index + nm[0].length);
+    const before = lower.slice(Math.max(0, nm.index - 12), nm.index);
+    if (UNIT_AFTER.test(after) || LABEL_BEFORE.test(before)) continue;
+    unitless.push(Number(nm[0]));
+  }
+  out.ageFromBare = false;
+
   const aLabelled = lower.match(/\bage[\s:]*?(\d{1,3})\b/);
   const aYearsOld = lower.match(/\b(\d{1,3})\s*(?:years?|yrs?)\s*old\b/);
-  const aYearsOnly = lower.match(/\b(\d{1,3})\s*(?:years?|yrs?)\b/);
+  const aYearsOnly = lower.match(/\b(\d{1,3})\s*(?:years?|yrs?|yo|y)\b/);
   if (aLabelled) out.age = Number(aLabelled[1]);
   else if (aYearsOld) out.age = Number(aYearsOld[1]);
   else if (aYearsOnly) out.age = Number(aYearsOnly[1]);
-  else if (out.weight_kg == null && out.height_cm == null) {
-    // Only accept a bare number as age when there's no other numeric noise.
-    const bare = raw.match(/\b(\d{1,3})\b/);
-    if (bare) {
-      const n = Number(bare[1]);
-      if (n >= 1 && n <= 120) out.age = n;
+  else if (unitless.length === 1) {
+    // Exactly one number without a unit or label ("male, 42, 174cm, 78kg",
+    // or just "42") — take it as the age. The flow double-checks that
+    // height and weight are settled before trusting this (ageFromBare).
+    const n = unitless[0];
+    if (Number.isInteger(n) && n >= 1 && n <= 120) {
+      out.age = n;
+      out.ageFromBare = true;
     }
   }
+  out.unitless = unitless;
 
   // Sanity-clip absurd values.
   if (out.age != null && (out.age < 1 || out.age > 120)) delete out.age;

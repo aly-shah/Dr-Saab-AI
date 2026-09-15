@@ -20,6 +20,7 @@ import {
   getUserById,
   updateUser,
   recordMessage,
+  recordActivityDay,
   deleteUser,
   setAccountStatus,
   latestMetrics,
@@ -486,6 +487,10 @@ async function dispatchFeature(bot, chatId, session, action) {
       return showFoodHelp(bot, chatId, session);
     case "more":
       return showMore(bot, chatId, session);
+    case "shortcuts":
+      // ⚡ Shortcuts — the Quick Shortcuts card, reachable from the menu
+      // as well as by typing "help".
+      return showQuickShortcuts(bot, chatId, session, "menu_button");
     case "myhealth":
       // ❤️ My Health — the user's canonical, conversational health profile.
       return startMyHealth(bot, chatId, session);
@@ -530,7 +535,9 @@ async function dispatchFeature(bot, chatId, session, action) {
     case "reports":
       return showReports(bot, chatId, session);
     case "snapshot":
-      // 📊 Generate Report — Executive Health Snapshot PDF (paid).
+      // 📊 Health Snapshot — Executive Health Snapshot PDF (paid). Lives in the
+      // My Health sub-menu (mh:snapshot); feat:snapshot stays for the Reports
+      // menu and the "report" shortcut.
       return startSnapshot(bot, chatId, session);
     case "executive":
       return showExecutive(bot, chatId, session);
@@ -653,6 +660,8 @@ export async function handleMessage(bot, msg) {
 
   // count activity for the patient KB (cheap upsert, no AI)
   recordMessage(session.user.id).catch(() => {});
+  // User Status: mark today as an active day (Idle / Low / Medium / High).
+  recordActivityDay(session.user.id).catch(() => {});
 
   const text = msg.text;
   const cmd = text?.split(/\s+/)[0]?.split("@")[0];
@@ -749,17 +758,24 @@ export async function handleMessage(bot, msg) {
   // (/start, /menu, /cancel, /upgrade) never reach this point.
   if (session.user.onboarded && text) {
     let resolved = resolveIntent(text, { inFlow: inResumableFlow || inCoachlike });
-    // Already in the blood-sugar check-in: a typed reading ("HbA1c 7.2",
-    // "glucose 140 fasting") is the answer to our own prompt, not a
-    // shortcut. Let glucoseText parse and save it rather than restarting
-    // the flow or bouncing an HbA1c value to Explain My Report.
-    if (
-      resolved &&
-      activeState === "glucose" &&
-      /\d/.test(text) &&
-      (resolved.intent === INTENT.SUGAR_LOG || resolved.intent === INTENT.HBA1C_SHOW)
-    ) {
-      resolved = null;
+    // Already inside a conversation that parses readings itself: a typed
+    // reading is the answer to our own prompt, not a shortcut.
+    //   • blood-sugar check-in: "HbA1c 7.2", "glucose 140 fasting" must be
+    //     saved by glucoseText, not restart the flow or open Explain My Report.
+    //   • My Health: "My HbA1c is 6.8" (the summary's own example) is an
+    //     update, and a goals list like "reduce sugar to 120" is a goal —
+    //     never a glucose entry or the stored-HbA1c lookup.
+    if (resolved && activeState === "glucose") {
+      if (
+        /\d/.test(text) &&
+        (resolved.intent === INTENT.SUGAR_LOG || resolved.intent === INTENT.HBA1C_SHOW)
+      ) {
+        resolved = null;
+      }
+    } else if (resolved && activeState === "myhealth") {
+      if (resolved.matchType === "structured" || resolved.matchType === "hba1c_show") {
+        resolved = null;
+      }
     }
     if (resolved) {
       logShortcutEvent("shortcut_detected", {
@@ -950,6 +966,8 @@ export async function handleCallback(bot, query) {
   await ensureSessionUser(session, query.from.id);
   const data = query.data || "";
   bot.answerCallbackQuery(query.id).catch(() => {});
+  // A button tap counts as an interaction for User Status too.
+  if (session.user?.id) recordActivityDay(session.user.id).catch(() => {});
 
   // A closed account can't drive the menu either — the equivalent guard in
   // handleMessage covers typed input. Reactivation only happens on a typed
@@ -1026,7 +1044,7 @@ export async function handleCallback(bot, query) {
   // old deep link. All actions land back on the new hub.
   if (data.startsWith("chl:")) return legacyChallengeStub(bot, chatId, session);
 
-  // 📊 Generate Report — Executive Health Snapshot (`snap:*`).
+  // 📊 Health Snapshot — Executive Health Snapshot (`snap:*`).
   if (data.startsWith("snap:")) return snapshotCallback(bot, chatId, session, data);
 
   // Reports

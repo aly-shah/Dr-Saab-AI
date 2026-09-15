@@ -146,6 +146,16 @@ export async function photoDataUrl(bot, msg) {
 // look at (photo, image sent as document, or any other document like a PDF).
 // Used by the universal routing layer so a report uploaded from ANY flow can
 // be redirected to the lab-report explainer.
+// Split a free-text goals list ("lose 5kg, reduce HbA1c by 1%; gym 3x a
+// week") into individual goal lines. A comma only splits when followed by a
+// space so a number like "1,000 steps" stays intact.
+export function splitGoalLines(text) {
+  return String(text || "")
+    .split(/[\r\n]+|;|,(?=\s)|•/)
+    .map((g) => g.replace(/^[\s\-–*]+/, "").trim())
+    .filter(Boolean);
+}
+
 export function hasAttachment(msg) {
   if (!msg) return false;
   if (msg.__imageDataUrl) return true;

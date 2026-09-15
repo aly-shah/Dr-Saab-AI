@@ -119,6 +119,36 @@ create table if not exists public.patient_kb (
   updated_at    timestamptz default now()
 );
 
+-- ---------- User Status: activity days (2026-09-15) ----------
+-- One row per user per Pakistan-time day on which they sent DrSaab at least
+-- one message or button tap. Drives the User Status categorisation
+-- (bot/src/userStatus.js; same rule in app/api/admin/data/route.js):
+--   Idle   – no interaction in the last 30 days
+--   Low    – 1 active day in the last 30 days
+--   Medium – 2–3 active days
+--   High   – 4 or more active days
+create table if not exists public.user_activity_days (
+  user_id   uuid references public.users(id) on delete cascade,
+  day       date not null,
+  messages  int default 1,
+  primary key (user_id, day)
+);
+-- Mirror of the computed status, refreshed once a day by the bot scheduler.
+alter table public.users add column if not exists activity_status    text;        -- idle | low | medium | high
+alter table public.users add column if not exists activity_status_at timestamptz;
+-- Backfill from what was already logged so existing users get a status at once.
+insert into public.user_activity_days (user_id, day, messages)
+select user_id, (created_at at time zone 'Asia/Karachi')::date as day, count(*)::int
+from (
+  select user_id, created_at from public.coach_messages where role = 'user'
+  union all select user_id, created_at from public.glucose_logs
+  union all select user_id, created_at from public.medication_logs
+  union all select user_id, created_at from public.health_logs
+) x
+where user_id is not null
+group by user_id, 2
+on conflict (user_id, day) do nothing;
+
 -- ---------- Doctors / referral codes ----------
 -- Row represents a healthcare professional using DrSaab. `user_id` links to
 -- the users row that holds their Telegram/WhatsApp identity (a doctor uses
@@ -669,6 +699,20 @@ create unique index if not exists daily_message_log_user_date_key
   on public.daily_message_log (user_id, date);
 create index if not exists daily_message_log_user_recent_idx
   on public.daily_message_log (user_id, sent_at desc);
+
+-- ---------- Ad hoc admin broadcasts (2026-09-15) ----------
+-- One row per "Messages" send from the admin panel, with delivery counts.
+create table if not exists public.admin_broadcasts (
+  id          uuid primary key default gen_random_uuid(),
+  text        text not null,
+  audience    text not null default 'all',      -- all | patients | doctors
+  recipients  int default 0,
+  sent        int default 0,
+  failed      int default 0,
+  skipped     int default 0,
+  sent_by     text,
+  created_at  timestamptz default now()
+);
 
 -- ---------- Seed default engagement_config ----------
 insert into public.engagement_config (key, value_num) values

@@ -228,6 +228,17 @@ async function makeSupabaseBackend() {
         .maybeSingle();
       return data?.weight_kg ?? null;
     },
+    // Weight history, newest first (My Health → Trends).
+    async recentWeights(userId, limit) {
+      const { data } = await db
+        .from("health_logs")
+        .select("weight_kg, created_at")
+        .eq("user_id", userId)
+        .not("weight_kg", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      return data || [];
+    },
     async windowRaw(userId, days) {
       const since = daysAgoISO(days);
       const [{ data: g }, { data: m }, { data: h }] = await Promise.all([
@@ -348,6 +359,11 @@ async function makeSupabaseBackend() {
     async deactivateReminder(userId, id) {
       await db.from("reminder_schedules").update({ active: false }).eq("user_id", userId).eq("id", id);
     },
+    // Retire every reminder attached to one target row (a challenge, a habit)
+    // once that row reaches a terminal state.
+    async deactivateRemindersByTarget(targetId) {
+      await db.from("reminder_schedules").update({ active: false }).eq("target_id", targetId).eq("active", true);
+    },
     async dueReminders(nowIso) {
       const { data } = await db
         .from("reminder_schedules")
@@ -467,6 +483,31 @@ async function makeSupabaseBackend() {
         for (const r of data || []) set.add(String(r.created_at).slice(0, 10));
       }
       return set.size;
+    },
+    // User Status: one row per (user, PKT day) with an inbound message/tap.
+    async recordActivityDay(userId, day) {
+      const { data } = await db.from("user_activity_days").select("messages")
+        .eq("user_id", userId).eq("day", day).maybeSingle();
+      if (data) {
+        await db.from("user_activity_days").update({ messages: (data.messages || 0) + 1 })
+          .eq("user_id", userId).eq("day", day);
+      } else {
+        await db.from("user_activity_days").insert({ user_id: userId, day, messages: 1 });
+      }
+    },
+    async activeDaysInLast(userId, sinceDay) {
+      const { count } = await db.from("user_activity_days")
+        .select("day", { count: "exact", head: true })
+        .eq("user_id", userId).gte("day", sinceDay);
+      return count || 0;
+    },
+    async logAdminBroadcast(row) {
+      const { data, error } = await db.from("admin_broadcasts").insert({
+        text: row.text, audience: row.audience || "all", recipients: row.recipients || 0,
+        sent: row.sent || 0, failed: row.failed || 0, skipped: row.skipped || 0, sent_by: row.sent_by || "admin",
+      }).select("*").single();
+      if (error) throw error;
+      return data;
     },
     async lastInteractionAt(userId) {
       // Take the max of patient_kb.last_seen and every log table's latest row.
@@ -1013,6 +1054,7 @@ async function makePostgresBackend() {
                 u.last_log_date, u.last_reminder_date, u.last_streak_date,
                 u.last_winback_date, u.last_summary_date,
                 u.name, u.age, u.date_of_birth, u.created_at, u.onboarded,
+                u.user_type, u.tier, u.activity_status,
                 coalesce(u.account_status, 'active') as account_status,
                 kb.last_seen
          from users u left join patient_kb kb on kb.user_id = u.id
@@ -1169,12 +1211,44 @@ async function makePostgresBackend() {
       );
       return rows[0]?.weight_kg ?? null;
     },
+    // Weight history, newest first (My Health → Trends).
+    async recentWeights(userId, limit) {
+      const { rows } = await pool.query(
+        "select weight_kg, created_at from health_logs where user_id=$1 and weight_kg is not null order by created_at desc limit $2",
+        [userId, limit]
+      );
+      return rows;
+    },
     async recordMessage(userId) {
       await pool.query(
         `insert into patient_kb (user_id, message_count, last_seen) values ($1, 1, now())
          on conflict (user_id) do update set message_count = patient_kb.message_count + 1, last_seen = now()`,
         [userId]
       );
+    },
+    // User Status: one row per (user, PKT day) with an inbound message/tap.
+    async recordActivityDay(userId, day) {
+      await pool.query(
+        `insert into user_activity_days (user_id, day, messages) values ($1, $2, 1)
+         on conflict (user_id, day) do update set messages = user_activity_days.messages + 1`,
+        [userId, day]
+      );
+    },
+    async activeDaysInLast(userId, sinceDay) {
+      const { rows } = await pool.query(
+        "select count(*)::int as n from user_activity_days where user_id=$1 and day >= $2",
+        [userId, sinceDay]
+      );
+      return rows[0]?.n || 0;
+    },
+    // Ad hoc admin broadcasts — one audit row per send.
+    async logAdminBroadcast(row) {
+      const { rows } = await pool.query(
+        `insert into admin_broadcasts (text, audience, recipients, sent, failed, skipped, sent_by)
+         values ($1,$2,$3,$4,$5,$6,$7) returning *`,
+        [row.text, row.audience || "all", row.recipients || 0, row.sent || 0, row.failed || 0, row.skipped || 0, row.sent_by || "admin"]
+      );
+      return rows[0];
     },
     async upsertKB(userId, content) {
       await pool.query(
@@ -1293,6 +1367,9 @@ async function makePostgresBackend() {
     },
     async deactivateReminder(userId, id) {
       await pool.query("update reminder_schedules set active=false where user_id=$1 and id=$2", [userId, id]);
+    },
+    async deactivateRemindersByTarget(targetId) {
+      await pool.query("update reminder_schedules set active=false where target_id=$1 and active", [targetId]);
     },
     async dueReminders(nowIso) {
       const { rows } = await pool.query(
@@ -2174,6 +2251,8 @@ function makeMemoryBackend() {
   const medsMaster = [];
   const symptoms = [];
   const reminders = [];
+  const activityDays = new Map(); // "userId|YYYY-MM-DD" → message count
+  const broadcasts = [];
   const goals = [];
   const conditions = [];
   const healthMetrics = [];
@@ -2303,7 +2382,7 @@ function makeMemoryBackend() {
       meds.push({ user_id: userId, name, dose, created_at: nowISO() });
     },
     async addHealthLog(userId, fields) {
-      health.push({ user_id: userId, ...fields, created_at: nowISO() });
+      health.push({ user_id: userId, ...fields, created_at: fields.created_at || nowISO() });
     },
     async addLabReport(userId, rawInput, analysis, extras = {}) {
       labs.push({
@@ -2360,11 +2439,37 @@ function makeMemoryBackend() {
         .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
       return rows[0]?.weight_kg ?? null;
     },
+    async recentWeights(userId, limit) {
+      return health
+        .filter((r) => r.user_id === userId && r.weight_kg != null)
+        .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+        .slice(0, limit);
+    },
     async recordMessage(userId) {
       const k = kb.get(userId) || { message_count: 0 };
       k.message_count = (k.message_count || 0) + 1;
       k.last_seen = nowISO();
       kb.set(userId, k);
+    },
+    async recordActivityDay(userId, day) {
+      const key = `${userId}|${day}`;
+      activityDays.set(key, (activityDays.get(key) || 0) + 1);
+    },
+    async activeDaysInLast(userId, sinceDay) {
+      let n = 0;
+      for (const key of activityDays.keys()) {
+        const [uid, day] = key.split("|");
+        if (uid === userId && day >= sinceDay) n++;
+      }
+      return n;
+    },
+    async logAdminBroadcast(row) {
+      const r = { id: "b" + (broadcasts.length + 1), created_at: nowISO(), ...row };
+      broadcasts.push(r);
+      return r;
+    },
+    async listAdminBroadcasts(limit = 50) {
+      return broadcasts.slice(-limit).reverse();
     },
     async upsertKB(userId, content) {
       const k = kb.get(userId) || { message_count: 0 };
@@ -2447,6 +2552,9 @@ function makeMemoryBackend() {
     async deactivateReminder(userId, id) {
       const r = reminders.find((x) => x.user_id === userId && x.id === id);
       if (r) r.active = false;
+    },
+    async deactivateRemindersByTarget(targetId) {
+      for (const r of reminders) if (r.target_id === targetId) r.active = false;
     },
     async dueReminders(nowIso) {
       return reminders.filter((r) => r.active && r.next_fire_at && r.next_fire_at <= nowIso);
@@ -2865,7 +2973,21 @@ export const saveCoachMessage = (id, kind, role, content) => backend.saveCoachMe
 export const saveVoiceNote = (id, dataUrl, content) => backend.saveVoiceNote(id, dataUrl, content);
 export const recentGlucose = (id, limit = 5) => backend.recentGlucose(id, limit);
 export const latestWeight = (id) => backend.latestWeight(id);
+export const recentWeights = (id, limit = 50) => backend.recentWeights(id, limit);
 export const recordMessage = (id) => backend.recordMessage(id);
+
+// User Status (Idle / Low / Medium / High) — see userStatus.js. Days are
+// YYYY-MM-DD keys in Pakistan time, matching the scheduler's clock.
+const ACTIVITY_TZ_OFFSET = parseInt(process.env.REMINDER_TZ_OFFSET || "5", 10);
+export function activityDayKey(d = new Date()) {
+  return new Date(d.getTime() + ACTIVITY_TZ_OFFSET * 3600 * 1000).toISOString().slice(0, 10);
+}
+export const recordActivityDay = (id, day = activityDayKey()) => backend.recordActivityDay(id, day);
+// Ad hoc admin broadcasts (bot/src/broadcast.js).
+export const logAdminBroadcast = (row) => backend.logAdminBroadcast(row);
+// "Last N days" includes today, so the window starts N-1 days back.
+export const activeDaysInLast = (id, days = 30) =>
+  backend.activeDaysInLast(id, activityDayKey(new Date(Date.now() - (days - 1) * 86400000)));
 export const upsertKB = (id, content) => backend.upsertKB(id, content);
 // Executive Health Snapshot (paid "Generate Report").
 export const snapshotRaw = (id) => backend.snapshotRaw(id);
@@ -2923,6 +3045,7 @@ export const addSymptomLog = (id, sx) => backend.addSymptomLog(id, sx);
 export const addReminderSchedule = (id, fields) => backend.addReminderSchedule(id, fields);
 export const listReminders = (id) => backend.listReminders(id);
 export const deactivateReminder = (id, rid) => backend.deactivateReminder(id, rid);
+export const deactivateRemindersByTarget = (targetId) => backend.deactivateRemindersByTarget(targetId);
 // Check-In v2 (2026-07)
 export const countGlucose = (id) => backend.countGlucose(id);
 export const countMedicationLogs = (id) => backend.countMedicationLogs(id);

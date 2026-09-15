@@ -26,6 +26,8 @@ import {
   dueReminders,
   logDailyMessage,
   markReminderFired,
+  deactivateReminder,
+  deactivateRemindersByTarget,
   getUserHabitById,
   updateUserHabit,
   upsertHabitCheckIn,
@@ -47,6 +49,7 @@ import { hbDailyKeyboard, chalHba1cFinalKeyboard } from "./keyboards.js";
 import { formatTime12h } from "./flows/habitbuilder.js";
 import { computeAndPersistScores } from "./flows/challengeEngine.js";
 import { runSubscriptionLifecycleTick } from "./flows/subscription.js";
+import { refreshActivityStatuses } from "./userStatus.js";
 
 const TZ_OFFSET = parseInt(process.env.REMINDER_TZ_OFFSET || "5", 10); // PKT default
 
@@ -75,7 +78,7 @@ function chatIdFor(user) {
 
 // Build 1: user-created reminder schedules — fire any that are due, then
 // bump next_fire_at by frequency_days. Independent of the composer cap.
-async function fireDueReminders(bots, usersById) {
+export async function fireDueReminders(bots, usersById) {
   let due;
   try {
     due = await dueReminders(new Date().toISOString());
@@ -122,25 +125,34 @@ async function fireDueReminders(bots, usersById) {
           continue;
         }
         const rendered = await renderChallengeCheckin(r, lang);
-        if (rendered) {
-          await send(bot, chat, rendered.text, { markdown: true });
-          const nextIso = bumpNextFire(r);
-          await markReminderFired(r.id, nextIso);
+        if (rendered?.retired) {
+          // Challenge completed / withdrawn / expired — switch the nudge off
+          // rather than falling back to the generic template forever.
+          await deactivateReminder(u.id, r.id);
           continue;
         }
+        if (!rendered) continue; // row couldn't be loaded — retry next tick
+        await send(bot, chat, rendered.text, { markdown: true });
+        const nextIso = bumpNextFire(r);
+        await markReminderFired(r.id, nextIso);
+        continue;
       }
       // Challenges v1.0 HbA1c final-result prompt (fires from ~7 days before
       // end_date until the user submits or the challenge auto-expires).
       if (r.category === "challenge_final_result_prompt") {
         const rendered = await renderChallengeFinalPrompt(r, lang);
-        if (rendered) {
-          await send(bot, chat, rendered.text, {
-            keyboard: rendered.keyboard, markdown: true,
-          });
-          const nextIso = bumpNextFire(r);
-          await markReminderFired(r.id, nextIso);
+        if (rendered?.retired) {
+          // Final result already submitted, or the challenge is closed.
+          await deactivateReminder(u.id, r.id);
           continue;
         }
+        if (!rendered) continue; // row couldn't be loaded — retry next tick
+        await send(bot, chat, rendered.text, {
+          keyboard: rendered.keyboard, markdown: true,
+        });
+        const nextIso = bumpNextFire(r);
+        await markReminderFired(r.id, nextIso);
+        continue;
       }
       const templateKey = `reminder_template_${r.category}`;
       const body = t(lang, templateKey, { name: r.label || "" });
@@ -258,11 +270,13 @@ async function fireDailyComposer(bots, users, todayDate) {
 // Challenges v1.0 — render helpers, doctor notifications, auto-expire
 // -------------------------------------------------------------------
 
-// Pick the right supportive template per challenge type. Returns null if
-// the challenge row has vanished (removed / cascade-deleted).
+// Pick the right supportive template per challenge type. Returns
+// { retired: true } when the challenge is over (or its row is gone) so the
+// caller switches the reminder off, and null on a transient load failure.
 async function renderChallengeCheckin(reminderRow, lang) {
-  const uc = await getUserChallengeById(reminderRow.target_id).catch(() => null);
-  if (!uc || !["active", "joined"].includes(uc.status)) return null;
+  const uc = await getUserChallengeById(reminderRow.target_id).catch(() => undefined);
+  if (uc === undefined) return null;
+  if (!uc || !["active", "joined"].includes(uc.status)) return { retired: true };
   const def = uc.challenge_id ? await getChallengeDefById(uc.challenge_id).catch(() => null) : null;
   const type = def?.challenge_type || uc.challenge_type;
   if (type === "activity") {
@@ -275,9 +289,10 @@ async function renderChallengeCheckin(reminderRow, lang) {
 }
 
 async function renderChallengeFinalPrompt(reminderRow, lang) {
-  const uc = await getUserChallengeById(reminderRow.target_id).catch(() => null);
-  if (!uc || uc.final_value != null) return null;
-  if (!["active", "awaiting_final_result"].includes(uc.status)) return null;
+  const uc = await getUserChallengeById(reminderRow.target_id).catch(() => undefined);
+  if (uc === undefined) return null;
+  if (!uc || uc.final_value != null) return { retired: true };
+  if (!["active", "awaiting_final_result"].includes(uc.status)) return { retired: true };
 
   // Flip status so the Challenges hub reflects the pending action.
   if (uc.status !== "awaiting_final_result") {
@@ -469,6 +484,7 @@ async function expireDueChallenges(usersById) {
           status: "expired_incomplete",
           completed_at: new Date().toISOString(),
         });
+        await deactivateRemindersByTarget(uc.id).catch(() => {});
         // Doctor notification
         if (uc.doctor_id) {
           await enqueueChallengeDoctorNotification({
@@ -488,6 +504,7 @@ async function expireDueChallenges(usersById) {
         status: "completed",
         completed_at: new Date().toISOString(),
       });
+      await deactivateRemindersByTarget(uc.id).catch(() => {});
       await computeAndPersistScores(uc.challenge_id, uc.user_id).catch(() => {});
       if (uc.doctor_id) {
         await enqueueChallengeDoctorNotification({
@@ -509,7 +526,11 @@ async function expireDueChallenges(usersById) {
   }
 }
 
-async function runTick(bots) {
+// User Status mirror (users.activity_status) is refreshed on the first tick
+// of each local day.
+let lastStatusRefreshDate = null;
+
+export async function runTick(bots) {
   const { hour, date } = nowParts();
   let users;
   try {
@@ -520,6 +541,12 @@ async function runTick(bots) {
   if (!users?.length) return;
 
   const usersById = new Map(users.map((u) => [u.id, u]));
+
+  if (lastStatusRefreshDate !== date) {
+    lastStatusRefreshDate = date;
+    await refreshActivityStatuses(users).catch((e) =>
+      console.error("activity status refresh:", e?.message));
+  }
 
   // Independent, user-opted-in paths — run every tick.
   await fireDueReminders(bots, usersById);
