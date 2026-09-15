@@ -6,7 +6,15 @@ import http from "node:http";
 import { handleMessage, handleCallback } from "./bot.js";
 import { parseDataUrl, isPdfMime, isImageMime, extractPdfText } from "./pdf.js";
 import { saveUnanalysedReport, inlineUpload } from "./flows/labreport.js";
-import { getOrCreateUser } from "./supabase.js";
+import { getOrCreateUser, getUserById, getDoctorById, doctorPatientStats } from "./supabase.js";
+import { config } from "./config.js";
+import { assembleSnapshotData, fallbackInsights } from "./snapshotData.js";
+import { renderSnapshotPdf } from "./snapshotPdf.js";
+import { snapshotInsights } from "./openai.js";
+import { assembleDoctorReport } from "./doctorReportData.js";
+import { renderDoctorWeeklyPdf, renderPatientSnapshotPdf } from "./doctorReportPdf.js";
+import { dayKey } from "./snapshotData.js";
+import { logWarn, logError } from "./log.js";
 
 function createVirtualBot(buffer) {
   return {
@@ -145,6 +153,83 @@ async function processWeb(sessionId, type, payload) {
   return buffer;
 }
 
+// ---------------------------------------------------------------------------
+// Admin PDF reports (website admin panel → /api/admin/pdf → here).
+//
+// The panel already authenticates the admin; it forwards the shared
+// ADMIN_PASSWORD in the x-admin-password header so this endpoint is never
+// reachable without it. Returns the PDF bytes with a filename header.
+//   { kind: "patient",        userId }            → Executive Health Snapshot
+//   { kind: "doctor_weekly",  doctorId }          → Weekly Patient Snapshots
+//   { kind: "doctor_patient", doctorId, userId }  → one Patient Health Snapshot
+// ---------------------------------------------------------------------------
+async function buildAdminReport({ kind, userId, doctorId }) {
+  if (kind === "patient") {
+    const user = await getUserById(userId);
+    if (!user) return { error: "patient not found", status: 404 };
+    const data = await assembleSnapshotData(user);
+    let insights;
+    try {
+      insights = await snapshotInsights(user, data.facts);
+    } catch (e) {
+      logWarn("Admin patient report AI", `using built-in summaries — ${e?.message}`);
+      insights = fallbackInsights(data);
+    }
+    const pdf = await renderSnapshotPdf(data, insights);
+    return { pdf, filename: `DrSaab-Health-Snapshot-${safeName(user.name)}-${dayKey(data.generatedAt)}.pdf` };
+  }
+  const doc = await getDoctorById(doctorId);
+  if (!doc) return { error: "doctor not found", status: 404 };
+  const doctorUser = doc.user_id ? await getUserById(doc.user_id).catch(() => null) : null;
+  const patients = await doctorPatientStats(doc.id);
+  if (kind === "doctor_weekly") {
+    if (!patients.length) return { error: "this doctor has no connected patients", status: 400 };
+    const report = await assembleDoctorReport(doctorUser || { name: doc.name }, doc, patients);
+    const pdf = await renderDoctorWeeklyPdf(report);
+    return { pdf, filename: `DrSaab-Weekly-Patient-Snapshots-${safeName(doc.name)}-${dayKey(report.generatedAt)}.pdf` };
+  }
+  if (kind === "doctor_patient") {
+    const target = patients.find((p) => String(p.id) === String(userId));
+    if (!target) return { error: "patient is not connected to this doctor", status: 404 };
+    const report = await assembleDoctorReport(doctorUser || { name: doc.name }, doc, [target]);
+    const pdf = await renderPatientSnapshotPdf(report, 0);
+    return { pdf, filename: `DrSaab-Patient-Snapshot-${safeName(report.patients[0].name)}-${dayKey(report.generatedAt)}.pdf` };
+  }
+  return { error: "unknown report kind", status: 400 };
+}
+
+function safeName(s) {
+  return String(s || "report").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "") || "report";
+}
+
+function handleAdminReport(req, res) {
+  const expected = config.adminPassword;
+  if (!expected) return sendJson(res, 503, { error: "ADMIN_PASSWORD is not configured on the bot" });
+  if ((req.headers["x-admin-password"] || "") !== expected) return sendJson(res, 401, { error: "unauthorized" });
+  let body = "";
+  req.on("data", (c) => {
+    body += c;
+    if (body.length > 64 * 1024) req.destroy();
+  });
+  req.on("end", async () => {
+    try {
+      const params = JSON.parse(body || "{}");
+      const out = await buildAdminReport(params);
+      if (out.error) return sendJson(res, out.status || 400, { error: out.error });
+      res.writeHead(200, {
+        "Content-Type": "application/pdf",
+        "Content-Length": out.pdf.length,
+        "X-Filename": out.filename,
+      });
+      res.end(out.pdf);
+    } catch (e) {
+      logError("Admin report", e?.message || String(e));
+      console.error(e?.stack || e);
+      sendJson(res, 500, { error: e?.message || "report failed" });
+    }
+  });
+}
+
 function sendJson(res, status, obj) {
   res.writeHead(status, { "Content-Type": "application/json" });
   res.end(JSON.stringify(obj));
@@ -165,6 +250,9 @@ export function startWebServer() {
     }
     if (req.method === "GET" && req.url === "/web/health") {
       return sendJson(res, 200, { ok: true });
+    }
+    if (req.method === "POST" && req.url === "/web/admin/report") {
+      return handleAdminReport(req, res);
     }
     if (req.method === "POST" && req.url === "/web/message") {
       let body = "";

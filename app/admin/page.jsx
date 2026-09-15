@@ -372,6 +372,72 @@ function PlanControl({ user, onUpdated }) {
   );
 }
 
+// Opens a generated PDF (via /api/admin/pdf → the bot engine) in a new tab.
+// Generation can take ~20 s for the patient snapshot (AI-written summaries),
+// so the button shows a busy state and surfaces the engine's error, if any.
+function ReportButton({ params, label, small = false, primary = true }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const open = async (e) => {
+    e.stopPropagation();
+    setErr("");
+    setBusy(true);
+    const qs = new URLSearchParams(params).toString();
+    // Open the tab NOW, inside the click: browsers only allow window.open for
+    // a few seconds after a user gesture, so opening it after a 20-second
+    // report build gets silently popup-blocked (the "Generating…" then
+    // nothing symptom). The tab shows a placeholder until the PDF is ready.
+    const tab = window.open("", "_blank");
+    if (tab) {
+      tab.document.write(
+        '<title>Generating report…</title>' +
+        '<body style="margin:0;display:grid;place-items:center;height:100vh;font-family:system-ui,sans-serif;color:#0f172a;background:#f8fafc">' +
+        '<div style="text-align:center"><div style="display:flex;gap:8px;justify-content:center;margin:0 auto 18px">' +
+        '<span style="width:12px;height:12px;border-radius:50%;background:#1f5eea;animation:b 1.2s ease-in-out infinite"></span>' +
+        '<span style="width:12px;height:12px;border-radius:50%;background:#1f5eea;animation:b 1.2s ease-in-out .2s infinite"></span>' +
+        '<span style="width:12px;height:12px;border-radius:50%;background:#1f5eea;animation:b 1.2s ease-in-out .4s infinite"></span></div>' +
+        '<div style="font-weight:600">Generating your DrSaab report…</div>' +
+        '<div style="margin-top:6px;font-size:13px;color:#64748b">This can take up to 30 seconds. The PDF will open here.</div></div>' +
+        '<style>@keyframes b{0%,80%,100%{transform:translateY(0);opacity:.35}40%{transform:translateY(-8px);opacity:1}}</style></body>'
+      );
+      tab.document.close();
+    }
+    try {
+      const res = await fetch(`/api/admin/pdf?${qs}`);
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        const message = d.error || `Failed (${res.status})`;
+        setErr(message);
+        if (tab && !tab.closed) {
+          tab.document.body.innerHTML = '<div style="padding:40px;font-family:system-ui,sans-serif;color:#b91c1c"><b>Report failed:</b> ' + message.replace(/</g, "&lt;") + '</div>';
+        }
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      if (tab && !tab.closed) tab.location.href = url;
+      else window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 120_000);
+    } catch {
+      setErr("Could not reach the server");
+      if (tab && !tab.closed) tab.close();
+    } finally {
+      setBusy(false);
+    }
+  };
+  const cls = small
+    ? `rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${primary ? "bg-primary text-white ring-primary" : "bg-white text-primary ring-line hover:border-primary"}`
+    : `rounded-lg px-3 py-1.5 text-[13px] font-semibold ${primary ? "bg-primary text-white" : "bg-white text-primary ring-1 ring-line"}`;
+  return (
+    <span className="inline-flex flex-col items-start gap-1">
+      <button onClick={open} disabled={busy} className={`${cls} disabled:opacity-50`} title="Opens the PDF in a new tab">
+        {busy ? "Generating…" : label}
+      </button>
+      {err && <span className="max-w-xs text-[11px] text-red-500">{err}</span>}
+    </span>
+  );
+}
+
 function PatientDrawer({ id, onClose, onChanged }) {
   const [data, setData] = useState(null);
   useEffect(() => {
@@ -400,6 +466,18 @@ function PatientDrawer({ id, onClose, onChanged }) {
                 <span className="text-ink/45">Streak</span><span>{data.user.streak || 0} days</span>
                 <span className="text-ink/45">Doctor code</span><span>{data.user.doctor_code || "—"}</span>
               </div>
+            </Panel>
+
+            <Panel title="Reports">
+              <div className="flex flex-wrap items-center gap-2">
+                <ReportButton params={{ kind: "patient", userId: data.user.id }} label="Generate Executive Health Snapshot (PDF)" />
+                {data.user.doctor_id && data.user.doctor_link_status === "active" && (
+                  <ReportButton params={{ kind: "doctor_patient", doctorId: data.user.doctor_id, userId: data.user.id }} label="Doctor's Patient Snapshot (PDF)" primary={false} />
+                )}
+              </div>
+              <p className="mt-2 text-[11px] leading-relaxed text-ink/45">
+                The Executive Health Snapshot is the same one-page report a Consistency Coach patient can generate in the bot: profile, latest glucose, 14-/90-day trends with AI summaries, labs, medicines, lifestyle, health score and key insights. Takes about 20 seconds.
+              </p>
             </Panel>
 
             <Panel title="Plan">
@@ -457,13 +535,102 @@ function PatientDrawer({ id, onClose, onChanged }) {
   );
 }
 
-function DoctorsView() {
+function DoctorDrawer({ id, onClose, onOpenPatient }) {
+  const [data, setData] = useState(null);
+  useEffect(() => {
+    setData(null);
+    fetch(`/api/admin/doctors?id=${id}`).then((r) => r.json()).then(setData).catch(() => setData({ error: "x" }));
+  }, [id]);
+  const d = data?.doctor;
+  const patients = data?.patients || [];
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-ink/40 backdrop-blur-sm" onClick={onClose}>
+      <div className="h-full w-full max-w-2xl overflow-y-auto bg-cloud/60 p-6 shadow-card" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-ink">Doctor details</h2>
+          <button onClick={onClose} className="rounded-full bg-white px-3 py-1.5 text-sm ring-1 ring-line">Close</button>
+        </div>
+        {!data && <p className="mt-8 text-ink/50">Loading…</p>}
+        {data?.error && <p className="mt-8 text-red-500">Failed to load.</p>}
+        {d && (
+          <div className="mt-5 space-y-4">
+            <Panel title="Profile">
+              <div className="grid grid-cols-2 gap-y-1.5 text-sm text-ink/75">
+                <span className="text-ink/45">Name</span><span>{d.name || "—"}</span>
+                <span className="text-ink/45">Specialization</span><span>{d.specialization || "—"}</span>
+                <span className="text-ink/45">Practice</span><span>{d.practice_location || "—"}</span>
+                <span className="text-ink/45">Email</span><span>{d.email || "—"}</span>
+                <span className="text-ink/45">Referral code</span>
+                <span><code className="rounded bg-muted px-2 py-0.5 text-[12px] text-primary">{d.referral_code || "—"}</code></span>
+                <span className="text-ink/45">Account</span><span>{d.user_id ? `Bot account · ${d.language || "en"}` : "Referral code only (no bot account)"}</span>
+                <span className="text-ink/45">Last seen</span><span>{timeAgo(d.last_seen || d.last_login)}</span>
+                <span className="text-ink/45">Registered</span><span>{fmtDate(d.created_at) || "—"}</span>
+              </div>
+            </Panel>
+
+            <Panel title="Reports">
+              <div className="flex flex-wrap items-center gap-2">
+                <ReportButton
+                  params={{ kind: "doctor_weekly", doctorId: d.id }}
+                  label={`Weekly Patient Snapshots — all ${patients.length} patient${patients.length === 1 ? "" : "s"} (PDF)`}
+                />
+              </div>
+              <p className="mt-2 text-[11px] leading-relaxed text-ink/45">
+                One PDF: a summary page of every connected patient (latest HbA1c and glucose, 14-day trend, check-ins, status), then one Patient Health Snapshot page per patient. Same report the doctor gets in the bot.
+              </p>
+            </Panel>
+
+            <Panel title={`Connected patients (${patients.length})`}>
+              {patients.length === 0 && (
+                <p className="text-sm text-ink/45">No patients have linked to this doctor yet. Patients add the referral code under My Health → My Doctor in the bot.</p>
+              )}
+              {patients.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-line/60 text-[11px] uppercase tracking-wider text-ink/40">
+                        <th className="py-2 pr-3">Patient</th><th className="px-3">Diabetes</th><th className="px-3">HbA1c</th>
+                        <th className="px-3">Avg sugar</th><th className="px-3">Linked</th><th className="px-3">Last seen</th><th className="px-3">Report</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {patients.map((p) => (
+                        <tr key={p.id} className="border-b border-line/40">
+                          <td className="py-2.5 pr-3">
+                            <button onClick={() => onOpenPatient?.(p.id)} className="font-medium text-primary hover:underline">{p.name || "—"}</button>
+                            <span className="ml-2 text-xs text-ink/40">{p.age ?? ""}{p.gender ? ` · ${p.gender}` : ""}</span>
+                          </td>
+                          <td className="px-3 text-ink/70">{p.diabetes_status || "—"}</td>
+                          <td className="px-3 text-ink/70">{p.latest_hba1c != null ? `${p.latest_hba1c}%` : "—"}</td>
+                          <td className="px-3 text-ink/70">{p.glucose_avg_week ?? "—"}</td>
+                          <td className="px-3 text-ink/50">{fmtDate(p.doctor_linked_date) || "—"}</td>
+                          <td className="px-3 text-ink/50">{timeAgo(p.last_seen)}</td>
+                          <td className="px-3">
+                            <ReportButton params={{ kind: "doctor_patient", doctorId: d.id, userId: p.id }} label="Patient snapshot" small />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Panel>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DoctorsView({ onOpenPatient }) {
   const [doctors, setDoctors] = useState(null);
+  const [selected, setSelected] = useState(null);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [msg, setMsg] = useState("");
   const load = useCallback(() => {
-    fetch("/api/admin/doctors").then((r) => r.json()).then((d) => setDoctors(d.doctors || []));
+    fetch("/api/admin/doctors").then((r) => r.json()).then((d) => setDoctors(d.doctors || [])).catch(() => setDoctors([]));
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -481,41 +648,60 @@ function DoctorsView() {
   };
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
-      <Panel title="Create doctor referral code">
-        <form onSubmit={create} className="space-y-3">
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Doctor name (e.g. Dr. Khan)"
-            className="w-full rounded-xl bg-muted px-3.5 py-2.5 text-sm outline-none ring-1 ring-transparent focus:ring-primary" />
-          <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Code (e.g. KHAN10)"
-            className="w-full rounded-xl bg-muted px-3.5 py-2.5 text-sm outline-none ring-1 ring-transparent focus:ring-primary" />
-          {msg && <p className="text-sm text-red-500">{msg}</p>}
-          <button className="btn-primary w-full">Create code</button>
-        </form>
-        <p className="mt-3 text-xs text-ink/50">Patients who enter this code during onboarding are counted under this doctor.</p>
-      </Panel>
-
+    <div className="space-y-4">
       <Panel title={`Doctors${doctors ? ` (${doctors.length})` : ""}`}>
+        <p className="mb-3 text-sm text-ink/55">Doctor accounts registered in the bot and referral codes created here. Click a doctor to see their connected patients and generate reports.</p>
         {!doctors && <p className="text-sm text-ink/45">Loading…</p>}
-        {doctors && doctors.length === 0 && <p className="text-sm text-ink/45">No codes yet — create one.</p>}
+        {doctors && doctors.length === 0 && <p className="text-sm text-ink/45">No doctors yet.</p>}
         {doctors && doctors.length > 0 && (
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-line/60 text-[11px] uppercase tracking-wider text-ink/40">
-                <th className="py-2 pr-3">Doctor</th><th className="px-3">Code</th><th className="px-3 text-right">Referrals</th>
-              </tr>
-            </thead>
-            <tbody>
-              {doctors.map((d) => (
-                <tr key={d.id} className="border-b border-line/40">
-                  <td className="py-2.5 pr-3 font-medium text-ink">{d.name}</td>
-                  <td className="px-3"><code className="rounded bg-muted px-2 py-0.5 text-[12px] text-primary">{d.code}</code></td>
-                  <td className="px-3 text-right font-bold text-accent">{d.referrals}</td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-line/60 text-[11px] uppercase tracking-wider text-ink/40">
+                  <th className="py-2 pr-3">Doctor</th><th className="px-3">Specialization</th><th className="px-3">Practice</th>
+                  <th className="px-3">Code</th><th className="px-3 text-right">Patients</th><th className="px-3">Last seen</th><th className="px-3">Report</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {doctors.map((d) => (
+                  <tr key={d.id} onClick={() => setSelected(d.id)} className="cursor-pointer border-b border-line/40 hover:bg-muted/50">
+                    <td className="py-2.5 pr-3 font-medium text-ink">
+                      {d.name}
+                      {!d.user_id && <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-ink/45">code only</span>}
+                    </td>
+                    <td className="px-3 text-ink/70">{d.specialization || "—"}</td>
+                    <td className="px-3 text-ink/70">{d.practice_location || "—"}</td>
+                    <td className="px-3"><code className="rounded bg-muted px-2 py-0.5 text-[12px] text-primary">{d.referral_code || "—"}</code></td>
+                    <td className="px-3 text-right font-bold text-accent">{d.patients}</td>
+                    <td className="px-3 text-ink/50">{timeAgo(d.last_seen || d.last_login)}</td>
+                    <td className="px-3" onClick={(e) => e.stopPropagation()}>
+                      {d.patients > 0 ? (
+                        <ReportButton params={{ kind: "doctor_weekly", doctorId: d.id }} label="Weekly snapshots" small />
+                      ) : (
+                        <span className="text-[11px] text-ink/35">no patients</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Panel>
+
+      <Panel title="Create a doctor referral code">
+        <form onSubmit={create} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Doctor name (e.g. Dr. Khan)"
+            className="w-full rounded-xl bg-muted px-3.5 py-2.5 text-sm outline-none ring-1 ring-transparent focus:ring-primary" />
+          <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Code (e.g. DS#KH12)"
+            className="w-full rounded-xl bg-muted px-3.5 py-2.5 text-sm outline-none ring-1 ring-transparent focus:ring-primary" />
+          <button className="btn-primary">Create code</button>
+        </form>
+        {msg && <p className="mt-2 text-sm text-red-500">{msg}</p>}
+        <p className="mt-3 text-xs text-ink/50">Patients who enter this code under My Health → My Doctor are linked to this doctor. Doctors who register in the bot get a code automatically.</p>
+      </Panel>
+
+      {selected && <DoctorDrawer id={selected} onClose={() => setSelected(null)} onOpenPatient={onOpenPatient} />}
     </div>
   );
 }
@@ -779,8 +965,9 @@ export default function AdminPage() {
           {view === "overview" && (
             <>
               <h2 className="text-xl font-bold text-ink">Overview</h2>
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-6">
                 <Stat label="Patients" value={t.total_patients} sub={`${t.onboarded} onboarded`} />
+                <Stat label="Doctors" value={t.total_doctors ?? 0} />
                 <Stat label="Active today" value={t.active_today} />
                 <Stat label="Active this week" value={t.active_week} />
                 <Stat label="Messages" value={t.total_messages} />
@@ -801,6 +988,7 @@ export default function AdminPage() {
           {view === "patients" && (
             <>
               <h2 className="text-xl font-bold text-ink">Patients ({data.patients.length})</h2>
+              <p className="-mt-3 text-sm text-ink/55">Patient accounts only — doctors are listed on the Doctors page. Click a row for details, or generate the Executive Health Snapshot PDF directly.</p>
               <Panel>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
@@ -808,7 +996,7 @@ export default function AdminPage() {
                       <tr className="border-b border-line/60 text-[11px] uppercase tracking-wider text-ink/40">
                         <th className="py-2 pr-3">Name</th><th className="px-3">Age</th><th className="px-3">City</th>
                         <th className="px-3">Diabetes</th><th className="px-3">Lang</th><th className="px-3">Plan</th>
-                        <th className="px-3">Streak</th><th className="px-3">Avg sugar</th><th className="px-3">Msgs</th><th className="px-3">Last seen</th>
+                        <th className="px-3">Streak</th><th className="px-3">Avg sugar</th><th className="px-3">Doctor</th><th className="px-3">Last seen</th><th className="px-3">Report</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -826,8 +1014,11 @@ export default function AdminPage() {
                           </td>
                           <td className="px-3 text-ink/70">{p.streak || 0}</td>
                           <td className="px-3 text-ink/70">{p.glucose_avg_week ?? "—"}</td>
-                          <td className="px-3 text-ink/70">{p.message_count}</td>
+                          <td className="px-3 text-ink/70">{p.doctor_name || "—"}</td>
                           <td className="px-3 text-ink/50">{timeAgo(p.last_seen)}</td>
+                          <td className="px-3" onClick={(e) => e.stopPropagation()}>
+                            <ReportButton params={{ kind: "patient", userId: p.id }} label="Generate report" small />
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -839,8 +1030,8 @@ export default function AdminPage() {
 
           {view === "doctors" && (
             <>
-              <h2 className="text-xl font-bold text-ink">Doctors &amp; referrals</h2>
-              <DoctorsView />
+              <h2 className="text-xl font-bold text-ink">Doctors</h2>
+              <DoctorsView onOpenPatient={(id) => setSelected(id)} />
             </>
           )}
 

@@ -18,8 +18,9 @@ export async function GET(req) {
       leaderboard,
     ] = await Promise.all([
       q(`select
-           count(*)::int                                                as total_patients,
-           count(*) filter (where onboarded)::int                       as onboarded,
+           count(*) filter (where coalesce(u.user_type,'') <> 'doctor')::int                 as total_patients,
+           count(*) filter (where onboarded and coalesce(u.user_type,'') <> 'doctor')::int   as onboarded,
+           count(*) filter (where coalesce(u.user_type,'') = 'doctor')::int                  as total_doctors,
            coalesce(sum(kb.message_count),0)::int                       as total_messages,
            count(*) filter (where kb.last_seen >= now() - interval '1 day')::int  as active_today,
            count(*) filter (where kb.last_seen >= now() - interval '7 days')::int as active_week
@@ -41,11 +42,12 @@ export async function GET(req) {
          group by d order by d`),
       q(`select u.id, u.name, u.age, u.gender, u.city, u.language, u.diabetes_status,
                 u.tier, u.streak, u.created_at,
+                (select d.name from doctors d where d.id = u.doctor_id and u.doctor_link_status = 'active') as doctor_name,
                 coalesce(kb.message_count,0) as message_count, kb.last_seen,
                 (select round(avg(value_mgdl)) from glucose_logs g
                    where g.user_id=u.id and g.created_at >= now() - interval '7 days') as glucose_avg_week
          from users u left join patient_kb kb on kb.user_id=u.id
-         where u.onboarded
+         where u.onboarded and coalesce(u.user_type,'') <> 'doctor'
          order by kb.last_seen desc nulls last
          limit 200`),
       q(`select u.id, u.name, u.city, u.streak,
@@ -53,7 +55,7 @@ export async function GET(req) {
                 (select count(*) from glucose_logs g
                    where g.user_id=u.id and g.created_at >= now() - interval '7 days') as readings_week
          from users u left join patient_kb kb on kb.user_id=u.id
-         where u.onboarded
+         where u.onboarded and coalesce(u.user_type,'') <> 'doctor'
          order by u.streak desc, readings_week desc, messages desc
          limit 10`),
     ]);
