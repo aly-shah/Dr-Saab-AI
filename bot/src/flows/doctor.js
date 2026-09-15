@@ -29,6 +29,12 @@ import {
 } from "../supabase.js";
 import { startMyHealth } from "./myhealth.js";
 import {
+  showDoctorReports,
+  showPatientPicker,
+  sendWeeklySnapshots,
+  sendPatientSnapshot,
+} from "./doctorReports.js";
+import {
   isDoctorPro,
   DOCTOR_FREE_PATIENT_CAP,
   notifyDoctorCapReached,
@@ -84,14 +90,19 @@ async function showDoctorPatientMenu(bot, chatId, session) {
 // dispatcher in bot.js keeps them in doctorOnboardingCallback while
 // session.state === "doctor_onboarding".
 export async function doctorCallback(bot, chatId, session, data) {
-  const action = data.split(":")[1];
+  const parts = data.split(":");
+  const action = parts[1];
   if (action === "menu")     return showDoctorMenu(bot, chatId, session);
-  if (action === "reports")  return showPatientList(bot, chatId, session);
+  if (action === "reports")  return showDoctorReports(bot, chatId, session);
+  // 📄 PDF snapshots (doctorReports.js)
+  if (action === "snap_all")  return sendWeeklySnapshots(bot, chatId, session);
+  if (action === "snap_pick") return showPatientPicker(bot, chatId, session, Number(parts[2] || 0));
+  if (action === "snap_p")    return sendPatientSnapshot(bot, chatId, session, parts.slice(2).join(":"));
   if (action === "referral") return showReferralCode(bot, chatId, session);
   if (action === "myhealth") return openDoctorMyHealth(bot, chatId, session);
   if (action === "switch_patient") return showDoctorPatientMenu(bot, chatId, session);
   if (action === "reports_weekly" || action === "reports_monthly" || action === "reports_all") {
-    return showPatientList(bot, chatId, session);
+    return showDoctorReports(bot, chatId, session);
   }
   if (action === "test_dp") return simulateDpCap(bot, chatId, session);
 }
@@ -145,8 +156,10 @@ async function showReferralCode(bot, chatId, session) {
 }
 
 // ===================================================================
-// Patient reports — simple count + numbered list of connected patients.
+// Patient reports — superseded by doctorReports.showDoctorReports (same
+// numbered list plus the PDF snapshot buttons). Kept for reference.
 // ===================================================================
+// eslint-disable-next-line no-unused-vars
 async function showPatientList(bot, chatId, session) {
   const lang = langOf(session);
   const doc = await getDoctorByUserId(session.user.id).catch(() => null);

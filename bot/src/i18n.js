@@ -160,6 +160,16 @@ const STR = {
       "Nice to meet you, *{name}* 👋\nLet's build your profile so I can personalize my coaching for you.",
     ask_email_v2: "Thanks. What's your *email address*? We'll use it for account recovery and to send you your health summaries.",
     email_invalid: "That doesn't look like a valid email. Please send a full address like `name@example.com`.",
+    // Onboarding: the email already belongs to another account
+    email_match_found: "📧 An account with *{email}* already exists{hint}.\n\nIs this you?",
+    email_match_hint: " (name: *{name}*)",
+    btn_email_yes: "✅ Yes, it's me",
+    btn_email_no: "❌ No, not me",
+    email_match_restored: "✅ Welcome back, *{name}*! Your profile and history are now linked to this chat.",
+    email_match_restored_noname: "✅ Welcome back! Your profile and history are now linked to this chat.",
+    email_match_continue: "✅ Linked to your existing account. Let's finish setting up your profile.",
+    email_match_use_other: "No problem. Please enter a *different email address* for your new account.",
+    email_match_failed: "Sorry, I couldn't link that account right now. Please try again, or enter a different email address.",
 
     ask_user_type: "Which best describes you?",
     ut_type1: "I have Type 1 Diabetes",
@@ -201,6 +211,20 @@ const STR = {
     btn_doc_rep_weekly: "📅 Weekly",
     btn_doc_rep_monthly: "📅 Monthly",
     btn_doc_rep_all: "📊 All-time",
+    // Patient Reports → PDF snapshots (doctorReports.js)
+    btn_doc_snap_all: "📄 Weekly Patient Snapshots (PDF)",
+    btn_doc_snap_pick: "👤 Single Patient Snapshot",
+    btn_doc_snap_more: "➡️ More patients",
+    doc_reports_pdf_hint: "📄 Generate a PDF: the *Weekly Patient Snapshots* summary for everyone, or a *Patient Health Snapshot* for one patient.",
+    doc_snap_pick_title: "👤 *Patient Health Snapshot*\n\nChoose a patient ({from}–{to} of {total}):",
+    doc_snap_generating_all: "📄 Building the *Weekly Patient Snapshots* for {n} patient(s)… this takes about 20 seconds.",
+    doc_snap_generating_one: "📄 Building the *Patient Health Snapshot* for *{name}*…",
+    doc_snap_caption_all:
+      "📄 *Weekly Patient Snapshots* — {period}\n{n} connected patient(s): {good} good · {warn} need attention · {urgent} urgent.\n\nPage 1 is the summary; each patient follows on their own page.",
+    doc_snap_caption_one:
+      "📄 *Patient Health Snapshot* — {name} ({id})\nWeekly report {period}. Overall status: *{status}*.",
+    doc_snap_not_found: "That patient is no longer connected to your practice.",
+    doc_snap_send_failed: "I built the report but couldn't deliver the file on this channel. Please try again in a moment.",
     doc_reports_empty: "No patients are linked to your practice yet.\n\nShare your referral code *{code}* — once patients add it under ❤️ My Health → My Doctor, their aggregated insights will appear here.",
     doc_reports_body: "*Connected Patients:* {patients}\n\n{list}",
     doc_reports_none: "—",
@@ -1641,6 +1665,41 @@ const STR = {
     pg_cl_breastfeeding: "Breastfeeding Basics",
     pg_cl_snacks: "Healthy Snacks During Pregnancy",
     pg_cl_activity: "Safe Activity During Pregnancy",
+    // ===== 📊 Generate Report — Executive Health Snapshot (paid) =====
+    btn_snapshot: "📊 Generate Report",
+    btn_snap_skip: "Skip ⏭",
+    btn_snap_again: "🔄 Generate again",
+    shortcut_flow_snapshot: "health report",
+    snapshot_required:
+      "💎 *Generate Report* is a *Consistency Coach* feature.\n\nUpgrade to get your *Executive Health Snapshot* — a premium one-page PDF with your glucose trends, lab results, medicines, DrSaab Health Score and AI insights, ready to share with your doctor.",
+    snapshot_intro_missing:
+      "📊 *Executive Health Snapshot*\n\nI'll build your premium one-page report from your record. A few details are missing, so let me ask for them first — it takes under a minute.",
+    snapshot_ask_name: "What's your *full name*, as it should appear on the report?",
+    snapshot_ask_age: "How old are you? (years)",
+    snapshot_ask_gender: "What's your gender?",
+    snapshot_ask_diabetes: "Which type of diabetes do you have?",
+    snapshot_ask_height: "Your *height*? (e.g. `175 cm` or `5 ft 9`)",
+    snapshot_ask_weight: "Your current *weight* in kilograms? (e.g. `82`)",
+    snapshot_invalid_name: "Please send your name as text (2–60 characters).",
+    snapshot_invalid_age: "Please send a valid age in years, e.g. `46`.",
+    snapshot_invalid_height: "Please send a valid height, e.g. `175 cm` or `5 ft 9`.",
+    snapshot_invalid_weight: "Please send a valid weight in kilograms, e.g. `82`.",
+    snapshot_ask_readings:
+      "📈 To draw your *glucose trends* I need at least *3 fasting* and *3 random* readings from the last 14 days. So far I have *{fasting} fasting* and *{random} random*.\n\nSend your recent readings, one per line, with the date if you remember it:\n`110 fasting 12 Sep`\n`165 random 12 Sep`\n`98 fasting yesterday`\n\nOr tap *Skip* and I'll build the report with what I already have.",
+    snapshot_ask_readings_more:
+      "Thanks! I now have *{fasting} fasting* and *{random} random* readings from the last 14 days. Add a few more in the same format, or tap *Skip* to continue.",
+    snapshot_readings_none:
+      "I couldn't find any readings in that message. Use the format `110 fasting 12 Sep` (one per line), or tap *Skip*.",
+    snapshot_readings_saved: "✅ Saved {n} reading(s) to your record.",
+    snapshot_ask_meds:
+      "💊 I don't have your *current medicines* on record. List them with dose and how often you take them, for example:\n`Metformin 500 mg twice daily`\n`Empagliflozin 10 mg once daily`\n\nOr type *none* / tap *Skip*.",
+    snapshot_meds_saved: "✅ Saved {n} medicine(s) to your record.",
+    snapshot_generating: "📊 Building your *Executive Health Snapshot*… this takes about 20 seconds.",
+    snapshot_insights_text: "🔎 *Key insights*\n{bullets}",
+    snapshot_caption:
+      "📊 *Executive Health Snapshot* — {name}\nDrSaab Health Score: *{score}/100 ({rating})*\n\nYour premium one-page report is attached. Share it with your doctor or keep it for your records.\n\n_Automatically generated from the data you have recorded. It supports — and does not replace — medical advice._",
+    snapshot_send_failed:
+      "I built your report but couldn't deliver the file on this channel. Please try again in a moment.",
   },
 
   ur: {
@@ -1780,6 +1839,16 @@ const STR = {
       "آپ سے مل کر خوشی ہوئی، *{name}* 👋\nآئیے آپ کا پروفائل مکمل کرتے ہیں تاکہ میں آپ کے لیے بہتر رہنمائی فراہم کر سکوں۔",
     ask_email_v2: "شکریہ۔ آپ کا *ای میل ایڈریس* کیا ہے؟ ہم اسے اکاؤنٹ ریکوری اور آپ کی صحت کی رپورٹس بھیجنے کے لیے استعمال کریں گے۔",
     email_invalid: "یہ درست ای میل نہیں لگ رہا۔ براہِ کرم مکمل پتہ بھیجیں جیسے `name@example.com`۔",
+    // Onboarding: the email already belongs to another account
+    email_match_found: "📧 *{email}* والا اکاؤنٹ پہلے سے موجود ہے{hint}۔\n\nکیا یہ آپ ہیں؟",
+    email_match_hint: " (نام: *{name}*)",
+    btn_email_yes: "✅ جی، یہ میں ہوں",
+    btn_email_no: "❌ نہیں، یہ میں نہیں",
+    email_match_restored: "✅ خوش آمدید، *{name}*! آپ کی پروفائل اور ہسٹری اب اس چیٹ سے منسلک ہے۔",
+    email_match_restored_noname: "✅ خوش آمدید! آپ کی پروفائل اور ہسٹری اب اس چیٹ سے منسلک ہے۔",
+    email_match_continue: "✅ آپ کے موجودہ اکاؤنٹ سے منسلک ہو گیا۔ آئیے پروفائل مکمل کرتے ہیں۔",
+    email_match_use_other: "کوئی بات نہیں۔ براہِ کرم اپنے نئے اکاؤنٹ کے لیے *مختلف ای میل ایڈریس* لکھیں۔",
+    email_match_failed: "معذرت، ابھی وہ اکاؤنٹ منسلک نہیں ہو سکا۔ دوبارہ کوشش کریں یا مختلف ای میل لکھیں۔",
 
     ask_user_type: "ان میں سے کون سی بات آپ پر سب سے بہتر لاگو ہوتی ہے؟",
     ut_type1: "مجھے ٹائپ 1 ذیابیطس ہے",
@@ -1818,6 +1887,20 @@ const STR = {
     btn_doc_rep_weekly: "📅 ہفتہ وار",
     btn_doc_rep_monthly: "📅 ماہانہ",
     btn_doc_rep_all: "📊 مکمل",
+    // Patient Reports → PDF snapshots (doctorReports.js)
+    btn_doc_snap_all: "📄 ہفتہ وار مریض اسنیپ شاٹس (PDF)",
+    btn_doc_snap_pick: "👤 ایک مریض کا اسنیپ شاٹ",
+    btn_doc_snap_more: "➡️ مزید مریض",
+    doc_reports_pdf_hint: "📄 PDF بنائیں: سب مریضوں کے لیے *Weekly Patient Snapshots* خلاصہ، یا ایک مریض کا *Patient Health Snapshot*۔",
+    doc_snap_pick_title: "👤 *Patient Health Snapshot*\n\nمریض منتخب کریں ({from}–{to} از {total}):",
+    doc_snap_generating_all: "📄 {n} مریض(وں) کے *Weekly Patient Snapshots* تیار ہو رہے ہیں… تقریباً 20 سیکنڈ لگیں گے۔",
+    doc_snap_generating_one: "📄 *{name}* کا *Patient Health Snapshot* تیار ہو رہا ہے…",
+    doc_snap_caption_all:
+      "📄 *Weekly Patient Snapshots* — {period}\n{n} منسلک مریض: {good} ٹھیک · {warn} توجہ درکار · {urgent} فوری توجہ۔\n\nصفحہ 1 خلاصہ ہے؛ ہر مریض اپنے صفحے پر ہے۔",
+    doc_snap_caption_one:
+      "📄 *Patient Health Snapshot* — {name} ({id})\nہفتہ وار رپورٹ {period}۔ مجموعی حیثیت: *{status}*۔",
+    doc_snap_not_found: "یہ مریض اب آپ کی پریکٹس سے منسلک نہیں۔",
+    doc_snap_send_failed: "رپورٹ تیار ہو گئی مگر اس چینل پر فائل بھیجنے میں مسئلہ ہوا۔ براہِ کرم تھوڑی دیر بعد دوبارہ کوشش کریں۔",
     doc_reports_empty: "ابھی آپ کی پریکٹس سے کوئی مریض منسلک نہیں۔\n\nاپنا ریفرل کوڈ *{code}* شیئر کریں — جیسے ہی مریض ❤️ میری صحت → میرا ڈاکٹر میں یہ کوڈ ڈالیں گے، ان کی مجموعی معلومات یہاں ظاہر ہوں گی۔",
     doc_reports_body: "*منسلک مریض:* {patients}\n\n{list}",
     doc_reports_none: "—",
@@ -2778,6 +2861,41 @@ const STR = {
     pg_cl_breastfeeding: "بریسٹ فیڈنگ کی بنیادی معلومات",
     pg_cl_snacks: "حمل کے دوران صحت مند سنیکس",
     pg_cl_activity: "حمل کے دوران محفوظ سرگرمی",
+    // ===== 📊 رپورٹ بنائیں — ایگزیکٹو ہیلتھ اسنیپ شاٹ (پیڈ) =====
+    btn_snapshot: "📊 رپورٹ بنائیں",
+    btn_snap_skip: "چھوڑیں ⏭",
+    btn_snap_again: "🔄 دوبارہ بنائیں",
+    shortcut_flow_snapshot: "ہیلتھ رپورٹ",
+    snapshot_required:
+      "💎 *رپورٹ بنائیں* ایک *Consistency Coach* فیچر ہے۔\n\nاپ گریڈ کریں اور اپنا *Executive Health Snapshot* حاصل کریں — ایک پریمیم ایک صفحے کی PDF جس میں آپ کے شوگر ٹرینڈز، لیب رزلٹس، ادویات، DrSaab ہیلتھ اسکور اور AI بصیرتیں شامل ہیں، ڈاکٹر کے ساتھ شیئر کرنے کے لیے تیار۔",
+    snapshot_intro_missing:
+      "📊 *Executive Health Snapshot*\n\nمیں آپ کے ریکارڈ سے آپ کی پریمیم رپورٹ بناؤں گا۔ کچھ معلومات کم ہیں، پہلے وہ پوچھ لیتا ہوں — ایک منٹ سے بھی کم لگے گا۔",
+    snapshot_ask_name: "آپ کا *پورا نام* کیا ہے، جیسا رپورٹ پر آنا چاہیے؟",
+    snapshot_ask_age: "آپ کی عمر کتنی ہے؟ (سال)",
+    snapshot_ask_gender: "آپ کی جنس؟",
+    snapshot_ask_diabetes: "آپ کو کس قسم کی ذیابیطس ہے؟",
+    snapshot_ask_height: "آپ کا *قد*؟ (مثلاً `175 cm` یا `5 ft 9`)",
+    snapshot_ask_weight: "آپ کا موجودہ *وزن* کلوگرام میں؟ (مثلاً `82`)",
+    snapshot_invalid_name: "براہِ کرم اپنا نام ٹیکسٹ میں بھیجیں (2 سے 60 حروف)۔",
+    snapshot_invalid_age: "براہِ کرم درست عمر سالوں میں بھیجیں، مثلاً `46`۔",
+    snapshot_invalid_height: "براہِ کرم درست قد بھیجیں، مثلاً `175 cm` یا `5 ft 9`۔",
+    snapshot_invalid_weight: "براہِ کرم درست وزن کلوگرام میں بھیجیں، مثلاً `82`۔",
+    snapshot_ask_readings:
+      "📈 آپ کے *شوگر ٹرینڈز* بنانے کے لیے مجھے پچھلے 14 دنوں کی کم از کم *3 فاسٹنگ* اور *3 رینڈم* ریڈنگز چاہئیں۔ ابھی میرے پاس *{fasting} فاسٹنگ* اور *{random} رینڈم* ہیں۔\n\nاپنی حالیہ ریڈنگز ہر لائن میں ایک، تاریخ کے ساتھ بھیجیں:\n`110 fasting 12 Sep`\n`165 random 12 Sep`\n`98 fasting kal`\n\nیا *چھوڑیں* دبائیں، میں موجودہ ڈیٹا سے رپورٹ بنا دوں گا۔",
+    snapshot_ask_readings_more:
+      "شکریہ! اب پچھلے 14 دنوں کی *{fasting} فاسٹنگ* اور *{random} رینڈم* ریڈنگز ہیں۔ اسی طرح کچھ اور بھیجیں، یا آگے بڑھنے کے لیے *چھوڑیں* دبائیں۔",
+    snapshot_readings_none:
+      "اس پیغام میں کوئی ریڈنگ نہیں ملی۔ یہ فارمیٹ استعمال کریں `110 fasting 12 Sep` (ہر لائن میں ایک)، یا *چھوڑیں* دبائیں۔",
+    snapshot_readings_saved: "✅ {n} ریڈنگ(ز) آپ کے ریکارڈ میں محفوظ ہو گئیں۔",
+    snapshot_ask_meds:
+      "💊 آپ کی *موجودہ ادویات* میرے ریکارڈ میں نہیں ہیں۔ نام، خوراک اور وقت کے ساتھ لکھیں، مثلاً:\n`Metformin 500 mg twice daily`\n`Empagliflozin 10 mg once daily`\n\nیا *none* لکھیں / *چھوڑیں* دبائیں۔",
+    snapshot_meds_saved: "✅ {n} دوا(ئیں) آپ کے ریکارڈ میں محفوظ ہو گئیں۔",
+    snapshot_generating: "📊 آپ کا *Executive Health Snapshot* تیار ہو رہا ہے… تقریباً 20 سیکنڈ لگیں گے۔",
+    snapshot_insights_text: "🔎 *اہم نکات*\n{bullets}",
+    snapshot_caption:
+      "📊 *Executive Health Snapshot* — {name}\nDrSaab ہیلتھ اسکور: *{score}/100 ({rating})*\n\nآپ کی پریمیم ایک صفحے کی رپورٹ منسلک ہے۔ اسے اپنے ڈاکٹر کے ساتھ شیئر کریں یا اپنے ریکارڈ کے لیے محفوظ رکھیں۔\n\n_یہ آپ کے ریکارڈ کردہ ڈیٹا سے خودکار طور پر تیار کی گئی ہے۔ یہ طبی مشورے کی معاونت کرتی ہے، اس کا متبادل نہیں۔_",
+    snapshot_send_failed:
+      "رپورٹ تیار ہو گئی مگر اس چینل پر فائل بھیجنے میں مسئلہ ہوا۔ براہِ کرم تھوڑی دیر بعد دوبارہ کوشش کریں۔",
   },
 
   roman_ur: {
@@ -2917,6 +3035,16 @@ const STR = {
       "Aap se mil kar khushi hui, *{name}* 👋\nAaiye aap ka profile mukammal karte hain taake main aap ke liye behtar rehnumai faraham kar sakoon.",
     ask_email_v2: "Shukriya. Aap ka *email address* kya hai? Hum ise account recovery aur aap ki health summaries bhejne ke liye use karenge.",
     email_invalid: "Ye valid email nahi lag raha. Poora address bhejein jaise `name@example.com`.",
+    // Onboarding: the email already belongs to another account
+    email_match_found: "📧 *{email}* wala account pehle se maujood hai{hint}.\n\nKya yeh aap hain?",
+    email_match_hint: " (naam: *{name}*)",
+    btn_email_yes: "✅ Ji, yeh main hoon",
+    btn_email_no: "❌ Nahi, yeh main nahi",
+    email_match_restored: "✅ Khush aamdeed, *{name}*! Aap ki profile aur history ab is chat se link ho gayi hai.",
+    email_match_restored_noname: "✅ Khush aamdeed! Aap ki profile aur history ab is chat se link ho gayi hai.",
+    email_match_continue: "✅ Aap ke maujooda account se link ho gaya. Chaliye profile mukammal karte hain.",
+    email_match_use_other: "Koi baat nahi. Apne naye account ke liye *mukhtalif email address* likhein.",
+    email_match_failed: "Maazrat, abhi woh account link nahi ho saka. Dobara koshish karein ya mukhtalif email likhein.",
 
     ask_user_type: "In mein se kaunsi baat aap par sab se zyada lagu hoti hai?",
     ut_type1: "Mujhe Type 1 diabetes hai",
@@ -2955,6 +3083,20 @@ const STR = {
     btn_doc_rep_weekly: "📅 Weekly",
     btn_doc_rep_monthly: "📅 Monthly",
     btn_doc_rep_all: "📊 All-time",
+    // Patient Reports → PDF snapshots (doctorReports.js)
+    btn_doc_snap_all: "📄 Weekly Patient Snapshots (PDF)",
+    btn_doc_snap_pick: "👤 Ek Patient ka Snapshot",
+    btn_doc_snap_more: "➡️ Mazeed patients",
+    doc_reports_pdf_hint: "📄 PDF banayein: sab patients ke liye *Weekly Patient Snapshots* summary, ya ek patient ka *Patient Health Snapshot*.",
+    doc_snap_pick_title: "👤 *Patient Health Snapshot*\n\nPatient chunein ({from}–{to} of {total}):",
+    doc_snap_generating_all: "📄 {n} patient(s) ke *Weekly Patient Snapshots* tayyar ho rahe hain… taqreeban 20 second lagenge.",
+    doc_snap_generating_one: "📄 *{name}* ka *Patient Health Snapshot* tayyar ho raha hai…",
+    doc_snap_caption_all:
+      "📄 *Weekly Patient Snapshots* — {period}\n{n} connected patient(s): {good} theek · {warn} tawajjo darkar · {urgent} fauri tawajjo.\n\nPage 1 summary hai; har patient apne page par hai.",
+    doc_snap_caption_one:
+      "📄 *Patient Health Snapshot* — {name} ({id})\nWeekly report {period}. Overall status: *{status}*.",
+    doc_snap_not_found: "Yeh patient ab aap ki practice se connected nahi hai.",
+    doc_snap_send_failed: "Report tayyar ho gayi magar is channel par file bhejne mein masla hua. Meharbani karke thori der baad dobara koshish karein.",
     doc_reports_empty: "Abhi aap ki practice se koi patient link nahi.\n\nApna referral code *{code}* share karein — jaise hi patients ❤️ My Health → My Doctor mein ye code enter karenge, un ki aggregated insights yahan aa jayengi.",
     doc_reports_body: "*Connected Patients:* {patients}\n\n{list}",
     doc_reports_none: "—",
@@ -3915,6 +4057,41 @@ const STR = {
     pg_cl_breastfeeding: "Breastfeeding Basics",
     pg_cl_snacks: "Healthy Snacks During Pregnancy",
     pg_cl_activity: "Safe Activity During Pregnancy",
+    // ===== 📊 Report Banayein — Executive Health Snapshot (paid) =====
+    btn_snapshot: "📊 Report Banayein",
+    btn_snap_skip: "Skip ⏭",
+    btn_snap_again: "🔄 Dobara Banayein",
+    shortcut_flow_snapshot: "health report",
+    snapshot_required:
+      "💎 *Report Banayein* ek *Consistency Coach* feature hai.\n\nUpgrade karein aur apna *Executive Health Snapshot* hasil karein — ek premium one-page PDF jis mein aap ke sugar trends, lab results, adwiyat, DrSaab Health Score aur AI insights hon, doctor ke saath share karne ke liye tayyar.",
+    snapshot_intro_missing:
+      "📊 *Executive Health Snapshot*\n\nMain aap ke record se aap ki premium report banaunga. Kuch details missing hain, pehle woh pooch leta hoon — ek minute se bhi kam lagega.",
+    snapshot_ask_name: "Aap ka *poora naam* kya hai, jaisa report par aana chahiye?",
+    snapshot_ask_age: "Aap ki umar kitni hai? (saal)",
+    snapshot_ask_gender: "Aap ki gender?",
+    snapshot_ask_diabetes: "Aap ko kis type ki diabetes hai?",
+    snapshot_ask_height: "Aap ka *qad*? (maslan `175 cm` ya `5 ft 9`)",
+    snapshot_ask_weight: "Aap ka maujooda *wazan* kilogram mein? (maslan `82`)",
+    snapshot_invalid_name: "Meharbani karke apna naam text mein bhejein (2 se 60 huroof).",
+    snapshot_invalid_age: "Meharbani karke sahi umar saalon mein bhejein, maslan `46`.",
+    snapshot_invalid_height: "Meharbani karke sahi qad bhejein, maslan `175 cm` ya `5 ft 9`.",
+    snapshot_invalid_weight: "Meharbani karke sahi wazan kilogram mein bhejein, maslan `82`.",
+    snapshot_ask_readings:
+      "📈 Aap ke *sugar trends* banane ke liye mujhe pichlay 14 dinon ki kam az kam *3 fasting* aur *3 random* readings chahiye. Abhi mere paas *{fasting} fasting* aur *{random} random* hain.\n\nApni recent readings har line mein ek, date ke saath bhejein:\n`110 fasting 12 Sep`\n`165 random 12 Sep`\n`98 fasting kal`\n\nYa *Skip* dabayein, main maujooda data se report bana doonga.",
+    snapshot_ask_readings_more:
+      "Shukriya! Ab pichlay 14 dinon ki *{fasting} fasting* aur *{random} random* readings hain. Isi format mein kuch aur bhejein, ya aagay barhne ke liye *Skip* dabayein.",
+    snapshot_readings_none:
+      "Is message mein koi reading nahi mili. Yeh format use karein `110 fasting 12 Sep` (har line mein ek), ya *Skip* dabayein.",
+    snapshot_readings_saved: "✅ {n} reading(s) aap ke record mein mehfooz ho gayin.",
+    snapshot_ask_meds:
+      "💊 Aap ki *maujooda adwiyat* mere record mein nahi hain. Naam, dose aur kitni baar lete hain likhein, maslan:\n`Metformin 500 mg twice daily`\n`Empagliflozin 10 mg once daily`\n\nYa *none* likhein / *Skip* dabayein.",
+    snapshot_meds_saved: "✅ {n} dawa(yein) aap ke record mein mehfooz ho gayin.",
+    snapshot_generating: "📊 Aap ka *Executive Health Snapshot* tayyar ho raha hai… taqreeban 20 second lagenge.",
+    snapshot_insights_text: "🔎 *Ahem nuqaat*\n{bullets}",
+    snapshot_caption:
+      "📊 *Executive Health Snapshot* — {name}\nDrSaab Health Score: *{score}/100 ({rating})*\n\nAap ki premium one-page report attached hai. Apne doctor ke saath share karein ya apne record ke liye mehfooz rakhein.\n\n_Yeh aap ke record kiye gaye data se khud-ba-khud tayyar ki gayi hai. Yeh tibbi mashwaray ki muawinat karti hai, us ka mutabadil nahi._",
+    snapshot_send_failed:
+      "Report tayyar ho gayi magar is channel par file bhejne mein masla hua. Meharbani karke thori der baad dobara koshish karein.",
   },
 };
 

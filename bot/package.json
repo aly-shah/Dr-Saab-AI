@@ -17,6 +17,7 @@
     "node-telegram-bot-api": "^0.66.0",
     "openai": "^4.67.3",
     "pdf-parse": "^2.4.5",
+    "pdfkit": "^0.17.2",
     "pg": "^8.21.0",
     "ws": "^8.21.0"
   }

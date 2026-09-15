@@ -55,6 +55,9 @@ function ChipIcon({ data }) {
     case "skip": return I(<path d="M5 5l7 7-7 7M13 5l7 7-7 7" />);
     case "lab:retry": return I(<><path d="M20 11.5A8 8 0 1 1 17.6 6" /><path d="M20.5 3.5V8H16" /></>);
     case "menu": return I(<path d="M4 6h16M4 12h16M4 18h16" />);
+    case "snapshot": return I(<><path d="M4 19V5" /><path d="M4 19h16" /><path d="M7 15l4-5 3 3 5-6" /></>);
+    case "snap:again": return I(<><path d="M20 11.5A8 8 0 1 1 17.6 6" /><path d="M20.5 3.5V8H16" /></>);
+    case "snap:skip": return I(<path d="M5 5l7 7-7 7M13 5l7 7-7 7" />);
     default: return I(<circle cx="12" cy="12" r="3" />);
   }
 }
@@ -112,6 +115,61 @@ async function toUploadableImage(file) {
   }
 }
 
+// Turn a data: URL into a blob: URL so the PDF opens in a new tab (Chrome
+// blocks top-level navigation to data: URLs) — the download link still works
+// straight off the data URL.
+function openDataUrl(dataUrl) {
+  try {
+    const [head, b64] = dataUrl.split(",");
+    const mime = /^data:([^;]+)/.exec(head)?.[1] || "application/octet-stream";
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+    window.open(url, "_blank", "noopener");
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (e) {
+    console.error("open file failed:", e);
+  }
+}
+
+// A file the bot delivered (the Executive Health Snapshot PDF).
+function FileCard({ file }) {
+  const kb = Math.max(1, Math.round((file.size || 0) / 1024));
+  const isPdf = /pdf/i.test(file.mime || "");
+  return (
+    <div className="mt-3 flex max-w-md items-center gap-3 rounded-2xl border border-line bg-white p-3 shadow-soft">
+      <span className="grid h-11 w-11 flex-none place-items-center rounded-xl bg-primary/10 text-primary">
+        <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+          <path d="M14 3v5h5" />
+          <path d="M9 13h6M9 17h6" />
+        </svg>
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[14px] font-semibold text-ink">{file.name}</span>
+        <span className="block text-[12px] text-ink/50">{isPdf ? "PDF" : file.mime} · {kb} KB</span>
+      </span>
+      <span className="flex flex-none items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => openDataUrl(file.dataUrl)}
+          className="rounded-full bg-primary px-3 py-1.5 text-[12.5px] font-semibold text-white shadow-soft transition hover:bg-primary-dark"
+        >
+          Open
+        </button>
+        <a
+          href={file.dataUrl}
+          download={file.name}
+          className="rounded-full border border-line px-3 py-1.5 text-[12.5px] font-semibold text-ink/70 transition hover:border-primary hover:text-primary"
+        >
+          Save
+        </a>
+      </span>
+    </div>
+  );
+}
+
 function Avatar() {
   return (
     <span className="grid h-8 w-8 flex-none place-items-center rounded-full bg-gradient-to-br from-primary to-accent text-white shadow-soft">
@@ -153,7 +211,7 @@ export default function BotChatPage() {
           body: JSON.stringify({ sessionId: sessionRef.current, ...payload }),
         });
         const data = await res.json();
-        const bots = (data.messages || []).map((m) => ({ from: "bot", text: m.text, rows: m.rows || [] }));
+        const bots = (data.messages || []).map((m) => ({ from: "bot", text: m.text, rows: m.rows || [], file: m.file || null }));
         setMessages((prev) => [...prev, ...bots]);
       } catch {
         setMessages((prev) => [...prev, { from: "bot", text: "Couldn't reach the server. Is the bot running?", rows: [] }]);
@@ -181,6 +239,13 @@ export default function BotChatPage() {
     sessionRef.current = Number(id);
     callBot({ type: "text", text: "/start" });
   }, [callBot]);
+
+  // Keep the newest content in view: when the user's message is appended and
+  // the typing loader appears (before the reply arrives), scroll to it right
+  // away instead of only after the response lands.
+  useEffect(() => {
+    if (loading || messages.length) scrollToBottom();
+  }, [loading, messages.length, scrollToBottom]);
 
   // start streaming the newest bot message
   useEffect(() => {
@@ -430,6 +495,7 @@ export default function BotChatPage() {
                       className={`prose-chat whitespace-pre-wrap text-[15px] leading-relaxed text-ink ${streaming ? "stream-caret" : ""}`}
                       dangerouslySetInnerHTML={{ __html: mdToHtml(shown) }}
                     />
+                    {m.file && <FileCard file={m.file} />}
                     {!streaming && i === lastBotIdx && m.rows?.length > 0 && (
                       <div className="mt-3 flex flex-col gap-1.5">
                         {m.rows.map((row, r) => (

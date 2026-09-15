@@ -201,6 +201,40 @@ async function sendPhotoDataUrl(to, dataUrl, caption, opts = {}) {
   return { ok: true, mediaId };
 }
 
+// Send a file (PDF) as a WhatsApp document message. Same upload step as
+// images; with buttons it becomes an interactive message whose header is the
+// document (WhatsApp supports document headers), otherwise a plain document
+// with a caption. `filename` is what the recipient sees and saves.
+async function sendDocumentBuffer(to, buffer, caption, opts = {}, fileOpts = {}) {
+  const mime = fileOpts.contentType || "application/pdf";
+  const filename = fileOpts.filename || "document.pdf";
+  const mediaId = await uploadMedia(buffer, mime);
+  if (!mediaId) return { ok: false, reason: "upload-failed" };
+  const kb = opts.reply_markup?.inline_keyboard;
+  const buttons = kb ? buttonsFor(kb) : null;
+  if (buttons) {
+    await sendRaw({
+      messaging_product: "whatsapp",
+      to: String(to),
+      type: "interactive",
+      interactive: {
+        type: "button",
+        header: { type: "document", document: { id: mediaId, filename } },
+        body: { text: trunc(stripMd(caption || "…"), 1024) },
+        action: { buttons },
+      },
+    });
+  } else {
+    await sendRaw({
+      messaging_product: "whatsapp",
+      to: String(to),
+      type: "document",
+      document: { id: mediaId, filename, caption: trunc(stripMd(caption || ""), 1024) },
+    });
+  }
+  return { ok: true, mediaId };
+}
+
 // Map our inline_keyboard rows → WhatsApp interactive. WhatsApp allows at most
 // 3 reply buttons; anything larger becomes a single-section list (max 10 rows).
 const trunc = (s, n) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
@@ -266,6 +300,10 @@ export function whatsappBot() {
     // back to a text-only send by the caller if `ok:false` is returned.
     async sendPhoto(to, dataUrl, caption, opts = {}) {
       return sendPhotoDataUrl(to, dataUrl, caption, opts);
+    },
+    // Telegram-shaped document send: (chatId, buffer, { caption, reply_markup }, { filename, contentType }).
+    async sendDocument(to, buffer, opts = {}, fileOpts = {}) {
+      return sendDocumentBuffer(to, buffer, opts.caption, opts, fileOpts);
     },
     async sendChatAction() {},
     async answerCallbackQuery() {},

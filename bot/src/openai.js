@@ -143,7 +143,7 @@ function oversizedImageBytes(messages) {
   return 0;
 }
 
-async function complete(messages, { maxTokens = 600, model, jsonMode = false, paid = false } = {}) {
+async function complete(messages, { maxTokens = 600, model, jsonMode = false, paid = false, reasoningEffort = null } = {}) {
   const tooBig = oversizedImageBytes(messages);
   if (tooBig) {
     const e = new Error(
@@ -169,6 +169,11 @@ async function complete(messages, { maxTokens = 600, model, jsonMode = false, pa
     // Qwen models on Groq emit <think>…</think> reasoning traces by default,
     // which break the meal-analyser's strict output format. Turn them off.
     if (/qwen/i.test(usedModel)) req.reasoning_effort = "none";
+    // gpt-oss on Groq is a reasoning model: its hidden reasoning is billed
+    // against max_tokens, and a data-heavy prompt can burn the whole budget
+    // before any visible output ("finish_reason: length", empty content, or a
+    // JSON-mode 400). Callers that send such prompts ask for a lower effort.
+    if (reasoningEffort && /gpt-oss/i.test(usedModel)) req.reasoning_effort = reasoningEffort;
     // Stream the completion instead of buffering the whole body. On some VPS
     // networks a large buffered response over a reused keep-alive socket drops
     // mid-body as "Premature close"; consuming the body incrementally as chunks
@@ -188,12 +193,13 @@ async function complete(messages, { maxTokens = 600, model, jsonMode = false, pa
           await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
           continue;
         }
-        // Groq refuses long/complex JSON with "Failed to generate JSON …" (typically
+        // Groq refuses long/complex JSON with "Failed to generate JSON …" / "Failed to
+        // validate JSON …" (typically
         // when max_tokens truncates the object mid-string). parseLabJson() and the
         // KB extractor both tolerate prose-wrapped JSON, so drop the strict
         // response_format constraint and retry once — better a good text answer
         // than a hard failure for the user.
-        if (req.response_format && /failed to generate json/i.test(err?.message || "")) {
+        if (req.response_format && /failed to (generate|validate) json/i.test(err?.message || "")) {
           delete req.response_format;
           continue;
         }
@@ -596,6 +602,65 @@ export async function weeklySummary(user, stats) {
     ],
     { maxTokens: 500 }
   );
+}
+
+/**
+ * Executive Health Snapshot (paid "Generate Report") — the AI-written parts
+ * of the PDF: two short trend summaries, a one-line health-score message and
+ * three key insights. Routed to OpenAI when OPENAI_API_KEY is configured
+ * (paid: true), otherwise the default LLM client. Always English — the PDF
+ * is a shareable document with a fixed English design. Throws on failure so
+ * the caller can fall back to fallbackInsights().
+ *
+ * @param {object} user  user row
+ * @param {string} facts compact plain-text facts block (snapshotData.factsBlock)
+ * @returns {{weekly_summary:string, monthly_summary:string, score_message:string, insights:Array<{tone:string,text:string}>}}
+ */
+export async function snapshotInsights(user, facts) {
+  const system = `You write the narrative parts of a one-page "Executive Health Snapshot" PDF for a person managing diabetes with the DrSaab coaching app. You are given the exact numbers the page shows. Return ONE JSON object only:
+
+{ "weekly_summary": string, "monthly_summary": string, "score_message": string, "insights": [ { "tone": string, "text": string } ] }
+
+Field rules:
+- weekly_summary: 2 sentences, max 45 words, about the last 14 days of fasting and random readings.
+- monthly_summary: 2 sentences, max 45 words, about the last 90 days.
+- score_message: 1-2 sentences, max 28 words, a warm reaction to the health score and how to keep improving.
+- insights: exactly 3 items, most important first; tone is one of "good", "warn", "info"; each text max 24 words.
+
+Rules:
+- Plain, warm, professional English. No emojis, no markdown, no bullet characters, no exclamation marks in more than one place.
+- Use ONLY the numbers provided. Never invent values, dates or lab results. Units are mg/dL for glucose and % for HbA1c.
+- If a section says there is not enough data, say that gently and tell the person what to log (fasting and random readings) so the trend can be shown next time.
+- "good" = something in target worth keeping up; "warn" = a pattern to watch with ONE practical lifestyle suggestion (post-meal walk, earlier dinner, portion, sleep, hydration); "info" = a logging/next-step tip.
+- Never diagnose, never tell the user to start, stop or change any medicine — say "discuss with your doctor" where relevant.
+- Return valid JSON only.`;
+  const raw = await complete(
+    [
+      { role: "system", content: system },
+      { role: "user", content: facts },
+    ],
+    // The facts block is dense; give the model room to think AND answer.
+    { maxTokens: 2000, jsonMode: true, paid: true, reasoningEffort: "low" }
+  );
+  const out = parseLabJson(raw) || {};
+  const clean = (s, max) => String(s || "").replace(/\s+/g, " ").trim().slice(0, max);
+  const insights = (Array.isArray(out.insights) ? out.insights : [])
+    .filter((i) => i && i.text)
+    .map((i) => ({
+      tone: ["good", "warn", "info"].includes(String(i.tone).toLowerCase()) ? String(i.tone).toLowerCase() : "info",
+      text: clean(i.text, 220),
+    }))
+    .slice(0, 3);
+  const result = {
+    weekly_summary: clean(out.weekly_summary, 400),
+    monthly_summary: clean(out.monthly_summary, 400),
+    score_message: clean(out.score_message, 240),
+    insights,
+  };
+  if (!result.weekly_summary || !result.monthly_summary || insights.length < 3) {
+    throw new Error("snapshot insights incomplete: " + JSON.stringify(Object.keys(out)));
+  }
+  return result;
 }
 
 /** Simple beginner-friendly fitness plan for a "live healthier" user (no

@@ -80,6 +80,33 @@ async function makeSupabaseBackend() {
       }
       throw error;
     },
+    // Onboarding "is this you?" — another account already using this email
+    // (a patient's users.email, or a doctor's doctors.email). Excludes the
+    // asking user's own placeholder row.
+    async getUserByEmail(email, excludeUserId = null) {
+      const needle = String(email || "").trim().toLowerCase();
+      if (!needle) return null;
+      let q = db.from("users").select("*").ilike("email", needle).limit(1);
+      if (excludeUserId) q = q.neq("id", excludeUserId);
+      const { data: u } = await q.maybeSingle();
+      if (u) return u;
+      const { data: d } = await db.from("doctors").select("user_id").ilike("email", needle).limit(1).maybeSingle();
+      if (d?.user_id && d.user_id !== excludeUserId) return this.getUserById(d.user_id);
+      return null;
+    },
+    // Move the chat identity of `placeholderUserId` (the row created for this
+    // new number / browser) onto `existingUserId`, then drop the placeholder.
+    // The existing account, with all its history, answers on this chat from
+    // now on. Returns the updated existing user.
+    async adoptIdentity(existingUserId, placeholderUserId) {
+      const ph = await this.getUserById(placeholderUserId);
+      if (!ph) throw new Error("placeholder user not found");
+      await this.deleteUser(placeholderUserId);
+      const patch = { source: ph.source || "telegram" };
+      if (ph.telegram_id != null) patch.telegram_id = ph.telegram_id;
+      if (ph.phone_number != null) patch.phone_number = ph.phone_number;
+      return this.updateUser(existingUserId, patch);
+    },
     async updateUser(userId, patch) {
       const { data, error } = await db.from("users").update(patch).eq("id", userId).select("*").single();
       if (error) throw error;
@@ -209,6 +236,30 @@ async function makeSupabaseBackend() {
         db.from("health_logs").select("id").eq("user_id", userId).gte("created_at", since),
       ]);
       return { g: g || [], m: m || [], h: h || [] };
+    },
+    // Executive Health Snapshot ("Generate Report"): every raw row the report
+    // builder needs in one round-trip — 90 days of glucose, 60 days of
+    // check-ins (weight / steps / activity) and 30 days of medication logs,
+    // oldest first so the trend charts can plot them directly.
+    async snapshotRaw(userId) {
+      const g90 = daysAgoISO(90), d60 = daysAgoISO(60), d30 = daysAgoISO(30);
+      const [{ data: g }, { data: h }, { data: m }] = await Promise.all([
+        db.from("glucose_logs").select("value_mgdl, context, created_at").eq("user_id", userId).gte("created_at", g90).order("created_at", { ascending: true }),
+        db.from("health_logs").select("*").eq("user_id", userId).gte("created_at", d60).order("created_at", { ascending: true }),
+        db.from("medication_logs").select("name, created_at").eq("user_id", userId).gte("created_at", d30),
+      ]);
+      return { glucose: g || [], health: h || [], medLogs: m || [] };
+    },
+    // Keep a generated PDF (the Health Snapshot) on the conversation so the
+    // admin panel can see that — and when — a report was produced.
+    async saveGeneratedDocument(userId, kind, dataUrl, content) {
+      try {
+        await db.from("coach_messages").insert({
+          user_id: userId, kind, role: "assistant", content, media_type: "pdf", media_data: dataUrl,
+        });
+      } catch (e) {
+        logError("saveGeneratedDocument", e?.message);
+      }
     },
     async joinChallenge(userId, type, code) {
       const { data } = await db
@@ -971,6 +1022,44 @@ async function makePostgresBackend() {
       );
       return rows;
     },
+    async getUserByEmail(email, excludeUserId = null) {
+      const needle = String(email || "").trim().toLowerCase();
+      if (!needle) return null;
+      const { rows } = await pool.query(
+        `select u.* from users u
+          where lower(u.email) = $1 and ($2::uuid is null or u.id <> $2::uuid)
+          union all
+          select u.* from users u join doctors d on d.user_id = u.id
+          where lower(d.email) = $1 and ($2::uuid is null or u.id <> $2::uuid)
+          limit 1`,
+        [needle, excludeUserId]
+      );
+      return rows[0] || null;
+    },
+    async adoptIdentity(existingUserId, placeholderUserId) {
+      const client = await pool.connect();
+      try {
+        await client.query("begin");
+        const { rows: phRows } = await client.query("select * from users where id = $1", [placeholderUserId]);
+        const ph = phRows[0];
+        if (!ph) throw new Error("placeholder user not found");
+        // Delete first: telegram_id / phone_number are unique, so the
+        // identity can only be re-pointed once the placeholder is gone.
+        await client.query("delete from users where id = $1", [placeholderUserId]);
+        const sets = ["source = $2", "updated_at = now()"];
+        const vals = [existingUserId, ph.source || "telegram"];
+        if (ph.telegram_id != null) { vals.push(ph.telegram_id); sets.push(`telegram_id = $${vals.length}`); }
+        if (ph.phone_number != null) { vals.push(ph.phone_number); sets.push(`phone_number = $${vals.length}`); }
+        const { rows } = await client.query(`update users set ${sets.join(", ")} where id = $1 returning *`, vals);
+        await client.query("commit");
+        return rows[0];
+      } catch (e) {
+        await client.query("rollback").catch(() => {});
+        throw e;
+      } finally {
+        client.release();
+      }
+    },
     async updateUser(userId, patch) {
       const keys = Object.keys(patch);
       const set = keys.map((k, i) => `${k} = $${i + 1}`).join(", ");
@@ -1103,6 +1192,26 @@ async function makePostgresBackend() {
       ]);
       return { g: g.rows, m: m.rows, h: h.rows };
     },
+    // Executive Health Snapshot ("Generate Report") — see the Supabase
+    // backend for the contract. Oldest first for the trend charts.
+    async snapshotRaw(userId) {
+      const g90 = daysAgoISO(90), d60 = daysAgoISO(60), d30 = daysAgoISO(30);
+      const [g, h, m] = await Promise.all([
+        pool.query("select value_mgdl, context, created_at from glucose_logs where user_id=$1 and created_at>=$2 order by created_at", [userId, g90]),
+        pool.query("select * from health_logs where user_id=$1 and created_at>=$2 order by created_at", [userId, d60]),
+        pool.query("select name, created_at from medication_logs where user_id=$1 and created_at>=$2", [userId, d30]),
+      ]);
+      return { glucose: g.rows, health: h.rows, medLogs: m.rows };
+    },
+    async saveGeneratedDocument(userId, kind, dataUrl, content) {
+      try {
+        await insertDynamic("coach_messages", {
+          user_id: userId, kind, role: "assistant", content, media_type: "pdf", media_data: dataUrl,
+        });
+      } catch (e) {
+        logError("saveGeneratedDocument", e?.message);
+      }
+    },
     async joinChallenge(userId, type, code) {
       const ex = await pool.query(
         "select id from user_challenges where user_id=$1 and challenge_type=$2 and status='active'",
@@ -1223,7 +1332,7 @@ async function makePostgresBackend() {
       );
       return rows[0]?.n || 0;
     },
-    async addGlucoseFull(userId, { value, unit, measure_kind, context, note }) {
+    async addGlucoseFull(userId, { value, unit, measure_kind, context, note, created_at }) {
       await insertDynamic("glucose_logs", {
         user_id: userId,
         value_mgdl: value,
@@ -1231,6 +1340,8 @@ async function makePostgresBackend() {
         unit: unit || "mg_dl",
         measure_kind: measure_kind || null,
         note: note || null,
+        // Optional back-dated timestamp (Health Snapshot "add readings" step).
+        ...(created_at ? { created_at } : {}),
       });
     },
     async addWellbeingLog(userId, { score, label, note, category }) {
@@ -2139,6 +2250,38 @@ function makeMemoryBackend() {
       usersById.set(userId, user);
       return user;
     },
+    async getUserByEmail(email, excludeUserId = null) {
+      const needle = String(email || "").trim().toLowerCase();
+      if (!needle) return null;
+      for (const u of usersById.values()) {
+        if (u.id !== excludeUserId && String(u.email || "").toLowerCase() === needle) return u;
+      }
+      for (const d of doctorsById.values()) {
+        if (String(d.email || "").toLowerCase() === needle && d.user_id !== excludeUserId) {
+          const u = usersById.get(d.user_id);
+          if (u) return u;
+        }
+      }
+      return null;
+    },
+    async adoptIdentity(existingUserId, placeholderUserId) {
+      const ph = usersById.get(placeholderUserId);
+      const ex = usersById.get(existingUserId);
+      if (!ph || !ex) throw new Error("user not found");
+      await this.deleteUser(placeholderUserId);
+      const patch = { source: ph.source || "telegram" };
+      if (ph.telegram_id != null) {
+        if (ex.telegram_id != null) usersByTg.delete(ex.telegram_id);
+        patch.telegram_id = ph.telegram_id;
+        usersByTg.set(ph.telegram_id, existingUserId);
+      }
+      if (ph.phone_number != null) {
+        if (ex.phone_number != null) usersByPhone.delete(ex.phone_number);
+        patch.phone_number = ph.phone_number;
+        usersByPhone.set(ph.phone_number, existingUserId);
+      }
+      return this.updateUser(existingUserId, patch);
+    },
     async deleteUser(userId) {
       const user = usersById.get(userId);
       if (user) {
@@ -2234,6 +2377,17 @@ function makeMemoryBackend() {
       const within = (arr) => arr.filter((r) => r.user_id === userId && r.created_at >= since);
       return { g: within(glucose), m: within(meds), h: within(health) };
     },
+    async snapshotRaw(userId) {
+      const g90 = daysAgoISO(90), d60 = daysAgoISO(60), d30 = daysAgoISO(30);
+      const within = (arr, since) =>
+        arr
+          .filter((r) => r.user_id === userId && r.created_at >= since)
+          .sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
+      return { glucose: within(glucose, g90), health: within(health, d60), medLogs: within(meds, d30) };
+    },
+    async saveGeneratedDocument() {
+      /* not persisted in memory mode */
+    },
     async joinChallenge(userId, type, code) {
       if (challenges.some((c) => c.user_id === userId && c.challenge_type === type && c.status === "active")) {
         return { already: true };
@@ -2313,8 +2467,8 @@ function makeMemoryBackend() {
     async countActivityEntries(userId) {
       return health.filter((r) => r.user_id === userId && r.steps != null).length;
     },
-    async addGlucoseFull(userId, { value, context }) {
-      glucose.push({ user_id: userId, value_mgdl: value, context: context || "random", created_at: nowISO() });
+    async addGlucoseFull(userId, { value, context, created_at }) {
+      glucose.push({ user_id: userId, value_mgdl: value, context: context || "random", created_at: created_at || nowISO() });
     },
     async addWellbeingLog() { /* not persisted in memory mode */ },
     async addT1ConfidenceLog(userId, level) {
@@ -2671,6 +2825,10 @@ export const getUserById = (id) => backend.getUserById(id);
 export const createUser = (tg, source) => backend.createUser(tg, source);
 export const updateUser = (id, patch) => backend.updateUser(id, patch);
 export const deleteUser = (id) => backend.deleteUser(id);
+// Onboarding "is this you?": find another account on this email, and move
+// this chat's identity onto it (see adoptIdentity in each backend).
+export const getUserByEmail = (email, excludeUserId = null) => backend.getUserByEmail(email, excludeUserId);
+export const adoptIdentity = (existingUserId, placeholderUserId) => backend.adoptIdentity(existingUserId, placeholderUserId);
 export const allActiveUsers = () => backend.allActiveUsers();
 
 // Fetch-or-create the user row for whichever channel is contacting us.
@@ -2709,6 +2867,10 @@ export const recentGlucose = (id, limit = 5) => backend.recentGlucose(id, limit)
 export const latestWeight = (id) => backend.latestWeight(id);
 export const recordMessage = (id) => backend.recordMessage(id);
 export const upsertKB = (id, content) => backend.upsertKB(id, content);
+// Executive Health Snapshot (paid "Generate Report").
+export const snapshotRaw = (id) => backend.snapshotRaw(id);
+export const saveGeneratedDocument = (id, kind, dataUrl, content) =>
+  backend.saveGeneratedDocument ? backend.saveGeneratedDocument(id, kind, dataUrl, content) : Promise.resolve();
 
 export async function weeklyStats(userId) {
   const { g, m, h } = await backend.weeklyRaw(userId);

@@ -111,6 +111,7 @@ async function legacyChallengeStub(bot, chatId, session) {
 }
 import { showReports, showWeeklyReport, showMonthlyReport, showDoctorReport } from "./flows/reports.js";
 import { showExecutive, requestService } from "./flows/executive.js";
+import { startSnapshot, snapshotText, snapshotCallback } from "./flows/snapshot.js";
 import { profileqText, skipProfileQuestion } from "./flows/profileBuilder.js";
 import { showReminders, cancelReminder, toggleReminderPref } from "./flows/reminders.js";
 import {
@@ -204,6 +205,7 @@ const RESUMABLE_STATES = new Set([
   "health",
   "myhealth",
   "lab",
+  "snapshot",
   "prediabetes",
   "betterme",
   "pregnancy",
@@ -261,6 +263,7 @@ function pausedFlowLabel(lang, pf) {
     health: "shortcut_flow_health",
     myhealth: "shortcut_flow_myhealth",
     lab: "shortcut_flow_lab",
+    snapshot: "shortcut_flow_snapshot",
     my_doctor: "shortcut_flow_mydoc",
   }[pf?.state];
   const localised = key ? t(lang, key) : null;
@@ -525,6 +528,9 @@ async function dispatchFeature(bot, chatId, session, action) {
       return showChallenges(bot, chatId, session);
     case "reports":
       return showReports(bot, chatId, session);
+    case "snapshot":
+      // 📊 Generate Report — Executive Health Snapshot PDF (paid).
+      return startSnapshot(bot, chatId, session);
     case "executive":
       return showExecutive(bot, chatId, session);
     case "profile":
@@ -877,6 +883,8 @@ export async function handleMessage(bot, msg) {
       return;
     case "lab":
       return labText(bot, chatId, session, text, msg);
+    case "snapshot":
+      return snapshotText(bot, chatId, session, text, msg);
     case "challenge_code":
       // Legacy state — new Challenges module never enters this state.
       resetFlow(chatId);
@@ -1004,6 +1012,9 @@ export async function handleCallback(bot, query) {
   // Legacy Challenges module (`chl:*`) kept for backwards-compat with any
   // old deep link. All actions land back on the new hub.
   if (data.startsWith("chl:")) return legacyChallengeStub(bot, chatId, session);
+
+  // 📊 Generate Report — Executive Health Snapshot (`snap:*`).
+  if (data.startsWith("snap:")) return snapshotCallback(bot, chatId, session, data);
 
   // Reports
   if (data.startsWith("rep:")) {

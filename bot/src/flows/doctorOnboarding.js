@@ -27,6 +27,7 @@ import {
   getDoctorByUserId,
 } from "../supabase.js";
 import { refreshKB } from "../kb.js";
+import { findEmailOwner, askEmailMatch, adoptEmailMatch, declineEmailMatch, parseYesNo } from "../emailMatch.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -40,6 +41,7 @@ function previousStep(step) {
   switch (step) {
     case "location":    return "specialty";
     case "email":       return "location";
+    case "email_match": return "email";
     case "patient_use": return "email";
     default:            return null;
   }
@@ -93,6 +95,11 @@ async function promptStep(bot, chatId, session) {
       return send(bot, chatId, t(lang, "doc_ask_location"), { keyboard: skipKb, markdown: true });
     case "email":
       return send(bot, chatId, t(lang, "doc_ask_email"), { keyboard: skipKb, markdown: true });
+    case "email_match": {
+      const m = session.data.emailMatch;
+      if (!m || !session.data.email) { session.step = "email"; return promptStep(bot, chatId, session); }
+      return askEmailMatch(bot, chatId, session, session.data.email, { id: m.id, name: m.name, onboarded: m.onboarded }, "doc");
+    }
     case "patient_use":
       return send(bot, chatId, t(lang, "doc_ask_patient_use"), {
         keyboard: docYesNoKeyboard(lang),
@@ -178,8 +185,17 @@ export async function doctorOnboardingText(bot, chatId, session, text) {
       if (!EMAIL_RE.test(email)) {
         return send(bot, chatId, t(lang, "doc_email_invalid"), { markdown: true });
       }
+      const other = await findEmailOwner(email, session.user?.id);
+      if (other) return askEmailMatch(bot, chatId, session, email, other, "doc");
       session.data.email = email;
       session.step = "patient_use";
+      return promptStep(bot, chatId, session);
+    }
+
+    case "email_match": {
+      const ans = parseYesNo(val);
+      if (ans === "yes") return resolveDoctorEmailYes(bot, chatId, session);
+      if (ans === "no") return declineEmailMatch(bot, chatId, session);
       return promptStep(bot, chatId, session);
     }
 
@@ -213,6 +229,12 @@ export async function doctorOnboardingCallback(bot, chatId, session, data) {
     return; // patient_use isn't skippable
   }
 
+  // "Is this you?" on the email step.
+  if (session.step === "email_match" && (data === "doc:email_yes" || data === "doc:email_no")) {
+    if (data === "doc:email_no") return declineEmailMatch(bot, chatId, session);
+    return resolveDoctorEmailYes(bot, chatId, session);
+  }
+
   // Only patient_use answers come through here — all earlier steps are typed.
   if (session.step !== "patient_use") return;
   const parts = data.split(":");
@@ -225,6 +247,17 @@ export async function doctorOnboardingCallback(bot, chatId, session, data) {
     session.data.is_patient = false;
     return finishDoctorSetup(bot, chatId, session, /* continueAsPatient */ false);
   }
+}
+
+// "Yes, it's me": adopt the existing account. Onboarded → its menu is shown
+// by adoptEmailMatch; otherwise continue this wizard on that row.
+async function resolveDoctorEmailYes(bot, chatId, session) {
+  const done = await adoptEmailMatch(bot, chatId, session);
+  if (done === true) return;
+  if (done === null) { session.step = "email"; return promptStep(bot, chatId, session); }
+  session.state = "doctor_onboarding";
+  session.step = "patient_use";
+  return promptStep(bot, chatId, session);
 }
 
 async function finishDoctorSetup(bot, chatId, session, continueAsPatient) {

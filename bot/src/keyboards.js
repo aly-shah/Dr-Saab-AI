@@ -104,12 +104,53 @@ function truncate(s, n) {
 export function reportsKeyboard(lang) {
   return {
     inline_keyboard: [
+      [{ text: t(lang, "btn_snapshot"), callback_data: "feat:snapshot" }],
       [{ text: t(lang, "btn_report_weekly"), callback_data: "rep:weekly" }],
       [{ text: t(lang, "btn_report_monthly"), callback_data: "rep:monthly" }],
       [{ text: t(lang, "btn_report_doctor"), callback_data: "rep:doctor" }],
       [{ text: t(lang, "btn_back"), callback_data: "menu" }],
     ],
   };
+}
+
+// ===================================================================
+// 📊 Generate Report — Executive Health Snapshot. Callback prefix `snap:`.
+// ===================================================================
+export function snapGenderKeyboard(lang) {
+  return stack([
+    [
+      { text: t(lang, "g_male"), callback_data: "snap:gender:male" },
+      { text: t(lang, "g_female"), callback_data: "snap:gender:female" },
+      { text: t(lang, "g_other"), callback_data: "snap:gender:other" },
+    ],
+    { text: t(lang, "btn_back"), callback_data: "menu" },
+  ]);
+}
+
+export function snapDiabetesKeyboard(lang) {
+  return stack([
+    { text: t(lang, "ds_type1"), callback_data: "snap:dt:type1" },
+    { text: t(lang, "ds_type2"), callback_data: "snap:dt:type2" },
+    { text: t(lang, "ds_prediabetes"), callback_data: "snap:dt:prediabetes" },
+    { text: t(lang, "ds_gestational"), callback_data: "snap:dt:gestational" },
+    { text: t(lang, "btn_back"), callback_data: "menu" },
+  ]);
+}
+
+// Optional questions (recent readings, medicines): Skip or leave.
+export function snapSkipKeyboard(lang) {
+  return stack([
+    { text: t(lang, "btn_snap_skip"), callback_data: "snap:skip" },
+    { text: t(lang, "btn_back"), callback_data: "menu" },
+  ]);
+}
+
+// Attached to the delivered PDF.
+export function snapDoneKeyboard(lang) {
+  return stack([
+    { text: t(lang, "btn_snap_again"), callback_data: "snap:again" },
+    { text: t(lang, "btn_main_menu"), callback_data: "menu" },
+  ]);
 }
 
 // Feature challenges keyboard (prefix `chl:` — distinct from onboarding `ch:`).
@@ -466,6 +507,20 @@ export function diagnosisDurationKeyboard(lang) {
   ]);
 }
 
+// Onboarding "is this you?" — an account already uses the email just typed.
+// `prefix` is "em" for patient onboarding, "doc" for doctor onboarding so the
+// answer lands in the right callback handler.
+export function emailMatchKeyboard(lang, prefix = "em") {
+  return {
+    inline_keyboard: [
+      [
+        { text: t(lang, "btn_email_yes"), callback_data: `${prefix}:email_yes` },
+        { text: t(lang, "btn_email_no"), callback_data: `${prefix}:email_no` },
+      ],
+    ],
+  };
+}
+
 export function yesNoKeyboard(lang) {
   return {
     inline_keyboard: [
@@ -620,6 +675,9 @@ export function mainMenuKeyboardV2(lang, user) {
     b("btn_checkin", "checkin"),
     b("btn_foodhelp", "foodhelp"),
     b("btn_checkreport", "lab"),
+    // 📊 Generate Report — Executive Health Snapshot. Consistency Coach and
+    // above only; free users never see the item (gated again on tap).
+    ...(isPaid(user) ? [b("btn_snapshot", "snapshot")] : []),
     b("btn_askdrsaab", "askdrsaab"),
     b("btn_challenges", "challenges"),
     b("btn_more", "more"),
@@ -671,6 +729,9 @@ export function patientMenuForDoctorKeyboard(lang, user) {
     b("btn_checkin", "checkin"),
     b("btn_foodhelp", "foodhelp"),
     b("btn_checkreport", "lab"),
+    // 📊 Generate Report — Executive Health Snapshot. Consistency Coach and
+    // above only; free users never see the item (gated again on tap).
+    ...(isPaid(user) ? [b("btn_snapshot", "snapshot")] : []),
     b("btn_askdrsaab", "askdrsaab"),
     b("btn_challenges", "challenges"),
     b("btn_more", "more"),
@@ -696,6 +757,26 @@ export function doctorBackKeyboard(lang) {
 }
 
 // Reports timeframe picker — spec Reporting Engine calls out weekly + monthly.
+// Patient Reports screen — PDF snapshot actions (doctorReports.js).
+export function doctorReportsKeyboard(lang) {
+  return stack([
+    { text: t(lang, "btn_doc_snap_all"), callback_data: "doc:snap_all" },
+    { text: t(lang, "btn_doc_snap_pick"), callback_data: "doc:snap_pick" },
+    { text: t(lang, "btn_back"), callback_data: "doc:menu" },
+  ]);
+}
+
+// One button per connected patient (a page of 8), optional "More", Back.
+export function doctorPatientPickerKeyboard(lang, patients, nextOffset = null) {
+  const rows = patients.map((p) => ({
+    text: truncate(p.name || "Patient", 24),
+    callback_data: `doc:snap_p:${p.id}`,
+  }));
+  if (nextOffset != null) rows.push({ text: t(lang, "btn_doc_snap_more"), callback_data: `doc:snap_pick:${nextOffset}` });
+  rows.push({ text: t(lang, "btn_back"), callback_data: "doc:reports" });
+  return stack(rows);
+}
+
 export function doctorReportsWindowKeyboard(lang) {
   return {
     inline_keyboard: [

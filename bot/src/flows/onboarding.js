@@ -6,6 +6,7 @@ import { updateUser } from "../supabase.js";
 import { refreshKB } from "../kb.js";
 import { resetFlow } from "../session.js";
 import { startDoctorOnboarding } from "./doctorOnboarding.js";
+import { findEmailOwner, askEmailMatch, adoptEmailMatch, declineEmailMatch, parseYesNo } from "../emailMatch.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -126,6 +127,7 @@ function nextStep(step) {
 function previousStep(step) {
   switch (step) {
     case "email":     return "name";
+    case "email_match": return "email";
     case "dob":       return "email";
     case "user_type": return "dob";
     default:          return null;
@@ -150,6 +152,12 @@ async function promptStep(bot, chatId, session) {
       return send(bot, chatId, t(lang, "ask_name_v2"), { keyboard: skipKb, markdown: true });
     case "email":
       return send(bot, chatId, t(lang, "ask_email_v2"), { keyboard: skipKb, markdown: true });
+    case "email_match": {
+      // Re-show the "is this you?" question (e.g. the user typed something else).
+      const m = session.data.emailMatch;
+      if (!m || !session.data.email) { session.step = "email"; return promptStep(bot, chatId, session); }
+      return askEmailMatch(bot, chatId, session, session.data.email, { id: m.id, name: m.name, onboarded: m.onboarded }, "em");
+    }
     case "dob":
       return send(bot, chatId, t(lang, "ask_age_v2"), { keyboard: skipKb, markdown: true });
     case "user_type":
@@ -220,6 +228,18 @@ async function finish(bot, chatId, session) {
   });
 }
 
+// "Yes, it's me" on the email step: adopt the existing account. A fully
+// onboarded account lands on its menu; a half-finished one continues the
+// wizard from the date-of-birth step on that row. On failure, re-ask email.
+async function resolveEmailMatchYes(bot, chatId, session) {
+  const done = await adoptEmailMatch(bot, chatId, session);
+  if (done === true) return;
+  if (done === null) { session.step = "email"; return promptStep(bot, chatId, session); }
+  session.state = "onboarding";
+  session.step = "email";
+  return advance(bot, chatId, session);
+}
+
 // ===================================================================
 // Public entry points
 // ===================================================================
@@ -281,8 +301,18 @@ export async function onboardingText(bot, chatId, session, text) {
       if (!EMAIL_RE.test(email)) {
         return send(bot, chatId, t(lang, "email_invalid"), { markdown: true });
       }
+      // Same email as another account? Ask before going on — the person may
+      // be returning on a new number or browser.
+      const other = await findEmailOwner(email, session.user?.id);
+      if (other) return askEmailMatch(bot, chatId, session, email, other, "em");
       session.data.email = email;
       return advance(bot, chatId, session);
+    }
+    case "email_match": {
+      const ans = parseYesNo(val);
+      if (ans === "yes") return resolveEmailMatchYes(bot, chatId, session);
+      if (ans === "no") return declineEmailMatch(bot, chatId, session);
+      return promptStep(bot, chatId, session);
     }
     case "dob": {
       const partial = parseDob(val, session.data.dob_partial || {});
@@ -319,6 +349,12 @@ export async function onboardingCallback(bot, chatId, session, data) {
     if (session.step === "email") session.data.email = null;
     if (session.step === "dob") session.data.date_of_birth = null;
     return advance(bot, chatId, session);
+  }
+
+  // "Is this you?" answer for an email that belongs to another account.
+  if (session.step === "email_match" && (data === "em:email_yes" || data === "em:email_no")) {
+    if (data === "em:email_no") return declineEmailMatch(bot, chatId, session);
+    return resolveEmailMatchYes(bot, chatId, session);
   }
 
   // Language picker — at "welcome" step (after the welcome banner). Jumps to

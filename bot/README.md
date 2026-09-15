@@ -30,6 +30,18 @@ a VPS under **pm2**.
 - **My Progress** — streak, latest weight, recent readings.
 - **Weekly Summary** — AI-written summary from the week's data.
 - **Explain Lab Report** — paste values or send a photo.
+- **Generate Report** (Consistency Coach+) — a premium one-page *Executive
+  Health Snapshot* PDF: profile, latest fasting/random/HbA1c, 14-day and
+  90-day glucose trend charts with AI summaries, other labs, medicines,
+  lifestyle, the DrSaab Health Score and three AI key insights. Missing
+  profile data, recent readings or medicines are asked for first. AI copy is
+  written by OpenAI when `OPENAI_API_KEY` is set (falls back to the default
+  LLM, then to built-in text).
+- **Doctor: Patient Reports → PDF snapshots** — *Weekly Patient Snapshots*
+  (summary page of all connected patients: latest HbA1c/glucose, 14-day
+  trend, check-ins, status, weekly totals, status breakdown, quick notes)
+  followed by a *Patient Health Snapshot* page per patient; or a single
+  patient's snapshot picked from a list. Rule-based, no AI cost.
 - **Educational library** — free-tier static tips.
 - **Subscription tiers** — Free vs Consistency Builder (premium gating on the
   AI coaches & lab analysis).
@@ -123,6 +135,10 @@ bot/
    ├─ config.js             # env loading & validation
    ├─ supabase.js           # data access layer
    ├─ openai.js             # coach / lab / summary prompts
+   ├─ snapshotData.js       # Generate Report: data assembly + health score
+   ├─ snapshotPdf.js        # Generate Report: pdfkit renderer (assets/fonts)
+   ├─ doctorReportData.js   # Doctor PDFs: weekly period, statuses, totals
+   ├─ doctorReportPdf.js    # Doctor PDFs: summary + per-patient pages
    ├─ i18n.js               # en / ur / roman_ur strings
    ├─ keyboards.js          # inline keyboards
    ├─ session.js            # in-memory conversation state
@@ -132,6 +148,8 @@ bot/
       ├─ tracking.js        # glucose / medication / daily check-in
       ├─ coach.js           # AI / food / fitness coaches
       ├─ labreport.js
+      ├─ snapshot.js         # Generate Report flow (asks for missing data)
+      ├─ doctorReports.js    # Doctor → Patient Reports → PDF snapshots
       ├─ progress.js        # my progress + weekly summary
       └─ education.js
 ```

@@ -18,6 +18,26 @@ function createVirtualBot(buffer) {
       buffer.push({ text: text ?? "", rows });
       return { message_id: buffer.length };
     },
+    // A generated file (the Health Snapshot PDF) rides along as a data URL;
+    // the /bot page renders it as a download card under the caption.
+    async sendDocument(_chatId, fileBuf, opts = {}, fileOpts = {}) {
+      const kb = opts.reply_markup?.inline_keyboard;
+      const rows = kb
+        ? kb.map((row) => row.map((b) => ({ label: b.text, data: b.callback_data })))
+        : [];
+      const mime = fileOpts.contentType || "application/pdf";
+      buffer.push({
+        text: opts.caption ?? "",
+        rows,
+        file: {
+          name: fileOpts.filename || "document.pdf",
+          mime,
+          size: fileBuf.length,
+          dataUrl: `data:${mime};base64,${Buffer.from(fileBuf).toString("base64")}`,
+        },
+      });
+      return { message_id: buffer.length };
+    },
     async sendChatAction() {},
     async answerCallbackQuery() {},
     async getFileLink() {

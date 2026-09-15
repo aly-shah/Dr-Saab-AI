@@ -73,6 +73,29 @@ export async function send(bot, chatId, text, { keyboard = null, markdown = fals
   }
 }
 
+/**
+ * Send a file (currently: the generated Health Snapshot PDF) with an optional
+ * caption and inline keyboard. Every adapter exposes the Telegram-shaped
+ * `bot.sendDocument(chatId, buffer, opts, fileOpts)`: node-telegram-bot-api
+ * natively, whatsapp.js as a Cloud-API document message, web.js as a
+ * downloadable card in the chat GUI. Returns true when the send went out;
+ * false when the adapter can't send files, so the caller can fall back to a
+ * text summary instead of leaving the user with nothing.
+ */
+export async function sendDocument(bot, chatId, buffer, { filename, mime = "application/pdf", caption = "", keyboard = null } = {}) {
+  if (typeof bot?.sendDocument !== "function") return false;
+  const opts = {};
+  if (caption) opts.caption = stripEmoji(caption);
+  if (keyboard) opts.reply_markup = cleanKeyboard(keyboard);
+  try {
+    const res = await bot.sendDocument(chatId, buffer, opts, { filename, contentType: mime });
+    return res?.ok === false ? false : true;
+  } catch (e) {
+    console.error("sendDocument failed:", e?.message);
+    return false;
+  }
+}
+
 // Telegram chat action (e.g. "typing…")
 export async function typing(bot, chatId) {
   try {
