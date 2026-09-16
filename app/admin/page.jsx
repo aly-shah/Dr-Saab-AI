@@ -463,6 +463,64 @@ function UserStatusBadge({ days }) {
 // Ad hoc messaging (2026-09-15): send one custom message to every user. The
 // bot engine does the sending on each user's own channel; the panel shows
 // the recipient count, asks for confirmation and keeps a history.
+// Re-engagement KPI (Messaging System spec §13): the six 12 h / 23 h prompts
+// and how often a user wrote back within 60 minutes.
+const PROMPT_LABEL = {
+  "1:feature": "Glucose Logging (12 h)", "1:behaviour": "Consistency (23 h)",
+  "2:feature": "Explain My Report (12 h)", "2:behaviour": "Opportunity (23 h)",
+  "3:feature": "My Health Snapshot (12 h)", "3:behaviour": "Motivation (23 h)",
+};
+const BRACKET_LABEL = { A: "16-24", B: "25-34", C: "35-49", D: "50-65", E: "66+" };
+function ReengagementPanel() {
+  const [data, setData] = useState(null);
+  useEffect(() => {
+    fetch("/api/admin/reengagement").then((r) => r.json()).then(setData).catch(() => setData({ error: "x" }));
+  }, []);
+  const rows = data?.rows || [];
+  const pct = (a, b) => (b ? Math.round((a / b) * 100) + "%" : "—");
+  const mins = (s) => (s == null ? "—" : Math.round(s / 60) + " min");
+  return (
+    <Panel title="Re-engagement prompts (12 h / 23 h)">
+      {!data && <p className="text-sm text-ink/50">Loading…</p>}
+      {data?.error && <p className="text-sm text-red-500">Could not load re-engagement stats.</p>}
+      {data && !data.error && rows.length === 0 && <p className="text-sm text-ink/50">No prompts sent yet.</p>}
+      {rows.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-line/60 text-[11px] uppercase tracking-wider text-ink/40">
+                <th className="py-2 pr-3">Prompt</th><th className="px-3">Cycle</th><th className="px-3">Sent</th>
+                <th className="px-3">Delivered</th><th className="px-3">Replied in 60 min</th><th className="px-3">Rate</th><th className="px-3">Avg reply</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.cycle + r.message_type} className="border-b border-line/40">
+                  <td className="py-2 pr-3 font-medium text-ink">{PROMPT_LABEL[r.cycle + ":" + r.message_type] || r.message_type}</td>
+                  <td className="px-3 text-ink/70">{r.cycle}</td>
+                  <td className="px-3 text-ink/70">{r.sent_count}</td>
+                  <td className="px-3 text-ink/70">{r.delivered_count}</td>
+                  <td className="px-3 text-ink/70">{r.replied_within_60m}</td>
+                  <td className="px-3 text-ink/70">{pct(r.replied_within_60m, r.delivered_count)}</td>
+                  <td className="px-3 text-ink/70">{mins(r.avg_reply_seconds)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {Array.isArray(data.byBracket) && data.byBracket.length > 0 && (
+            <p className="mt-3 text-[11px] text-ink/50">
+              By age bracket: {data.byBracket.map((b) => (BRACKET_LABEL[b.age_bracket] || b.age_bracket || "?") + " " + pct(b.replied_within_60m, b.sent_count)).join(" · ")}
+            </p>
+          )}
+        </div>
+      )}
+      <p className="mt-2 text-[11px] leading-relaxed text-ink/45">
+        Automatic prompts sent inside the WhatsApp 24-hour window after a user goes quiet: a feature promo at 12 hours and a behaviour promo at 23 hours, three lifetime cycles, worded for the user's age bracket. Users who switch off Coaching reminders are excluded.
+      </p>
+    </Panel>
+  );
+}
+
 const AUDIENCE_LABEL = { all: "All users", patients: "Patients only", doctors: "Doctors only" };
 function BroadcastView() {
   const [text, setText] = useState("");
@@ -596,6 +654,7 @@ function BroadcastView() {
           </div>
         )}
       </Panel>
+      <ReengagementPanel />
     </div>
   );
 }

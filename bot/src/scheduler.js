@@ -50,6 +50,7 @@ import { formatTime12h } from "./flows/habitbuilder.js";
 import { computeAndPersistScores } from "./flows/challengeEngine.js";
 import { runSubscriptionLifecycleTick } from "./flows/subscription.js";
 import { refreshActivityStatuses } from "./userStatus.js";
+import { runReengagementTick } from "./reengagement.js";
 
 const TZ_OFFSET = parseInt(process.env.REMINDER_TZ_OFFSET || "5", 10); // PKT default
 
@@ -550,6 +551,10 @@ export async function runTick(bots) {
 
   // Independent, user-opted-in paths — run every tick.
   await fireDueReminders(bots, usersById);
+
+  // 24-hour re-engagement sequence: 12 h feature promo / 23 h behaviour
+  // promo, recomputed from users.last_user_message_at on every tick.
+  await runReengagementTick(bots).catch((e) => console.error("reengagement:", e?.message));
 
   // Challenges v1.0: enqueue weekly doctor summaries (§12.3), fire any
   // queued doctor notifications, and auto-expire rows past their end_date +

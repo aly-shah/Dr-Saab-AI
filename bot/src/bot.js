@@ -114,6 +114,7 @@ async function legacyChallengeStub(bot, chatId, session) {
 import { showReports, showWeeklyReport, showMonthlyReport, showDoctorReport } from "./flows/reports.js";
 import { showExecutive, requestService } from "./flows/executive.js";
 import { startSnapshot, snapshotText, snapshotCallback } from "./flows/snapshot.js";
+import { noteInbound } from "./reengagement.js";
 import { profileqText, skipProfileQuestion } from "./flows/profileBuilder.js";
 import { showReminders, cancelReminder, toggleReminderPref } from "./flows/reminders.js";
 import {
@@ -662,6 +663,8 @@ export async function handleMessage(bot, msg) {
   recordMessage(session.user.id).catch(() => {});
   // User Status: mark today as an active day (Idle / Low / Medium / High).
   recordActivityDay(session.user.id).catch(() => {});
+  // Re-engagement timer (spec Trigger A): only inbound messages move it.
+  noteInbound(session.user.id).catch(() => {});
 
   const text = msg.text;
   const cmd = text?.split(/\s+/)[0]?.split("@")[0];
@@ -966,8 +969,12 @@ export async function handleCallback(bot, query) {
   await ensureSessionUser(session, query.from.id);
   const data = query.data || "";
   bot.answerCallbackQuery(query.id).catch(() => {});
-  // A button tap counts as an interaction for User Status too.
-  if (session.user?.id) recordActivityDay(session.user.id).catch(() => {});
+  // A button tap counts as an interaction for User Status too, and it is an
+  // inbound WhatsApp message, so it also resets the re-engagement timer.
+  if (session.user?.id) {
+    recordActivityDay(session.user.id).catch(() => {});
+    noteInbound(session.user.id).catch(() => {});
+  }
 
   // A closed account can't drive the menu either — the equivalent guard in
   // handleMessage covers typed input. Reactivation only happens on a typed

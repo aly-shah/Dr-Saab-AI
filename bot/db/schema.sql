@@ -119,6 +119,33 @@ create table if not exists public.patient_kb (
   updated_at    timestamptz default now()
 );
 
+-- ---------- 24-hour re-engagement sequence (Messaging System spec v1.0, 2026-09-15) ----------
+-- Timer + state live on the user row (bot/src/reengagement.js). The timer is
+-- written ONLY from inbound user messages; DrSaab's own sends never move it.
+alter table public.users add column if not exists last_user_message_at           timestamptz;
+alter table public.users add column if not exists reengagement_cycle             int default 1;      -- 1..3; 4 = completed
+alter table public.users add column if not exists reengagement_enabled           boolean default true;
+alter table public.users add column if not exists reengagement_feature_sent_at   timestamptz;
+alter table public.users add column if not exists reengagement_behaviour_sent_at timestamptz;
+-- Existing users: seed the inactivity timer from the last inbound we already track.
+update public.users u set last_user_message_at = kb.last_seen
+  from public.patient_kb kb where kb.user_id = u.id and u.last_user_message_at is null;
+-- Every send attempt (spec §12.10) + the reply-within-60-minutes KPI (§13).
+create table if not exists public.reengagement_log (
+  id                          uuid primary key default gen_random_uuid(),
+  user_id                     uuid references public.users(id) on delete cascade,
+  message_type                text not null,       -- feature | behaviour
+  cycle                       int not null,        -- 1..3
+  age_bracket                 text,                -- A 16-24 | B 25-34 | C 35-49 | D 50-65 | E 66+
+  scheduled_at                timestamptz,
+  sent_at                     timestamptz default now(),
+  delivery_status             text,                -- sent | failed
+  user_replied_after_message  boolean,             -- null until known
+  replied_at                  timestamptz,
+  created_at                  timestamptz default now()
+);
+create index if not exists reengagement_log_user_idx on public.reengagement_log(user_id, sent_at desc);
+
 -- ---------- User Status: activity days (2026-09-15) ----------
 -- One row per user per Pakistan-time day on which they sent DrSaab at least
 -- one message or button tap. Drives the User Status categorisation

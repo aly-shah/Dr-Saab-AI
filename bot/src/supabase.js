@@ -509,6 +509,40 @@ async function makeSupabaseBackend() {
       if (error) throw error;
       return data;
     },
+    // ===== 24-hour re-engagement sequence =====
+    async noteUserInbound(userId, nowIso) {
+      await db.from("users").update({ last_user_message_at: nowIso }).eq("id", userId);
+    },
+    async listReengagementCandidates(fromIso, toIso) {
+      const { data } = await db.from("users").select("*")
+        .eq("onboarded", true).gt("last_user_message_at", fromIso).lte("last_user_message_at", toIso).limit(500);
+      return (data || []).filter((u) =>
+        (u.account_status || "active") === "active" &&
+        ["telegram", "whatsapp"].includes(u.source || "telegram") &&
+        u.reengagement_enabled !== false &&
+        (u.reengagement_cycle ?? 1) >= 1 && (u.reengagement_cycle ?? 1) <= 3 &&
+        u.pref_rem_coaching !== false);
+    },
+    async logReengagement(row) {
+      const { data, error } = await db.from("reengagement_log").insert({
+        user_id: row.user_id, message_type: row.message_type, cycle: row.cycle, age_bracket: row.age_bracket || null,
+        scheduled_at: row.scheduled_at || null, sent_at: row.sent_at || new Date().toISOString(),
+        delivery_status: row.delivery_status || "sent",
+      }).select("*").single();
+      if (error) throw error;
+      return data;
+    },
+    async markReengagementReplies(userId, nowIso) {
+      const cutoff = new Date(Date.parse(nowIso) - 60 * 60000).toISOString();
+      await db.from("reengagement_log").update({ user_replied_after_message: true, replied_at: nowIso })
+        .eq("user_id", userId).is("user_replied_after_message", null).gte("sent_at", cutoff).lte("sent_at", nowIso);
+      await db.from("reengagement_log").update({ user_replied_after_message: false })
+        .eq("user_id", userId).is("user_replied_after_message", null).lt("sent_at", cutoff);
+    },
+    async listReengagementLog(userId) {
+      const { data } = await db.from("reengagement_log").select("*").eq("user_id", userId).order("sent_at");
+      return data || [];
+    },
     async lastInteractionAt(userId) {
       // Take the max of patient_kb.last_seen and every log table's latest row.
       const tables = ["glucose_logs", "medication_logs", "health_logs", "wellbeing_logs", "coach_messages"];
@@ -1249,6 +1283,57 @@ async function makePostgresBackend() {
         [row.text, row.audience || "all", row.recipients || 0, row.sent || 0, row.failed || 0, row.skipped || 0, row.sent_by || "admin"]
       );
       return rows[0];
+    },
+    // ===== 24-hour re-engagement sequence (bot/src/reengagement.js) =====
+    async noteUserInbound(userId, nowIso) {
+      await pool.query("update users set last_user_message_at=$2 where id=$1", [userId, nowIso]);
+    },
+    // Users whose last inbound message fell in (from, to] — i.e. between 24 h
+    // and 12 h ago — and who are still inside the sequence and opted in.
+    async listReengagementCandidates(fromIso, toIso) {
+      const { rows } = await pool.query(
+        `select id, name, age, date_of_birth, language, source, phone_number, telegram_id,
+                coalesce(reengagement_cycle, 1) as reengagement_cycle,
+                coalesce(reengagement_enabled, true) as reengagement_enabled,
+                last_user_message_at, reengagement_feature_sent_at, reengagement_behaviour_sent_at
+         from users
+         where onboarded
+           and coalesce(account_status, 'active') = 'active'
+           and coalesce(source, 'telegram') in ('telegram', 'whatsapp')
+           and coalesce(reengagement_enabled, true)
+           and coalesce(reengagement_cycle, 1) between 1 and 3
+           and coalesce(pref_rem_coaching, true)
+           and last_user_message_at > $1 and last_user_message_at <= $2
+         limit 500`,
+        [fromIso, toIso]
+      );
+      return rows;
+    },
+    async logReengagement(row) {
+      const { rows } = await pool.query(
+        `insert into reengagement_log (user_id, message_type, cycle, age_bracket, scheduled_at, sent_at, delivery_status)
+         values ($1,$2,$3,$4,$5,$6,$7) returning *`,
+        [row.user_id, row.message_type, row.cycle, row.age_bracket || null, row.scheduled_at || null, row.sent_at || new Date().toISOString(), row.delivery_status || "sent"]
+      );
+      return rows[0];
+    },
+    // Inbound message: settle every open log row for this user — replied
+    // within 60 minutes → true (+ replied_at), otherwise false.
+    async markReengagementReplies(userId, nowIso) {
+      await pool.query(
+        `update reengagement_log
+            set user_replied_after_message = (sent_at >= $2::timestamptz - interval '60 minutes'),
+                replied_at = case when sent_at >= $2::timestamptz - interval '60 minutes' then $2::timestamptz else null end
+          where user_id = $1 and user_replied_after_message is null and sent_at <= $2::timestamptz`,
+        [userId, nowIso]
+      );
+    },
+    async listReengagementLog(userId) {
+      const { rows } = await pool.query(
+        "select * from reengagement_log where user_id=$1 order by sent_at",
+        [userId]
+      );
+      return rows;
     },
     async upsertKB(userId, content) {
       await pool.query(
@@ -2253,6 +2338,7 @@ function makeMemoryBackend() {
   const reminders = [];
   const activityDays = new Map(); // "userId|YYYY-MM-DD" → message count
   const broadcasts = [];
+  const reengagementLog = [];
   const goals = [];
   const conditions = [];
   const healthMetrics = [];
@@ -2470,6 +2556,40 @@ function makeMemoryBackend() {
     },
     async listAdminBroadcasts(limit = 50) {
       return broadcasts.slice(-limit).reverse();
+    },
+    // ===== 24-hour re-engagement sequence =====
+    async noteUserInbound(userId, nowIso) {
+      const u = usersById.get(userId);
+      if (u) u.last_user_message_at = nowIso;
+    },
+    async listReengagementCandidates(fromIso, toIso) {
+      return [...usersById.values()].filter((u) =>
+        u.onboarded &&
+        (u.account_status || "active") === "active" &&
+        ["telegram", "whatsapp"].includes(u.source || "telegram") &&
+        u.reengagement_enabled !== false &&
+        (u.reengagement_cycle ?? 1) >= 1 && (u.reengagement_cycle ?? 1) <= 3 &&
+        u.pref_rem_coaching !== false &&
+        u.last_user_message_at && u.last_user_message_at > fromIso && u.last_user_message_at <= toIso);
+    },
+    async logReengagement(row) {
+      const r = { id: "rl" + (reengagementLog.length + 1), created_at: nowISO(), user_replied_after_message: null, replied_at: null, ...row };
+      reengagementLog.push(r);
+      return r;
+    },
+    async markReengagementReplies(userId, nowIso) {
+      const now = Date.parse(nowIso);
+      for (const r of reengagementLog) {
+        if (r.user_id !== userId || r.user_replied_after_message != null) continue;
+        const sent = Date.parse(r.sent_at);
+        if (!(sent <= now)) continue;
+        const within = now - sent <= 60 * 60000;
+        r.user_replied_after_message = within;
+        r.replied_at = within ? nowIso : null;
+      }
+    },
+    async listReengagementLog(userId) {
+      return reengagementLog.filter((r) => r.user_id === userId);
     },
     async upsertKB(userId, content) {
       const k = kb.get(userId) || { message_count: 0 };
@@ -2985,6 +3105,12 @@ export function activityDayKey(d = new Date()) {
 export const recordActivityDay = (id, day = activityDayKey()) => backend.recordActivityDay(id, day);
 // Ad hoc admin broadcasts (bot/src/broadcast.js).
 export const logAdminBroadcast = (row) => backend.logAdminBroadcast(row);
+// 24-hour re-engagement sequence (bot/src/reengagement.js).
+export const noteUserInbound = (id, nowIso) => backend.noteUserInbound(id, nowIso);
+export const listReengagementCandidates = (fromIso, toIso) => backend.listReengagementCandidates(fromIso, toIso);
+export const logReengagement = (row) => backend.logReengagement(row);
+export const markReengagementReplies = (id, nowIso) => backend.markReengagementReplies(id, nowIso);
+export const listReengagementLog = (id) => backend.listReengagementLog(id);
 // "Last N days" includes today, so the window starts N-1 days back.
 export const activeDaysInLast = (id, days = 30) =>
   backend.activeDaysInLast(id, activityDayKey(new Date(Date.now() - (days - 1) * 86400000)));
