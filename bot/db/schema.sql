@@ -1239,3 +1239,26 @@ create index if not exists subscription_payments_user_idx
   on public.subscription_payments(user_id, submitted_at desc);
 create index if not exists subscription_payments_status_idx
   on public.subscription_payments(payment_status, submitted_at desc);
+
+-- ---------- Weekly doctor report email (2026-09-17) ----------
+-- One row per doctor per week: the Weekly Patient Snapshots PDF emailed to
+-- doctors.email at the end of the week (bot/src/doctorWeeklyEmail.js). The
+-- row is claimed (status 'sending') BEFORE the email goes out, and the unique
+-- key is what guarantees a doctor is never emailed twice for the same week.
+-- week_key = Pakistan-time date of the send slot (a Sunday by default).
+-- The bot also creates this table on first use, so an un-migrated database
+-- still works.
+create table if not exists public.doctor_report_emails (
+  id            uuid primary key default gen_random_uuid(),
+  doctor_id     uuid not null references public.doctors(id) on delete cascade,
+  week_key      date not null,
+  email         text,
+  status        text not null default 'sending',   -- sending | sent | failed
+  attempts      int  not null default 1,           -- failed sends retry up to 3
+  patient_count int,
+  error         text,
+  sent_at       timestamptz,
+  updated_at    timestamptz default now(),
+  created_at    timestamptz default now(),
+  unique (doctor_id, week_key)
+);

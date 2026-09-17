@@ -903,6 +903,47 @@ async function makeSupabaseBackend() {
     // Aggregate stats across every patient currently linked to this doctor.
     // MVP: patient count + engagement + trend snapshots. Detailed per-patient
     // drill-down is intentionally out of scope.
+    // ===== Weekly doctor report email (doctorWeeklyEmail.js) =====
+    // doctor_report_emails holds one row per (doctor, week). Claiming the row
+    // BEFORE sending is what stops a second tick (or a second bot process)
+    // from emailing the same doctor twice. A failed send may be re-claimed
+    // up to 3 attempts; a claim stuck in 'sending' for over an hour (the bot
+    // died mid-send) is treated as failed.
+    async listDoctorsWithEmail() {
+      const { data, error } = await db.from("doctors").select("*").not("email", "is", null);
+      if (error) throw error;
+      return (data || []).filter((d) => String(d.email || "").trim());
+    },
+    async claimDoctorReportEmail(doctorId, weekKey, email) {
+      const nowIso = new Date().toISOString();
+      const { data: existing, error: se } = await db.from("doctor_report_emails").select("*")
+        .eq("doctor_id", doctorId).eq("week_key", weekKey).maybeSingle();
+      if (se) throw se;
+      if (!existing) {
+        const { error } = await db.from("doctor_report_emails").insert({
+          doctor_id: doctorId, week_key: weekKey, email, status: "sending", attempts: 1, updated_at: nowIso,
+        });
+        if (error) {
+          if (error.code === "23505") return false; // another process claimed it first
+          throw error;
+        }
+        return true;
+      }
+      const stale = existing.status === "sending" && Date.now() - new Date(existing.updated_at).getTime() > 3600 * 1000;
+      if ((existing.status !== "failed" && !stale) || (existing.attempts || 0) >= 3) return false;
+      const { data: upd, error: ue } = await db.from("doctor_report_emails")
+        .update({ status: "sending", email, attempts: (existing.attempts || 0) + 1, updated_at: nowIso })
+        .eq("id", existing.id).eq("attempts", existing.attempts || 0).select("id");
+      if (ue) throw ue;
+      return !!upd?.length;
+    },
+    async finishDoctorReportEmail(doctorId, weekKey, patch) {
+      const nowIso = new Date().toISOString();
+      const { error } = await db.from("doctor_report_emails")
+        .update({ ...patch, updated_at: nowIso, sent_at: patch.status === "sent" ? nowIso : null })
+        .eq("doctor_id", doctorId).eq("week_key", weekKey);
+      if (error) throw error;
+    },
     async doctorPatientStats(doctorId) {
       const { data: patients, error: pe } = await db
         .from("users")
@@ -1022,6 +1063,32 @@ async function makePostgresBackend() {
     }
     columnCache.set(table, cols);
     return cols;
+  };
+
+  // The weekly doctor email log is created on first use, so a deployed
+  // database that never re-ran schema.sql still dedupes correctly (without
+  // the table the job could not tell whether a doctor was already emailed).
+  let doctorReportEmailsReady = null;
+  const ensureDoctorReportEmails = () => {
+    if (!doctorReportEmailsReady) {
+      doctorReportEmailsReady = pool.query(
+        `create table if not exists doctor_report_emails (
+           id            uuid primary key default gen_random_uuid(),
+           doctor_id     uuid not null references doctors(id) on delete cascade,
+           week_key      date not null,
+           email         text,
+           status        text not null default 'sending',
+           attempts      int  not null default 1,
+           patient_count int,
+           error         text,
+           sent_at       timestamptz,
+           updated_at    timestamptz default now(),
+           created_at    timestamptz default now(),
+           unique (doctor_id, week_key)
+         )`
+      ).catch((e) => { doctorReportEmailsReady = null; throw e; });
+    }
+    return doctorReportEmailsReady;
   };
 
   const insertDynamic = async (table, obj) => {
@@ -2261,6 +2328,41 @@ async function makePostgresBackend() {
       const { rows } = await pool.query("select 1 from doctors where referral_code = $1", [code]);
       return rows.length > 0;
     },
+    // ===== Weekly doctor report email (doctorWeeklyEmail.js) =====
+    // One row per (doctor, week); the unique key makes the claim atomic, so
+    // two ticks or two bot processes can never email the same doctor twice.
+    // A failed send (or a claim stuck in 'sending' for over an hour because
+    // the bot died mid-send) may be re-claimed, up to 3 attempts.
+    async listDoctorsWithEmail() {
+      const { rows } = await pool.query("select * from doctors where coalesce(trim(email), '') <> ''");
+      return rows;
+    },
+    async claimDoctorReportEmail(doctorId, weekKey, email) {
+      await ensureDoctorReportEmails();
+      const { rows } = await pool.query(
+        `insert into doctor_report_emails (doctor_id, week_key, email, status, attempts, updated_at)
+         values ($1, $2, $3, 'sending', 1, now())
+         on conflict (doctor_id, week_key) do update
+           set status = 'sending', email = excluded.email,
+               attempts = doctor_report_emails.attempts + 1, updated_at = now()
+           where doctor_report_emails.attempts < 3
+             and (doctor_report_emails.status = 'failed'
+                  or (doctor_report_emails.status = 'sending'
+                      and doctor_report_emails.updated_at < now() - interval '1 hour'))
+         returning id`,
+        [doctorId, weekKey, email]
+      );
+      return rows.length > 0;
+    },
+    async finishDoctorReportEmail(doctorId, weekKey, patch) {
+      await pool.query(
+        `update doctor_report_emails
+            set status = $3::text, patient_count = $4, error = $5, updated_at = now(),
+                sent_at = case when $3::text = 'sent' then now() else null end
+          where doctor_id = $1 and week_key = $2`,
+        [doctorId, weekKey, patch.status, patch.patient_count ?? null, patch.error ?? null]
+      );
+    },
     async doctorPatientStats(doctorId) {
       const { rows } = await pool.query(
         `select id, name, latest_hba1c, weight_kg, engagement_score, consistency_score,
@@ -2353,6 +2455,7 @@ function makeMemoryBackend() {
   let reqSeq = 1;
   let medSeq = 1;
   let doctorSeq = 1;
+  const doctorReportEmails = new Map(); // "doctorId|weekKey" -> weekly email log row
   let remSeq = 1;
   let goalSeq = 1;
   let subPaySeq = 1;
@@ -2957,6 +3060,29 @@ function makeMemoryBackend() {
     async doctorReferralCodeExists(code) {
       return !![...doctorsById.values()].find((d) => d.referral_code === code);
     },
+    // ===== Weekly doctor report email (doctorWeeklyEmail.js) =====
+    async listDoctorsWithEmail() {
+      return [...doctorsById.values()].filter((d) => String(d.email || "").trim());
+    },
+    async claimDoctorReportEmail(doctorId, weekKey, email) {
+      const key = doctorId + "|" + weekKey;
+      const row = doctorReportEmails.get(key);
+      if (!row) {
+        doctorReportEmails.set(key, { doctor_id: doctorId, week_key: weekKey, email, status: "sending", attempts: 1, updated_at: nowISO() });
+        return true;
+      }
+      const stale = row.status === "sending" && Date.now() - new Date(row.updated_at).getTime() > 3600 * 1000;
+      if ((row.status !== "failed" && !stale) || row.attempts >= 3) return false;
+      Object.assign(row, { status: "sending", email, attempts: row.attempts + 1, updated_at: nowISO() });
+      return true;
+    },
+    async finishDoctorReportEmail(doctorId, weekKey, patch) {
+      const row = doctorReportEmails.get(doctorId + "|" + weekKey);
+      if (row) Object.assign(row, patch, { updated_at: nowISO(), sent_at: patch.status === "sent" ? nowISO() : null });
+    },
+    async _doctorReportEmailRows() {
+      return [...doctorReportEmails.values()];
+    },
     async doctorPatientStats(doctorId) {
       const out = [];
       for (const u of usersById.values()) {
@@ -3348,6 +3474,11 @@ export const createDoctor = (fields) => backend.createDoctor(fields);
 export const updateDoctor = (doctorId, patch) => backend.updateDoctor(doctorId, patch);
 export const doctorReferralCodeExists = (code) => backend.doctorReferralCodeExists(code);
 export const doctorPatientStats = (doctorId) => backend.doctorPatientStats(doctorId);
+// Weekly doctor report email (see doctorWeeklyEmail.js).
+export const listDoctorsWithEmail = () => backend.listDoctorsWithEmail();
+export const claimDoctorReportEmail = (doctorId, weekKey, email) => backend.claimDoctorReportEmail(doctorId, weekKey, email);
+export const finishDoctorReportEmail = (doctorId, weekKey, patch) => backend.finishDoctorReportEmail(doctorId, weekKey, patch);
+export const _doctorReportEmailRows = () => (backend._doctorReportEmailRows ? backend._doctorReportEmailRows() : Promise.resolve([]));
 
 // --- Subscription Module (MVP §2–§14) ---
 export const createSubscriptionPayment = (fields) => backend.createSubscriptionPayment(fields);

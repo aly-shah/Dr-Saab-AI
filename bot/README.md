@@ -86,6 +86,38 @@ for Meta's verification handshake.
 `DEFAULT_TIER=consistency_builder` lets you test the premium coaches right away.
 Set it to `free` for production.
 
+### Weekly doctor report email (optional)
+
+Every Sunday at 18:00 Pakistan time each doctor who has at least one connected
+patient is emailed the *Weekly Patient Snapshots* PDF on the professional email
+they gave during doctor onboarding (`doctors.email`). Doctors with no connected
+patients, or with no valid email, get nothing. Each doctor is emailed at most
+once per week (`doctor_report_emails` table); a failed send is retried on later
+15-minute ticks, 3 attempts in total, and a slot missed because the bot was
+down is still sent for up to 24 hours afterwards.
+
+It stays off until SMTP is configured in `.env`:
+
+```bash
+SMTP_HOST=smtp.gmail.com        # any SMTP provider works
+SMTP_PORT=587                   # 465 switches to implicit TLS
+SMTP_USER=reports@your-domain.com
+SMTP_PASS=...                   # Gmail: an app password, not the login password
+MAIL_FROM=DrSaab AI <reports@your-domain.com>
+# optional
+DOCTOR_WEEKLY_EMAIL_DAY=0       # 0=Sunday .. 6=Saturday
+DOCTOR_WEEKLY_EMAIL_HOUR=18     # 0-23, Pakistan time
+DOCTOR_WEEKLY_EMAIL_ENABLED=true
+```
+
+Check it without waiting for Sunday:
+
+```bash
+node send-doctor-weekly-email.mjs --verify                        # SMTP login only
+node send-doctor-weekly-email.mjs --list                          # who would be emailed
+node send-doctor-weekly-email.mjs --doctor dr@clinic.pk --to you@example.com
+```
+
 ## 4. Run locally
 
 ```bash

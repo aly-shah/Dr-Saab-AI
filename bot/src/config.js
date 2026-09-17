@@ -94,6 +94,33 @@ export const config = {
     blockCooldownDays: parseInt(process.env.MSG_BLOCK_COOLDOWN_DAYS || "7", 10),
   },
 
+  // Outbound email (SMTP). Only used by the weekly doctor report email for
+  // now. Works with any SMTP provider (Gmail app password, Brevo, SES, ...).
+  // Leave SMTP_HOST empty to keep email off — the weekly job then no-ops.
+  mail: {
+    host: process.env.SMTP_HOST?.trim() || "",
+    port: parseInt(process.env.SMTP_PORT || "587", 10),
+    // true = implicit TLS (port 465); false = STARTTLS upgrade (port 587).
+    secure: process.env.SMTP_SECURE
+      ? String(process.env.SMTP_SECURE).toLowerCase() === "true"
+      : parseInt(process.env.SMTP_PORT || "587", 10) === 465,
+    user: process.env.SMTP_USER?.trim() || "",
+    pass: process.env.SMTP_PASS || "",
+    from: process.env.MAIL_FROM?.trim() || process.env.SMTP_USER?.trim() || "",
+    get enabled() {
+      return !!(this.host && this.from);
+    },
+  },
+
+  // Weekly doctor report email: every doctor with at least one connected
+  // patient and an email on file gets the Weekly Patient Snapshots PDF.
+  // Day is 0=Sunday .. 6=Saturday, hour is 0-23, both in Pakistan time.
+  doctorWeeklyEmail: {
+    enabled: String(process.env.DOCTOR_WEEKLY_EMAIL_ENABLED ?? "true").toLowerCase() !== "false",
+    day: parseInt(process.env.DOCTOR_WEEKLY_EMAIL_DAY || "0", 10),
+    hour: parseInt(process.env.DOCTOR_WEEKLY_EMAIL_HOUR || "18", 10),
+  },
+
   // WhatsApp adapter (the contracted delivery channel). Supports two providers
   // that speak the SAME Cloud API payloads/webhooks:
   //   • "meta"      — Meta Graph API directly (needs a token + phone number id)

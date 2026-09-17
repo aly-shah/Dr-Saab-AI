@@ -10,6 +10,7 @@ dns.setDefaultResultOrder("ipv4first");
 // import { registerHandlers } from "./bot.js"; // TELEGRAM DISABLED
 import { startWebServer, setBroadcastChannels } from "./web.js";
 import { startScheduler } from "./scheduler.js";
+import { startDoctorWeeklyEmail } from "./doctorWeeklyEmail.js";
 import { startWhatsApp, whatsappBot } from "./whatsapp.js";
 import { logError } from "./log.js";
 import { verifyModels } from "./openai.js";
@@ -88,6 +89,8 @@ const channels = {
   whatsapp: config.whatsapp.enabled ? whatsappBot() : null,
 };
 startScheduler(channels);
+// Weekly doctor report email (SMTP) — runs even without a chat channel.
+startDoctorWeeklyEmail();
 // Admin panel "Messages" → ad hoc broadcasts go out through the same adapters.
 setBroadcastChannels(channels);
 
