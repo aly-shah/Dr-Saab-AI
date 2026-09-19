@@ -38,12 +38,12 @@ export const config = {
       process.env.LLM_VISION_MODEL?.trim() ||
       (usingGroq ? "qwen/qwen3.6-27b" : "gpt-4o-mini"),
 
-    // Paid-tier routing for Ask DrSaab (spec: free = basic AI, paid = OpenAI).
-    // If BOTH GROQ and OPENAI keys are present, paid users hit OpenAI directly
-    // via a second client. Otherwise paidModel just picks a stronger model on
-    // the same client (or falls back to the default model when unset).
+    // When BOTH GROQ and OPENAI keys are present, OpenAI answers every AI call
+    // (chat, photos, labs, reports) and Groq is only a backup for when OpenAI
+    // fails. gpt-4.1-mini for photos: gpt-4o-mini bills ~25k tokens per photo.
     paidApiKey: usingGroq && openaiKey ? openaiKey : null,
     paidModel: process.env.LLM_PAID_MODEL?.trim() || (openaiKey ? "gpt-4o-mini" : null),
+    paidVisionModel: process.env.LLM_PAID_VISION_MODEL?.trim() || "gpt-4.1-mini",
   },
 
   // Database selection priority: Postgres (DATABASE_URL) → Supabase → in-memory.

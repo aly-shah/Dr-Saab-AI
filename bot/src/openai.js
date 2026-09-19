@@ -25,11 +25,14 @@ const client = new OpenAI({
   fetch: resilientFetch,
 });
 
-// Optional second client used only for paid Ask DrSaab (spec: paid tier hits
-// OpenAI directly for richer reasoning/memory). Only exists when both a Groq
-// key and an OpenAI key are configured — otherwise paid users share `client`.
+// OpenAI is the PRIMARY provider for every AI call (chat replies, photo
+// analysis, lab reports, report generation). Groq (`client`) is kept only as
+// a backup for when OpenAI fails. Only exists when both a Groq key and an
+// OpenAI key are configured — otherwise everything uses `client`.
+// One retry only: with Groq as backup, more SDK retries (with backoff) just
+// keep the user waiting ~10s when OpenAI is down or out of credits.
 const paidClient = config.llm.paidApiKey
-  ? new OpenAI({ apiKey: config.llm.paidApiKey, maxRetries: 4, timeout: 60_000, fetch: resilientFetch })
+  ? new OpenAI({ apiKey: config.llm.paidApiKey, maxRetries: 1, timeout: 60_000, fetch: resilientFetch })
   : null;
 
 // Transient mid-response socket drops surface differently across HTTP stacks:
@@ -143,7 +146,14 @@ function oversizedImageBytes(messages) {
   return 0;
 }
 
-async function complete(messages, { maxTokens = 600, model, jsonMode = false, paid = false, reasoningEffort = null } = {}) {
+function hasImage(messages) {
+  return messages.some((m) => Array.isArray(m?.content) && m.content.some((p) => p?.image_url));
+}
+
+// `backup: true` is internal — the retry on Groq after OpenAI has failed.
+// Callers' `model` names a Groq model; OpenAI calls use LLM_PAID_MODEL /
+// LLM_PAID_VISION_MODEL instead.
+async function complete(messages, { maxTokens = 600, model, jsonMode = false, reasoningEffort = null, backup = false } = {}) {
   const tooBig = oversizedImageBytes(messages);
   if (tooBig) {
     const e = new Error(
@@ -154,10 +164,13 @@ async function complete(messages, { maxTokens = 600, model, jsonMode = false, pa
     logError(`${config.llm.provider.toUpperCase()} LLM`, e.message);
     throw e;
   }
-  const useOpenAI = paid && paidClient;
+  const useOpenAI = !!paidClient && !backup;
   const chosenClient = useOpenAI ? paidClient : client;
-  const usedModel =
-    model || (useOpenAI ? config.llm.paidModel : null) || config.llm.model;
+  const usedModel = useOpenAI
+    ? hasImage(messages)
+      ? config.llm.paidVisionModel
+      : config.llm.paidModel
+    : model || config.llm.model;
   try {
     const req = {
       model: usedModel,
@@ -229,6 +242,13 @@ async function complete(messages, { maxTokens = 600, model, jsonMode = false, pa
       e.aiCreditsExhausted = true;
       e.aiLimited = true;
     }
+    if (useOpenAI) {
+      logError("OPENAI LLM", describeLlmError(e, "OpenAI", usedModel));
+      // Whatever went wrong on OpenAI (credits, key, outage, timeout), answer
+      // from the Groq backup instead of failing the user.
+      logError("OPENAI LLM", `answering from the ${config.llm.provider.toUpperCase()} backup instead.`);
+      return complete(messages, { maxTokens, model, jsonMode, reasoningEffort, backup: true });
+    }
     logError(`${config.llm.provider.toUpperCase()} LLM`, describeLlmError(e, config.llm.provider, usedModel));
     throw e;
   }
@@ -265,6 +285,14 @@ export async function verifyModels() {
       }
     }
     if (ok) logOk(`LLM models verified: ${config.llm.model} (text) · ${config.llm.visionModel} (vision)`);
+    if (paidClient) {
+      const oa = new Set(((await paidClient.models.list())?.data || []).map((m) => m.id));
+      for (const [envName, m] of [["LLM_PAID_MODEL", config.llm.paidModel], ["LLM_PAID_VISION_MODEL", config.llm.paidVisionModel]]) {
+        if (oa.size && !oa.has(m))
+          logError("LLM model check", `${envName}="${m}" is NOT in the OpenAI catalog — every OpenAI call will fall back to Groq.`);
+      }
+      logOk(`OpenAI primary: ${config.llm.paidModel} (text) · ${config.llm.paidVisionModel} (vision) — ${config.llm.provider} is backup`);
+    }
   } catch (e) {
     logWarn("LLM model check", `could not read the model catalog: ${e?.message || e}`);
   }
@@ -311,8 +339,7 @@ export async function coachReply(user, history, text, kind = "coach", imageDataU
 
 /**
  * Ask DrSaab open-ended reply. Same conversational shape as `coachReply` but
- * with the broader DrSaab persona and richer personalization. Paid users are
- * routed to the OpenAI-backed model when configured (see config.llm.paidApiKey).
+ * with the broader DrSaab persona and richer personalization.
  *
  * @param {object} user           user row
  * @param {Array}  history        [{role, content}] prior turns (text only)
@@ -320,7 +347,7 @@ export async function coachReply(user, history, text, kind = "coach", imageDataU
  * @param {object} [opts]
  * @param {string} [opts.imageDataUrl] optional data URI for vision
  * @param {string} [opts.personalCtx]  compact personalisation block
- * @param {boolean}[opts.paid]         true → route to paid model when available
+ * @param {boolean}[opts.paid]         true → longer reply budget for paid users
  */
 export async function askDrsaabReply(user, history, text, opts = {}) {
   const { imageDataUrl = null, personalCtx = "", paid = false } = opts;
@@ -341,12 +368,11 @@ export async function askDrsaabReply(user, history, text, opts = {}) {
     { role: "user", content: userContent(text, imageDataUrl) },
   ];
 
-  // Vision always uses the vision model on the free/Groq client — OpenAI paid
-  // routing only applies to text turns.
+  // Photos use the vision model (OpenAI's LLM_PAID_VISION_MODEL, or Groq's on backup).
   if (imageDataUrl) {
     return complete(messages, { maxTokens: 700, model: config.llm.visionModel });
   }
-  return complete(messages, { maxTokens: paid ? 800 : 500, paid });
+  return complete(messages, { maxTokens: paid ? 800 : 500 });
 }
 
 /**
@@ -607,8 +633,7 @@ export async function weeklySummary(user, stats) {
 /**
  * Executive Health Snapshot (paid "Generate Report") — the AI-written parts
  * of the PDF: two short trend summaries, a one-line health-score message and
- * three key insights. Routed to OpenAI when OPENAI_API_KEY is configured
- * (paid: true), otherwise the default LLM client. Always English — the PDF
+ * three key insights. Like every call, goes to OpenAI first with Groq as backup. Always English — the PDF
  * is a shareable document with a fixed English design. Throws on failure so
  * the caller can fall back to fallbackInsights().
  *
@@ -640,7 +665,7 @@ Rules:
       { role: "user", content: facts },
     ],
     // The facts block is dense; give the model room to think AND answer.
-    { maxTokens: 2000, jsonMode: true, paid: true, reasoningEffort: "low" }
+    { maxTokens: 2000, jsonMode: true, reasoningEffort: "low" }
   );
   const out = parseLabJson(raw) || {};
   const clean = (s, max) => String(s || "").replace(/\s+/g, " ").trim().slice(0, max);
