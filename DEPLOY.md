@@ -87,11 +87,18 @@ sudo tail -n 20 /var/log/nginx/error.log
 
 - `bind() to 0.0.0.0:80 failed (98: Address already in use)` with **apache2**
   listening: `sudo systemctl disable --now apache2`, then re-run `./deploy.sh`.
-- Same error with **nginx** listening: a master is running outside systemd, and
-  it is still serving the *old* config. `sudo nginx -s reload` applies the new
-  vhost with zero downtime; then hand ownership back with
-  `sudo nginx -s quit; sleep 3; sudo systemctl start nginx && sudo systemctl enable nginx`.
-  `deploy.sh` now does the reload itself and prints this reminder.
+- Same error with **nginx** listening: an orphaned master is running outside
+  systemd, still serving the *old* config. The pid is in the listener dump
+  above; `sudo kill -HUP <pid>` applies the new vhost with zero downtime
+  (`nginx -s reload` only works if `/run/nginx.pid` still exists — it often
+  doesn't for a hand-started master). Then hand ownership back when quiet:
+  `sudo kill -QUIT <pid>; sleep 3; sudo systemctl start nginx && sudo systemctl enable nginx`.
+  `deploy.sh` does the reload itself and prints the handoff command.
+- First check `sudo readlink /proc/<pid>/root`. If it is not `/`, that nginx is
+  in a container publishing :80 on the host — the host nginx can never bind
+  those ports, so route this vhost from that container or move DrSaab to another
+  port. `deploy.sh` detects this and stops rather than reloading someone else's
+  web server.
 - `cannot load certificate`: an *unrelated* vhost points at a deleted cert.
   `sudo nginx -T` dumps every loaded config; fix or remove that vhost.
 

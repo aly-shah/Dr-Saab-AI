@@ -430,8 +430,9 @@ Fix the cause, then re-run this script (it is idempotent):
   * "Address already in use" and apache2 holds :80
        sudo systemctl disable --now apache2      # or move apache off :80
   * "Address already in use" and nginx holds :80 (a master outside systemd)
-       sudo nginx -s reload   # new config live now, zero downtime
-       sudo nginx -s quit; sleep 3; sudo systemctl start nginx   # hand it back to systemd
+       sudo kill -HUP <master pid>    # new config live now, zero downtime
+       sudo kill -QUIT <master pid>; sleep 3; sudo systemctl start nginx   # hand it to systemd
+       (the pid is in the listener dump above; `nginx -s reload` needs /run/nginx.pid)
   * "cannot load certificate" / some other vhost is broken
        sudo nginx -T   # dumps every loaded config; the bad include is in there
 HINT
@@ -447,13 +448,30 @@ HINT
 # tell the operator how to hand ownership back to systemd during a quiet moment.
 NGINX_ADOPTED=0
 nginx_adopt_or_report() {
-  if pgrep -f 'nginx: master' >/dev/null 2>&1; then
-    warn "an nginx master is already running outside systemd - reloading it in place so this vhost goes live"
-    if $SUDO nginx -s reload; then
+  local master root
+  master="$(pgrep -f 'nginx: master' 2>/dev/null | head -1 || true)"
+  if [ -n "$master" ]; then
+    # An nginx inside a container (Docker/LXC publishing :80 on the host) is not
+    # ours to reload, and it will never serve this vhost - say so plainly rather
+    # than HUPing someone else's web server.
+    root="$($SUDO readlink "/proc/$master/root" 2>/dev/null || echo /)"
+    if [ "$root" != "/" ]; then
+      warn "the nginx holding :80 (pid $master) runs inside a container ($root) - the host nginx can never bind those ports."
+      warn "Route this vhost from that container, or serve DrSaab on another port and proxy to it from there."
+      nginx_failure_report
+    fi
+    warn "an nginx master (pid $master) is already running outside systemd - reloading it in place so this vhost goes live"
+    # `nginx -s reload` reads /run/nginx.pid to find the master; that file is
+    # missing when the master was started by hand or /run was cleared under it
+    #   [error] open() "/run/nginx.pid" failed (2: No such file or directory)
+    # Fall back to signalling the master directly, then restore the pid file so
+    # `systemctl reload` and certbot's renewal hook can reach it again.
+    if $SUDO nginx -s reload 2>/dev/null || $SUDO kill -HUP "$master"; then
+      $SUDO sh -c "echo $master > /run/nginx.pid" 2>/dev/null || true
       NGINX_ADOPTED=1
       warn "New config is live on the running master, but systemd does not own nginx, so"
       warn "'systemctl reload nginx' (used by certbot's renewal hook) will keep failing. Hand it back when quiet:"
-      warn "  sudo nginx -s quit; sleep 3; sudo systemctl start nginx && sudo systemctl enable nginx"
+      warn "  sudo kill -QUIT $master; sleep 3; sudo systemctl start nginx && sudo systemctl enable nginx"
       return 0
     fi
   fi
