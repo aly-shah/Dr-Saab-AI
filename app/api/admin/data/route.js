@@ -42,7 +42,7 @@ export async function GET(req) {
          left join glucose_logs g on g.created_at::date = d::date
          group by d order by d`),
       q(`select u.id, u.name, u.age, u.gender, u.city, u.language, u.diabetes_status,
-                u.tier, u.streak, u.created_at,
+                u.tier, u.streak, u.created_at, u.phone_number, u.source,
                 (select d.name from doctors d where d.id = u.doctor_id and u.doctor_link_status = 'active') as doctor_name,
                 coalesce(kb.message_count,0) as message_count, kb.last_seen,
                 (select count(*)::int from user_activity_days a

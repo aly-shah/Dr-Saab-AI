@@ -22,7 +22,6 @@ import {
   getDoctorByUserId,
   getDoctorByReferralCode,
   getDoctorById,
-  getUserById,
   updateDoctor,
   updateUser,
   doctorPatientStats,
@@ -34,12 +33,8 @@ import {
   sendWeeklySnapshots,
   sendPatientSnapshot,
 } from "./doctorReports.js";
-import {
-  isDoctorPro,
-  DOCTOR_FREE_PATIENT_CAP,
-  notifyDoctorCapReached,
-  renderDoctorCapPrompt,
-} from "./subscription.js";
+import { renderDoctorCapPrompt } from "./subscription.js";
+import { DOCTOR_FREE_PATIENT_CAP, isDoctorPremium, notifyDoctorIfOverCap } from "../doctorCap.js";
 
 // ===================================================================
 // Doctor main menu
@@ -61,12 +56,11 @@ export async function showDoctorMenu(bot, chatId, session) {
 
 // True when this doctor is on the free plan and has already hit the
 // 10-patient limit. Used by showDoctorMenu to surface the persistent
-// "Upgrade to Doctor Pro" button. Doctor Pro subscribers never see it.
+// "Upgrade to Doctor Pro" button. DrPremium / Doctor Pro doctors never see it.
 async function isDoctorAtFreeCap(doctorUser) {
   if (!doctorUser || doctorUser.user_type !== "doctor") return false;
-  if (isDoctorPro(doctorUser)) return false;
   const doc = await getDoctorByUserId(doctorUser.id).catch(() => null);
-  if (!doc?.id) return false;
+  if (!doc?.id || isDoctorPremium(doctorUser, doc)) return false;
   const patients = await doctorPatientStats(doc.id).catch(() => []);
   return patients.length >= DOCTOR_FREE_PATIENT_CAP;
 }
@@ -273,22 +267,10 @@ export async function myDoctorCallback(bot, chatId, session, data) {
     const pending = session.data?.pendingDoctor;
     if (!pending) return showMyDoctor(bot, chatId, session);
 
-    // Addendum §4 — free doctors are capped at 10 active patients. Skip
-    // the check when the patient is already linked to this doctor (re-
-    // confirming an existing link is not a new patient).
-    const capped = await isDoctorAtCap(pending, session.user);
-    if (capped) {
-      session.data.pendingDoctor = null;
-      resetFlow(chatId);
-      await send(bot, chatId, t(lang, "dp_patient_cap_reached", {
-        name: sanitizeMd(withDrPrefix(pending.name)),
-      }), { markdown: true });
-      // Fire-and-forget the doctor-side notification.
-      const doctorUser = await getUserById(pending.user_id).catch(() => null);
-      if (doctorUser) notifyDoctorCapReached(doctorUser, session.user.name).catch(() => {});
-      return showMyDoctor(bot, chatId, session);
-    }
-
+    // Patients are never refused (2026-09-19 spec): the free-plan limit only
+    // decides who appears in the doctor's weekly summary (doctorCap.js).
+    const alreadyLinked =
+      session.user.doctor_id === pending.id && session.user.doctor_link_status === "active";
     const nowIso = new Date().toISOString();
     session.user = await updateUser(session.user.id, {
       doctor_id: pending.id,
@@ -302,6 +284,9 @@ export async function myDoctorCallback(bot, chatId, session, data) {
     await send(bot, chatId, t(lang, "my_doctor_linked_ok", {
       name: sanitizeMd(withDrPrefix(pending.name)),
     }), { markdown: true });
+    // Past the free limit → one-time email + in-bot notice to the doctor.
+    // Fire-and-forget: the patient's link is already saved.
+    if (!alreadyLinked) notifyDoctorIfOverCap(pending, session.user.name).catch(() => {});
     return showMyDoctor(bot, chatId, session);
   }
 
@@ -348,25 +333,4 @@ export async function myDoctorText(bot, chatId, session, text) {
 // Convenience: is this session currently a doctor's session?
 export function isDoctorSession(session) {
   return session?.user?.user_type === "doctor";
-}
-
-// Addendum §2/§7 — returns true when `doctor` already has the free-plan
-// max (10) active patients and isn't on Doctor Pro. `linkingPatient` lets
-// us skip the count when the patient is re-confirming an existing link.
-async function isDoctorAtCap(doctor, linkingPatient) {
-  if (!doctor?.id) return false;
-
-  const doctorUser = await getUserById(doctor.user_id).catch(() => null);
-  if (isDoctorPro(doctorUser)) return false;
-
-  const patients = await doctorPatientStats(doctor.id).catch(() => []);
-  const activeCount = patients.length;
-  if (activeCount < DOCTOR_FREE_PATIENT_CAP) return false;
-
-  // Already linked to this doctor? Not a new patient — allow through.
-  if (linkingPatient?.doctor_id === doctor.id
-      && linkingPatient?.doctor_link_status === "active") {
-    return false;
-  }
-  return true;
 }

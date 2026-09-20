@@ -123,7 +123,7 @@ async function showDoctorProBenefits(bot, chatId, session) {
   });
 }
 
-// Sent to a doctor when a patient tried to link while they were at the
+// Sent to a doctor when their 11th patient links (doctorCap.js) — the
 // 10-patient cap (Addendum §4). Fired from within the doctor-linking
 // path — not from a user-invoked callback. Uses notifyUser's channel
 // lookup because the doctor isn't the current conversation partner
@@ -131,7 +131,7 @@ async function showDoctorProBenefits(bot, chatId, session) {
 export async function notifyDoctorCapReached(doctor, patientName) {
   const lang = doctor?.language || "en";
   const patient = patientName ? sanitizeMd(patientName) : t(lang, "dp_cap_a_patient");
-  return notifyUser(doctor, "dp_cap_reached", { patient }, {
+  return notifyUser(doctor, "dp_cap_reached", { patient, contact: config.doctorUpgradeContact }, {
     keyboard: doctorProCapKeyboard(lang),
   }).catch((e) => console.error("dp cap notify:", e?.message));
 }
@@ -142,7 +142,7 @@ export async function notifyDoctorCapReached(doctor, patientName) {
 // lookup notifyUser does. Works on every channel (web, WhatsApp, Telegram).
 export async function renderDoctorCapPrompt(bot, chatId, lang, patientName) {
   const patient = patientName ? sanitizeMd(patientName) : t(lang, "dp_cap_a_patient");
-  return send(bot, chatId, t(lang, "dp_cap_reached", { patient }), {
+  return send(bot, chatId, t(lang, "dp_cap_reached", { patient, contact: config.doctorUpgradeContact }), {
     keyboard: doctorProCapKeyboard(lang),
     markdown: true,
   });

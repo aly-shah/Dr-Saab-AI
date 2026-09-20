@@ -1,4 +1,5 @@
 import { WhatsAppIcon } from "./icons";
+import { whatsappLinkProps } from "@/lib/links";
 
 const COLS = [
   {
@@ -32,7 +33,6 @@ const COLS = [
   },
 ];
 
-const WHATSAPP_URL = "/bot";
 
 export default function Footer() {
   return (
@@ -49,9 +49,7 @@ export default function Footer() {
               at a time.
             </p>
             <a
-              href={WHATSAPP_URL}
-              target="_blank"
-              rel="noopener noreferrer"
+              {...whatsappLinkProps}
               className="btn-primary mt-6 px-5 py-2.5 text-sm"
             >
               <WhatsAppIcon className="h-4 w-4" />

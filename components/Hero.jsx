@@ -1,7 +1,7 @@
 import PhoneMockup from "./PhoneMockup";
 import { WhatsAppIcon, ArrowRightIcon, CheckCircleIcon } from "./icons";
 
-const WHATSAPP_URL = "/bot";
+import { whatsappLinkProps, WEB_BOT_URL } from "@/lib/links";
 
 // Small green trend pill with a clean diagonal arrow (no unicode glyphs).
 function TrendPill({ dir = "down", children }) {
@@ -98,11 +98,16 @@ export default function Hero() {
             stay consistent, and achieve better long-term health.
           </p>
 
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <a href={WHATSAPP_URL} className="btn-primary">
-              <WhatsAppIcon className="h-5 w-5" />
-              Chat with DrSaab
-            </a>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-start">
+            <div className="flex flex-col items-center gap-2">
+              <a {...whatsappLinkProps} className="btn-primary w-full">
+                <WhatsAppIcon className="h-5 w-5" />
+                Chat with DrSaab
+              </a>
+              <a href={WEB_BOT_URL} className="text-sm font-medium text-ink/60 underline-offset-4 hover:text-primary hover:underline">
+                Use the Web Bot instead
+              </a>
+            </div>
             <a href="#how" className="btn-secondary">
               See how it works
               <ArrowRightIcon className="h-4 w-4" />

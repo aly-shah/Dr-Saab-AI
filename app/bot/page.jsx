@@ -310,7 +310,10 @@ export default function BotChatPage() {
     if (!file || loading) return;
     const isImage = !!file.type?.startsWith("image/");
     const isPdf = file.type === "application/pdf";
-    if (!isImage && !isPdf) {
+    // Audio is accepted for "Feedback" voice notes (the bot also saves a
+    // stray one to the conversation, like a WhatsApp voice note).
+    const isAudio = !!file.type?.startsWith("audio/");
+    if (!isImage && !isPdf && !isAudio) {
       setMessages((prev) => [
         ...prev,
         {
@@ -327,7 +330,7 @@ export default function BotChatPage() {
       const caption = input.trim();
       const bubble = isImage
         ? { from: "user", image: dataUrl, text: caption }
-        : { from: "user", text: `📄 ${file.name || "report.pdf"}${caption ? `\n${caption}` : ""}` };
+        : { from: "user", text: `${isAudio ? "🎤" : "📄"} ${file.name || (isAudio ? "voice note" : "report.pdf")}${caption ? `\n${caption}` : ""}` };
       setMessages((prev) => [...prev, bubble]);
       setInput("");
       requestAnimationFrame(() => taRef.current && (taRef.current.style.height = "auto"));
@@ -546,7 +549,7 @@ export default function BotChatPage() {
             <input
               ref={fileRef}
               type="file"
-              accept="image/*,application/pdf"
+              accept="image/*,application/pdf,audio/*"
               onChange={onFilePicked}
               className="hidden"
             />

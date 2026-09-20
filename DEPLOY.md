@@ -72,11 +72,38 @@ pm2 restart all            # after a code change (or re-run ./deploy.sh)
 git pull && ./deploy.sh    # update + rebuild + restart
 ```
 
+## Troubleshooting
+
+**`nginx -t` passes but `nginx.service` fails to start** ("Job for nginx.service
+failed…", then "nginx.service is not active, cannot reload"). The config is
+fine — `nginx -t` never binds a port, so this is a runtime conflict. Check who
+already owns :80/:443 and what nginx logged:
+
+```bash
+sudo ss -ltnp | grep -E ':(80|443)[[:space:]]'
+sudo journalctl -xeu nginx --no-pager -n 30
+sudo tail -n 20 /var/log/nginx/error.log
+```
+
+- `bind() to 0.0.0.0:80 failed (98: Address already in use)` with **apache2**
+  listening: `sudo systemctl disable --now apache2`, then re-run `./deploy.sh`.
+- Same error with **nginx** listening: a master is running outside systemd, and
+  it is still serving the *old* config. `sudo nginx -s reload` applies the new
+  vhost with zero downtime; then hand ownership back with
+  `sudo nginx -s quit; sleep 3; sudo systemctl start nginx && sudo systemctl enable nginx`.
+  `deploy.sh` now does the reload itself and prints this reminder.
+- `cannot load certificate`: an *unrelated* vhost points at a deleted cert.
+  `sudo nginx -T` dumps every loaded config; fix or remove that vhost.
+
+`deploy.sh` prints all of the above and stops when nginx won't start, instead of
+continuing into certbot (which would fail for the same reason).
+
 ## Notes
 
 - **Secrets** live only in `bot/.env` (gitignored) — never committed.
 - The bot uses **long polling** (no inbound webhook needed). To switch to
   webhooks later, set `USE_WEBHOOK=true` + `WEBHOOK_URL` in `bot/.env` and add an
   nginx location for it.
-- Default new-user tier is `consistency_builder` (premium) so you can test
-  everything. Set `DEFAULT_TIER=free` in `bot/.env` for production.
+- New users start on the free plan (`DEFAULT_TIER=free`) and upgrade to
+  Consistency Coach from the bot. Set `DEFAULT_TIER=consistency` in `bot/.env`
+  only on a test box where you want every new user to be premium.

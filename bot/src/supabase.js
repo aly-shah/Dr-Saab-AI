@@ -198,6 +198,37 @@ async function makeSupabaseBackend() {
         logError("saveVoiceNote", e?.message);
       }
     },
+    // ===== Feedback inbox (flows/feedback.js → admin Feedback page) =====
+    async createFeedback(row, attachments = []) {
+      const { data, error } = await db.from("feedback").insert(row).select().single();
+      if (error) throw error;
+      await this.addFeedbackAttachments(data.id, attachments);
+      return data;
+    },
+    async appendFeedback(feedbackId, { text = "", attachments = [] } = {}) {
+      if (text) {
+        const { data } = await db.from("feedback").select("message").eq("id", feedbackId).single();
+        const message = [data?.message, text].filter(Boolean).join("\n");
+        const { error } = await db.from("feedback").update({ message }).eq("id", feedbackId);
+        if (error) throw error;
+      }
+      await this.addFeedbackAttachments(feedbackId, attachments);
+    },
+    async addFeedbackAttachments(feedbackId, attachments) {
+      if (!attachments.length) return;
+      const { error } = await db
+        .from("feedback_attachments")
+        .insert(attachments.map((a) => ({ feedback_id: feedbackId, ...a })));
+      if (error) throw error;
+    },
+    async listFeedback() {
+      const { data, error } = await db
+        .from("feedback")
+        .select("*, feedback_attachments(id, kind, mime, filename)")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []).map(({ feedback_attachments, ...f }) => ({ ...f, attachments: feedback_attachments || [] }));
+    },
     async recentGlucose(userId, limit) {
       const { data, error } = await db
         .from("glucose_logs")
@@ -947,11 +978,27 @@ async function makeSupabaseBackend() {
     async doctorPatientStats(doctorId) {
       const { data: patients, error: pe } = await db
         .from("users")
-        .select("id, name, latest_hba1c, weight_kg, engagement_score, consistency_score, motivation_score, risk_score, total_checkins, last_log_date, created_at")
+        .select("id, name, latest_hba1c, weight_kg, engagement_score, consistency_score, motivation_score, risk_score, total_checkins, last_log_date, created_at, doctor_linked_date")
         .eq("doctor_id", doctorId)
         .eq("doctor_link_status", "active");
       if (pe) throw pe;
       return patients || [];
+    },
+    // Free-limit email (doctorCap.js): claim the one-time send; release it if
+    // the email could not go out so the next patient link retries.
+    async claimDoctorCapEmail(doctorId) {
+      const { data, error } = await db
+        .from("doctors")
+        .update({ cap_email_sent_at: new Date().toISOString() })
+        .eq("id", doctorId)
+        .is("cap_email_sent_at", null)
+        .select("id");
+      if (error) throw error;
+      return (data || []).length > 0;
+    },
+    async releaseDoctorCapEmail(doctorId) {
+      const { error } = await db.from("doctors").update({ cap_email_sent_at: null }).eq("id", doctorId);
+      if (error) throw error;
     },
 
     // ===== Subscription Module (MVP §8) =====
@@ -1011,6 +1058,45 @@ async function makeSupabaseBackend() {
 // ----------------------------------------------------------------
 // Postgres backend (local or any Postgres via DATABASE_URL)
 // ----------------------------------------------------------------
+// Feedback inbox: one row per "Feedback" submission, one attachment row per
+// screenshot / voice note / file (stored inline as a data: URL, like voice
+// notes on coach_messages — no file storage needed). user_name / user_phone
+// are copied in so the inbox still reads well if the user is later deleted.
+export const FEEDBACK_DDL = `
+  create table if not exists feedback (
+    id          uuid primary key default gen_random_uuid(),
+    user_id     uuid references users(id) on delete set null,
+    user_name   text,
+    user_phone  text,
+    user_type   text,
+    source      text,
+    message     text not null default '',
+    status      text not null default 'new',
+    created_at  timestamptz default now()
+  );
+  create index if not exists feedback_created_idx on feedback(created_at desc);
+  create table if not exists feedback_attachments (
+    id           uuid primary key default gen_random_uuid(),
+    feedback_id  uuid not null references feedback(id) on delete cascade,
+    kind         text not null,
+    mime         text,
+    filename     text,
+    data_url     text not null,
+    created_at   timestamptz default now()
+  );
+  create index if not exists feedback_attachments_fb_idx on feedback_attachments(feedback_id);
+`;
+
+// Doctor free limit (doctorCap.js). dr_premium = DrPremium switched on by hand
+// in the admin panel; cap_email_sent_at = the one-time "you've reached your
+// free limit" email went out. Keep in sync with db/schema.sql and
+// lib/doctorPlan.js on the admin side.
+export const DOCTOR_CAP_DDL = `
+  alter table doctors add column if not exists dr_premium        boolean not null default false;
+  alter table doctors add column if not exists dr_premium_at     timestamptz;
+  alter table doctors add column if not exists cap_email_sent_at timestamptz;
+`;
+
 async function makePostgresBackend() {
   const pg = (await import("pg")).default;
   const { Pool, types } = pg;
@@ -1036,6 +1122,12 @@ async function makePostgresBackend() {
       : e?.message;
     throw new Error(why);
   }
+
+  // Doctor free-limit columns (doctorCap.js), added at boot so a database that
+  // never re-ran schema.sql still works. Non-fatal: without them the limit
+  // still applies, only the DrPremium flag and once-only email are missing.
+  await pool.query(DOCTOR_CAP_DDL).catch((e) =>
+    logWarn("Database", `could not add the doctor limit columns: ${e?.message}. Re-run bot/db/schema.sql.`));
 
   // Columns each table actually has, read once per table and cached.
   //
@@ -1089,6 +1181,25 @@ async function makePostgresBackend() {
       ).catch((e) => { doctorReportEmailsReady = null; throw e; });
     }
     return doctorReportEmailsReady;
+  };
+
+  // Feedback inbox tables — created on first use for the same reason, so the
+  // "Feedback" command works on a database that never re-ran schema.sql.
+  // Keep in sync with db/schema.sql and app/api/admin/feedback/route.js.
+  let feedbackReady = null;
+  const ensureFeedback = () => {
+    if (!feedbackReady) {
+      feedbackReady = pool.query(FEEDBACK_DDL).catch((e) => { feedbackReady = null; throw e; });
+    }
+    return feedbackReady;
+  };
+  const insertFeedbackAttachments = async (feedbackId, attachments) => {
+    for (const a of attachments) {
+      await pool.query(
+        "insert into feedback_attachments (feedback_id, kind, mime, filename, data_url) values ($1, $2, $3, $4, $5)",
+        [feedbackId, a.kind, a.mime || null, a.filename || null, a.data_url],
+      );
+    }
   };
 
   const insertDynamic = async (table, obj) => {
@@ -1288,6 +1399,37 @@ async function makePostgresBackend() {
       } catch (e) {
         logError("saveVoiceNote", e?.message);
       }
+    },
+    // ===== Feedback inbox (flows/feedback.js → admin Feedback page) =====
+    async createFeedback(row, attachments = []) {
+      await ensureFeedback();
+      const { rows } = await pool.query(
+        `insert into feedback (user_id, user_name, user_phone, user_type, source, message)
+         values ($1, $2, $3, $4, $5, $6) returning *`,
+        [row.user_id || null, row.user_name || null, row.user_phone || null, row.user_type || null, row.source || null, row.message || ""],
+      );
+      await insertFeedbackAttachments(rows[0].id, attachments);
+      return rows[0];
+    },
+    async appendFeedback(feedbackId, { text = "", attachments = [] } = {}) {
+      await ensureFeedback();
+      if (text) {
+        await pool.query(
+          "update feedback set message = concat_ws(chr(10), nullif(message, ''), $2::text) where id = $1",
+          [feedbackId, text],
+        );
+      }
+      await insertFeedbackAttachments(feedbackId, attachments);
+    },
+    async listFeedback() {
+      await ensureFeedback();
+      const { rows } = await pool.query(
+        `select f.*, coalesce(
+                  (select json_agg(json_build_object('id', a.id, 'kind', a.kind, 'mime', a.mime, 'filename', a.filename) order by a.created_at)
+                     from feedback_attachments a where a.feedback_id = f.id), '[]') as attachments
+           from feedback f order by f.created_at desc`,
+      );
+      return rows;
     },
     async recentGlucose(userId, limit) {
       const { rows } = await pool.query(
@@ -2366,12 +2508,26 @@ async function makePostgresBackend() {
     async doctorPatientStats(doctorId) {
       const { rows } = await pool.query(
         `select id, name, latest_hba1c, weight_kg, engagement_score, consistency_score,
-                motivation_score, risk_score, total_checkins, last_log_date, created_at
+                motivation_score, risk_score, total_checkins, last_log_date, created_at,
+                doctor_linked_date
            from users
           where doctor_id = $1 and doctor_link_status = 'active'`,
         [doctorId]
       );
       return rows;
+    },
+    // Free-limit email (doctorCap.js): claim the one-time send atomically so
+    // two patients linking at once can't both trigger it; release it if the
+    // email could not go out so the next patient link retries.
+    async claimDoctorCapEmail(doctorId) {
+      const { rows } = await pool.query(
+        "update doctors set cap_email_sent_at = now() where id = $1 and cap_email_sent_at is null returning id",
+        [doctorId],
+      );
+      return rows.length > 0;
+    },
+    async releaseDoctorCapEmail(doctorId) {
+      await pool.query("update doctors set cap_email_sent_at = null where id = $1", [doctorId]);
     },
 
     // ===== Subscription Module (MVP §8) =====
@@ -2441,6 +2597,8 @@ function makeMemoryBackend() {
   const activityDays = new Map(); // "userId|YYYY-MM-DD" → message count
   const broadcasts = [];
   const reengagementLog = [];
+  const feedbackRows = [];
+  const feedbackFiles = [];
   const goals = [];
   const conditions = [];
   const healthMetrics = [];
@@ -2610,6 +2768,26 @@ function makeMemoryBackend() {
     },
     async saveVoiceNote() {
       /* not persisted in memory mode */
+    },
+    async createFeedback(row, attachments = []) {
+      const fb = { id: "fb" + (feedbackRows.length + 1), status: "new", created_at: nowISO(), ...row, message: row.message || "" };
+      feedbackRows.push(fb);
+      for (const a of attachments) feedbackFiles.push({ id: "fa" + (feedbackFiles.length + 1), feedback_id: fb.id, ...a });
+      return fb;
+    },
+    async appendFeedback(feedbackId, { text = "", attachments = [] } = {}) {
+      const fb = feedbackRows.find((r) => r.id === feedbackId);
+      if (!fb) return;
+      if (text) fb.message = [fb.message, text].filter(Boolean).join("\n");
+      for (const a of attachments) feedbackFiles.push({ id: "fa" + (feedbackFiles.length + 1), feedback_id: fb.id, ...a });
+    },
+    async listFeedback() {
+      return [...feedbackRows].reverse().map((f) => ({
+        ...f,
+        attachments: feedbackFiles
+          .filter((a) => a.feedback_id === f.id)
+          .map(({ id, kind, mime, filename }) => ({ id, kind, mime, filename })),
+      }));
     },
     async recentGlucose(userId, limit) {
       return glucose
@@ -3092,11 +3270,21 @@ function makeMemoryBackend() {
             engagement_score: u.engagement_score, consistency_score: u.consistency_score,
             motivation_score: u.motivation_score, risk_score: u.risk_score,
             total_checkins: u.total_checkins, last_log_date: u.last_log_date,
-            created_at: u.created_at,
+            created_at: u.created_at, doctor_linked_date: u.doctor_linked_date,
           });
         }
       }
       return out;
+    },
+    async claimDoctorCapEmail(doctorId) {
+      const d = doctorsById.get(doctorId);
+      if (!d || d.cap_email_sent_at) return false;
+      d.cap_email_sent_at = nowISO();
+      return true;
+    },
+    async releaseDoctorCapEmail(doctorId) {
+      const d = doctorsById.get(doctorId);
+      if (d) d.cap_email_sent_at = null;
     },
 
     // ===== Subscription Module (MVP §8) =====
@@ -3217,6 +3405,9 @@ export const recentLabReports = (id, limit = 3) => backend.recentLabReports(id, 
 export const listLabReports = (id, limit = 100) => backend.listLabReports(id, limit);
 export const saveCoachMessage = (id, kind, role, content) => backend.saveCoachMessage(id, kind, role, content);
 export const saveVoiceNote = (id, dataUrl, content) => backend.saveVoiceNote(id, dataUrl, content);
+export const createFeedback = (row, attachments) => backend.createFeedback(row, attachments);
+export const appendFeedback = (id, extra) => backend.appendFeedback(id, extra);
+export const listFeedback = () => backend.listFeedback();
 export const recentGlucose = (id, limit = 5) => backend.recentGlucose(id, limit);
 export const latestWeight = (id) => backend.latestWeight(id);
 export const recentWeights = (id, limit = 50) => backend.recentWeights(id, limit);
@@ -3474,6 +3665,8 @@ export const createDoctor = (fields) => backend.createDoctor(fields);
 export const updateDoctor = (doctorId, patch) => backend.updateDoctor(doctorId, patch);
 export const doctorReferralCodeExists = (code) => backend.doctorReferralCodeExists(code);
 export const doctorPatientStats = (doctorId) => backend.doctorPatientStats(doctorId);
+export const claimDoctorCapEmail = (doctorId) => backend.claimDoctorCapEmail(doctorId);
+export const releaseDoctorCapEmail = (doctorId) => backend.releaseDoctorCapEmail(doctorId);
 // Weekly doctor report email (see doctorWeeklyEmail.js).
 export const listDoctorsWithEmail = () => backend.listDoctorsWithEmail();
 export const claimDoctorReportEmail = (doctorId, weekKey, email) => backend.claimDoctorReportEmail(doctorId, weekKey, email);

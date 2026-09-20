@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { WhatsAppIcon, MenuIcon, CloseIcon } from "./icons";
+import { whatsappLinkProps, WEB_BOT_URL } from "@/lib/links";
 
 const LINKS = [
   { href: "#how", label: "How DrSaab Works" },
@@ -10,8 +11,6 @@ const LINKS = [
   { href: "#pricing", label: "Pricing" },
   { href: "#faq", label: "FAQ" },
 ];
-
-const WHATSAPP_URL = "/bot";
 
 export default function Nav() {
   const [open, setOpen] = useState(false);
@@ -50,10 +49,13 @@ export default function Nav() {
           ))}
         </ul>
 
-        <div className="hidden items-center gap-3 lg:flex">
-          <a href={WHATSAPP_URL} className="btn-primary px-5 py-2.5 text-sm">
+        <div className="hidden flex-col items-center gap-1 lg:flex">
+          <a {...whatsappLinkProps} className="btn-primary px-5 py-2.5 text-sm">
             <WhatsAppIcon className="h-4 w-4" />
             Chat with DrSaab
+          </a>
+          <a href={WEB_BOT_URL} className="text-[11px] font-medium text-ink/55 underline-offset-2 hover:text-primary hover:underline">
+            Use the Web Bot instead
           </a>
         </div>
 
@@ -85,12 +87,19 @@ export default function Nav() {
             ))}
             <li className="pt-2">
               <a
-                href={WHATSAPP_URL}
+                {...whatsappLinkProps}
                 onClick={() => setOpen(false)}
                 className="btn-primary w-full"
               >
                 <WhatsAppIcon className="h-5 w-5" />
                 Chat with DrSaab
+              </a>
+              <a
+                href={WEB_BOT_URL}
+                onClick={() => setOpen(false)}
+                className="mt-2 block text-center text-sm font-medium text-ink/60 hover:text-primary hover:underline"
+              >
+                Use the Web Bot instead
               </a>
             </li>
           </ul>

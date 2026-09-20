@@ -121,6 +121,11 @@ export const config = {
     hour: parseInt(process.env.DOCTOR_WEEKLY_EMAIL_HOUR || "18", 10),
   },
 
+  // Doctor free plan (doctorCap.js): the weekly summary covers the first
+  // DOCTOR_FREE_PATIENT_CAP linked patients unless the doctor is on DrPremium.
+  // Doctors who pass the limit are told to write to this address to upgrade.
+  doctorUpgradeContact: process.env.DOCTOR_UPGRADE_CONTACT?.trim() || "yasir@drsaabcoach.com",
+
   // WhatsApp adapter (the contracted delivery channel). Supports two providers
   // that speak the SAME Cloud API payloads/webhooks:
   //   • "meta"      — Meta Graph API directly (needs a token + phone number id)

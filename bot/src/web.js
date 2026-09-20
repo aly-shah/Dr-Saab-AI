@@ -6,7 +6,10 @@ import http from "node:http";
 import { handleMessage, handleCallback } from "./bot.js";
 import { parseDataUrl, isPdfMime, isImageMime, extractPdfText } from "./pdf.js";
 import { saveUnanalysedReport, inlineUpload } from "./flows/labreport.js";
-import { getOrCreateUser, getUserById, getDoctorById, doctorPatientStats } from "./supabase.js";
+import { getOrCreateUser, getUserById, getDoctorById, doctorPatientStats, saveVoiceNote } from "./supabase.js";
+import { getSession } from "./session.js";
+import { wantsFeedbackMedia } from "./flows/feedback.js";
+import { t } from "./i18n.js";
 import { config } from "./config.js";
 import { assembleSnapshotData, fallbackInsights } from "./snapshotData.js";
 import { renderSnapshotPdf } from "./snapshotPdf.js";
@@ -136,6 +139,23 @@ async function processWeb(sessionId, type, payload) {
           __documentName: fileName || "",
           __source: "web",
         });
+      } else if (parsed && parsed.mime.toLowerCase().startsWith("audio/")) {
+        // Audio file — part of a "Feedback" submission, or (like a WhatsApp
+        // voice note) saved to the user's conversation and acknowledged.
+        if (wantsFeedbackMedia(getSession(sessionId))) {
+          await handleMessage(vbot, {
+            chat: { id: sessionId },
+            from: { id: sessionId },
+            text: caption || "",
+            caption: caption || "",
+            __audioDataUrl: dataUrl,
+            __source: "web",
+          });
+        } else {
+          const user = await getOrCreateUser(sessionId, "web");
+          await saveVoiceNote(user.id, dataUrl);
+          buffer.push({ text: t(user?.language || "en", "voice_note_saved"), rows: [] });
+        }
       } else {
         buffer.push({
           text:

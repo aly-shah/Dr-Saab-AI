@@ -22,6 +22,7 @@ import { getOrCreateUser, saveVoiceNote } from "./supabase.js";
 import { t } from "./i18n.js";
 import { getSession } from "./session.js";
 import { langOf } from "./utils.js";
+import { wantsFeedbackMedia } from "./flows/feedback.js";
 
 // Safety net: if a flow throws (e.g. the Groq/LLM API rate-limited us), tell the
 // WhatsApp user what happened instead of leaving them with silence. Flows that
@@ -361,6 +362,18 @@ async function onInbound(value) {
       await (async () => {
         const audio = m.audio || m.voice;
         const dataUrl = audio?.id ? await fetchMediaDataUrl(audio.id) : null;
+        // Voice note sent as feedback (after typing "Feedback") — let the
+        // feedback flow store it in the inbox instead.
+        if (dataUrl && wantsFeedbackMedia(getSession(from))) {
+          await handleMessage(bot, {
+            chat: { id: from },
+            from: { id: from },
+            text: "",
+            __audioDataUrl: dataUrl,
+            __source: "whatsapp",
+          });
+          return;
+        }
         const user = await getOrCreateUser(from, "whatsapp");
         if (dataUrl) await saveVoiceNote(user.id, dataUrl);
         else logError("WhatsApp voice note", "could not download audio media");

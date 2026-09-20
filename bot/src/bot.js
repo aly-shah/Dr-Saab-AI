@@ -78,6 +78,13 @@ import {
   healthText,
 } from "./flows/tracking.js";
 import { startMyHealth, myHealthText, myHealthCallback } from "./flows/myhealth.js";
+import {
+  parseFeedbackCommand,
+  startFeedback,
+  feedbackText,
+  maybeAppendFeedback,
+  leaveFeedback,
+} from "./flows/feedback.js";
 import { startCoach, coachText } from "./flows/coach.js";
 import { startAskDrsaab, askDrsaabText } from "./flows/askdrsaab.js";
 import { startLab, labText, labRetry } from "./flows/labreport.js";
@@ -712,6 +719,15 @@ export async function handleMessage(bot, msg) {
     return renderDoctorCapPrompt(bot, chatId, lang, t(lang, "dp_test_patient_name"));
   }
 
+  // Feedback command (flows/feedback.js). Checked before every other router
+  // and in any state — onboarding included — so trial users can report a
+  // problem wherever they are, and so a screenshot sent as feedback isn't
+  // taken for a lab report.
+  const feedbackCmd = parseFeedbackCommand(text);
+  if (feedbackCmd) return startFeedback(bot, chatId, session, feedbackCmd.rest, msg);
+  if (session.state === "feedback") return feedbackText(bot, chatId, session, text, msg, { showMenu });
+  if (await maybeAppendFeedback(bot, chatId, session, msg)) return;
+
   // Universal attachment routing (flexible mode).
   //
   // If the user sends an image or a PDF while parked in a flow that doesn't
@@ -969,6 +985,7 @@ export async function handleCallback(bot, query) {
   await ensureSessionUser(session, query.from.id);
   const data = query.data || "";
   bot.answerCallbackQuery(query.id).catch(() => {});
+  leaveFeedback(session);
   // A button tap counts as an interaction for User Status too, and it is an
   // inbound WhatsApp message, so it also resets the re-engagement timer.
   if (session.user?.id) {

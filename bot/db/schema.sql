@@ -1262,3 +1262,41 @@ create table if not exists public.doctor_report_emails (
   created_at    timestamptz default now(),
   unique (doctor_id, week_key)
 );
+
+-- ---------- Feedback inbox (2026-09-19) ----------
+-- A user types "Feedback" in the bot and sends text, screenshot(s) or a voice
+-- note. One row per submission; attachments are stored inline as data: URLs.
+-- Read in the admin panel's Feedback page. The bot also creates these on
+-- first use (FEEDBACK_DDL in src/supabase.js) — keep the two in sync.
+create table if not exists public.feedback (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid references public.users(id) on delete set null,
+  user_name   text,
+  user_phone  text,
+  user_type   text,                              -- patient | doctor
+  source      text,                              -- whatsapp | telegram | web
+  message     text not null default '',
+  status      text not null default 'new',       -- new | read
+  created_at  timestamptz default now()
+);
+create index if not exists feedback_created_idx on public.feedback(created_at desc);
+create table if not exists public.feedback_attachments (
+  id           uuid primary key default gen_random_uuid(),
+  feedback_id  uuid not null references public.feedback(id) on delete cascade,
+  kind         text not null,                    -- image | audio | document
+  mime         text,
+  filename     text,
+  data_url     text not null,
+  created_at   timestamptz default now()
+);
+create index if not exists feedback_attachments_fb_idx on public.feedback_attachments(feedback_id);
+
+-- ---------- Doctor free plan: 10 patients in the weekly report (2026-09-19) ----------
+-- Patients can always link to a doctor. On the free plan the weekly Doctor
+-- Summary Report covers the first 10 linked patients (bot/src/doctorCap.js).
+--   dr_premium        DrPremium switched on by hand in the admin panel
+--   cap_email_sent_at the one-time "you've reached your free limit" email
+-- The bot also adds these at boot (DOCTOR_CAP_DDL in src/supabase.js).
+alter table public.doctors add column if not exists dr_premium        boolean not null default false;
+alter table public.doctors add column if not exists dr_premium_at     timestamptz;
+alter table public.doctors add column if not exists cap_email_sent_at timestamptz;

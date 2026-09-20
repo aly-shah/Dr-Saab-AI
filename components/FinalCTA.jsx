@@ -1,6 +1,6 @@
 import { WhatsAppIcon, CheckCircleIcon } from "./icons";
 
-const WHATSAPP_URL = "/bot";
+import { whatsappLinkProps, WEB_BOT_URL } from "@/lib/links";
 
 export default function FinalCTA() {
   return (
@@ -28,15 +28,13 @@ export default function FinalCTA() {
             managing your diabetes — one conversation at a time.
           </p>
 
-          <div className="mt-8 flex justify-center">
-            <a
-              href={WHATSAPP_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-primary px-8 py-4 text-lg"
-            >
+          <div className="mt-8 flex flex-col items-center gap-3">
+            <a {...whatsappLinkProps} className="btn-primary px-8 py-4 text-lg">
               <WhatsAppIcon className="h-6 w-6" />
               Chat with DrSaab now
+            </a>
+            <a href={WEB_BOT_URL} className="text-sm font-medium text-ink/60 underline-offset-4 hover:text-primary hover:underline">
+              Use the Web Bot instead
             </a>
           </div>
 

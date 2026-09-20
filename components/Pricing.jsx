@@ -1,6 +1,6 @@
 import { CheckIcon, WhatsAppIcon, SparkleIcon } from "./icons";
 
-const WHATSAPP_URL = "/bot";
+import { whatsappLinkProps } from "@/lib/links";
 
 const PLANS = [
   {
@@ -114,9 +114,7 @@ export default function Pricing() {
               </ul>
 
               <a
-                href={WHATSAPP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
+                {...whatsappLinkProps}
                 className={`mt-8 ${
                   p.featured
                     ? "btn bg-white text-primary shadow-soft hover:-translate-y-0.5 hover:shadow-card"

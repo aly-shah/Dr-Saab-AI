@@ -36,6 +36,7 @@ const NAV = [
   { key: "patients", label: "Patients", d: "M16 11a4 4 0 1 0-8 0M3 20a6 6 0 0 1 18 0" },
   { key: "doctors", label: "Doctors", d: "M9 3v4a3 3 0 0 0 6 0V3M6 21v-2a6 6 0 0 1 12 0v2" },
   { key: "messages", label: "Messages", d: "M4 5h16v10H9l-5 4V5z" },
+  { key: "feedback", label: "Feedback", d: "M4 4h16v12H8l-4 4V4zM8 8h8M8 12h5" },
   { key: "leaderboard", label: "Leaderboard", d: "M8 21h8M12 17v4M5 4h14v4a7 7 0 0 1-14 0V4z" },
   { key: "t1", label: "T1 Content", d: "M12 3v18M3 12h18" },
 ];
@@ -101,7 +102,7 @@ const T1_KIND_CONFIG = {
 };
 const T1_KINDS = Object.keys(T1_KIND_CONFIG);
 
-function NavBtn({ item, active, onClick }) {
+function NavBtn({ item, active, onClick, badge }) {
   return (
     <button
       onClick={onClick}
@@ -113,6 +114,11 @@ function NavBtn({ item, active, onClick }) {
         <path d={item.d} />
       </svg>
       {item.label}
+      {badge > 0 && (
+        <span className={`ml-auto rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${active ? "bg-white/25 text-white" : "bg-accent/12 text-accent"}`}>
+          {badge}
+        </span>
+      )}
     </button>
   );
 }
@@ -450,6 +456,19 @@ function userStatusOf(days) {
   const n = Number(days) || 0;
   return n === 0 ? "Idle" : n === 1 ? "Low" : n <= 3 ? "Medium" : "High";
 }
+// The WhatsApp number a patient messages from (users.phone_number, stored as
+// digits only by the bot). Links to the chat; web-chat users have none.
+function WhatsAppNumber({ phone, source }) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (!digits) return <span className="text-ink/40">{source === "web" ? "Web chat" : "—"}</span>;
+  return (
+    <a href={`https://wa.me/${digits}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}
+      className="whitespace-nowrap text-primary hover:underline" title="Open in WhatsApp">
+      +{digits}
+    </a>
+  );
+}
+
 function UserStatusBadge({ days }) {
   const s = userStatusOf(days);
   return (
@@ -680,6 +699,7 @@ function PatientDrawer({ id, onClose, onChanged }) {
             <Panel title="Profile">
               <div className="grid grid-cols-2 gap-y-1.5 text-sm text-ink/75">
                 <span className="text-ink/45">Name</span><span>{data.user.name || "—"}</span>
+                <span className="text-ink/45">WhatsApp</span><span><WhatsAppNumber phone={data.user.phone_number} source={data.user.source} /></span>
                 <span className="text-ink/45">Age / Gender</span><span>{data.user.age ?? "—"} / {data.user.gender || "—"}</span>
                 <span className="text-ink/45">City</span><span>{data.user.city || "—"}</span>
                 <span className="text-ink/45">Language</span><span>{data.user.language}</span>
@@ -757,12 +777,61 @@ function PatientDrawer({ id, onClose, onChanged }) {
   );
 }
 
-function DoctorDrawer({ id, onClose, onOpenPatient }) {
+// Doctor free plan: the weekly Doctor Summary Report covers the first 10
+// linked patients unless the doctor is on DrPremium (bot/src/doctorCap.js).
+const DOCTOR_CAP = 10;
+
+function DoctorPlanPanel({ d, patients, onChanged }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const held = patients.filter((p) => !p.in_report).length;
+  const toggle = async () => {
+    setBusy(true); setErr("");
+    try {
+      const res = await fetch("/api/admin/doctors", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: d.id, dr_premium: !d.dr_premium }),
+      });
+      const r = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(r.error || `HTTP ${res.status}`);
+      onChanged?.();
+    } catch (e) {
+      setErr(e.message || "Failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Panel title="Plan">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${d.premium ? "bg-accent/12 text-accent" : "bg-muted text-ink/60"}`}>
+          {d.premium ? "DrPremium" : `Free — first ${DOCTOR_CAP} patients in weekly report`}
+        </span>
+        <button onClick={toggle} disabled={busy}
+          className={`rounded-lg px-3 py-1.5 text-sm font-medium disabled:opacity-50 ${d.dr_premium ? "text-ink/70 ring-1 ring-line/70 hover:bg-muted" : "bg-primary text-white hover:opacity-90"}`}>
+          {busy ? "Saving…" : d.dr_premium ? "Turn off DrPremium" : "Activate DrPremium"}
+        </button>
+      </div>
+      {err && <p className="mt-2 text-sm text-red-500">{err}</p>}
+      <div className="mt-3 space-y-1 text-[12px] leading-relaxed text-ink/55">
+        {d.doctor_pro && <p>Also on paid <b>Doctor Pro</b>{d.sub_expires_at ? ` until ${fmtDate(d.sub_expires_at)}` : ""} — that keeps them premium even if DrPremium is off here.</p>}
+        {d.dr_premium && d.dr_premium_at && <p>DrPremium activated {fmtDate(d.dr_premium_at)}.</p>}
+        {!d.premium && held > 0 && (
+          <p className="text-amber-700">{held} connected patient{held === 1 ? " is" : "s are"} not in the weekly report. Their data is saved; activating DrPremium includes them from the next report.</p>
+        )}
+        {d.cap_email_sent_at && <p>Free-limit email sent {fmtDate(d.cap_email_sent_at)}.</p>}
+        <p>Patients can always add this doctor. On the free plan the weekly summary (Sunday email and in-bot snapshots) covers the first {DOCTOR_CAP} patients who linked.</p>
+      </div>
+    </Panel>
+  );
+}
+
+function DoctorDrawer({ id, onClose, onOpenPatient, onChanged }) {
   const [data, setData] = useState(null);
-  useEffect(() => {
-    setData(null);
+  const load = useCallback(() => {
     fetch(`/api/admin/doctors?id=${id}`).then((r) => r.json()).then(setData).catch(() => setData({ error: "x" }));
   }, [id]);
+  useEffect(() => { setData(null); load(); }, [load]);
   const d = data?.doctor;
   const patients = data?.patients || [];
 
@@ -783,6 +852,7 @@ function DoctorDrawer({ id, onClose, onOpenPatient }) {
                 <span className="text-ink/45">Specialization</span><span>{d.specialization || "—"}</span>
                 <span className="text-ink/45">Practice</span><span>{d.practice_location || "—"}</span>
                 <span className="text-ink/45">Email</span><span>{d.email || "—"}</span>
+                <span className="text-ink/45">WhatsApp</span><span><WhatsAppNumber phone={d.phone_number} /></span>
                 <span className="text-ink/45">Referral code</span>
                 <span><code className="rounded bg-muted px-2 py-0.5 text-[12px] text-primary">{d.referral_code || "—"}</code></span>
                 <span className="text-ink/45">Account</span><span>{d.user_id ? `Bot account · ${d.language || "en"}` : "Referral code only (no bot account)"}</span>
@@ -790,6 +860,8 @@ function DoctorDrawer({ id, onClose, onOpenPatient }) {
                 <span className="text-ink/45">Registered</span><span>{fmtDate(d.created_at) || "—"}</span>
               </div>
             </Panel>
+
+            <DoctorPlanPanel d={d} patients={patients} onChanged={() => { load(); onChanged?.(); }} />
 
             <Panel title="Reports">
               <div className="flex flex-wrap items-center gap-2">
@@ -799,7 +871,7 @@ function DoctorDrawer({ id, onClose, onOpenPatient }) {
                 />
               </div>
               <p className="mt-2 text-[11px] leading-relaxed text-ink/45">
-                One PDF: a summary page of every connected patient (latest HbA1c and glucose, 14-day trend, check-ins, status), then one Patient Health Snapshot page per patient. Same report the doctor gets in the bot.
+                One PDF: a summary page of every connected patient (latest HbA1c and glucose, 14-day trend, check-ins, status), then one Patient Health Snapshot page per patient. This admin copy always covers every patient; the doctor&apos;s own copy follows their plan.
               </p>
             </Panel>
 
@@ -813,7 +885,7 @@ function DoctorDrawer({ id, onClose, onOpenPatient }) {
                     <thead>
                       <tr className="border-b border-line/60 text-[11px] uppercase tracking-wider text-ink/40">
                         <th className="py-2 pr-3">Patient</th><th className="px-3">Diabetes</th><th className="px-3">HbA1c</th>
-                        <th className="px-3">Avg sugar</th><th className="px-3">Linked</th><th className="px-3">Last seen</th><th className="px-3">Report</th>
+                        <th className="px-3">Avg sugar</th><th className="px-3">Linked</th><th className="px-3">Weekly report</th><th className="px-3">Last seen</th><th className="px-3">Report</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -822,11 +894,17 @@ function DoctorDrawer({ id, onClose, onOpenPatient }) {
                           <td className="py-2.5 pr-3">
                             <button onClick={() => onOpenPatient?.(p.id)} className="font-medium text-primary hover:underline">{p.name || "—"}</button>
                             <span className="ml-2 text-xs text-ink/40">{p.age ?? ""}{p.gender ? ` · ${p.gender}` : ""}</span>
+                            {p.phone_number && <div className="text-xs"><WhatsAppNumber phone={p.phone_number} /></div>}
                           </td>
                           <td className="px-3 text-ink/70">{p.diabetes_status || "—"}</td>
                           <td className="px-3 text-ink/70">{p.latest_hba1c != null ? `${p.latest_hba1c}%` : "—"}</td>
                           <td className="px-3 text-ink/70">{p.glucose_avg_week ?? "—"}</td>
                           <td className="px-3 text-ink/50">{fmtDate(p.doctor_linked_date) || "—"}</td>
+                          <td className="px-3">
+                            {p.in_report
+                              ? <span className="text-[11px] text-ink/50">Included</span>
+                              : <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700" title="Past the free limit — needs DrPremium">Not included</span>}
+                          </td>
                           <td className="px-3 text-ink/50">{timeAgo(p.last_seen)}</td>
                           <td className="px-3">
                             <ReportButton params={{ kind: "doctor_patient", doctorId: d.id, userId: p.id }} label="Patient snapshot" small />
@@ -890,11 +968,19 @@ function DoctorsView({ onOpenPatient }) {
                     <td className="py-2.5 pr-3 font-medium text-ink">
                       {d.name}
                       {!d.user_id && <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-ink/45">code only</span>}
+                      {d.premium && <span className="ml-2 rounded bg-accent/12 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-accent">DrPremium</span>}
                     </td>
                     <td className="px-3 text-ink/70">{d.specialization || "—"}</td>
                     <td className="px-3 text-ink/70">{d.practice_location || "—"}</td>
                     <td className="px-3"><code className="rounded bg-muted px-2 py-0.5 text-[12px] text-primary">{d.referral_code || "—"}</code></td>
-                    <td className="px-3 text-right font-bold text-accent">{d.patients}</td>
+                    <td className="px-3 text-right font-bold text-accent">
+                      {d.patients}
+                      {!d.premium && d.patients > DOCTOR_CAP && (
+                        <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700" title={`Free plan: only the first ${DOCTOR_CAP} are in the weekly report`}>
+                          over {DOCTOR_CAP}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-3 text-ink/50">{timeAgo(d.last_seen || d.last_login)}</td>
                     <td className="px-3" onClick={(e) => e.stopPropagation()}>
                       {d.patients > 0 ? (
@@ -923,7 +1009,7 @@ function DoctorsView({ onOpenPatient }) {
         <p className="mt-3 text-xs text-ink/50">Patients who enter this code under My Health → My Doctor are linked to this doctor. Doctors who register in the bot get a code automatically.</p>
       </Panel>
 
-      {selected && <DoctorDrawer id={selected} onClose={() => setSelected(null)} onOpenPatient={onOpenPatient} />}
+      {selected && <DoctorDrawer id={selected} onClose={() => setSelected(null)} onOpenPatient={onOpenPatient} onChanged={load} />}
     </div>
   );
 }
@@ -1134,12 +1220,160 @@ function T1ContentView() {
   );
 }
 
+// Feedback inbox — what users send after typing "Feedback" in the bot.
+const FB_TZ = "Asia/Karachi";
+function fbDate(ts) {
+  return new Date(ts).toLocaleDateString("en-GB", { timeZone: FB_TZ, day: "2-digit", month: "short", year: "numeric" });
+}
+function fbTime(ts) {
+  return new Date(ts).toLocaleTimeString("en-GB", { timeZone: FB_TZ, hour: "2-digit", minute: "2-digit", hour12: false }) + " PKT";
+}
+const FB_SOURCE_LABEL = { whatsapp: "WhatsApp", telegram: "Telegram", web: "Web chat" };
+
+function FeedbackAttachment({ a }) {
+  const src = `/api/admin/feedback/file?id=${a.id}`;
+  if (a.kind === "image") {
+    return (
+      <a href={src} target="_blank" rel="noreferrer" title="Open full size">
+        <img src={src} alt="Screenshot" loading="lazy"
+          className="h-32 w-auto max-w-[220px] rounded-lg object-cover ring-1 ring-line/70 hover:opacity-90" />
+      </a>
+    );
+  }
+  if (a.kind === "audio") {
+    return (
+      <div className="flex items-center gap-2">
+        <audio controls preload="none" src={src} className="h-9 max-w-[280px]" />
+        <a href={`${src}&download=1`} className="text-xs text-primary hover:underline">Download</a>
+      </div>
+    );
+  }
+  return (
+    <a href={src} target="_blank" rel="noreferrer"
+      className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-3 py-2 text-sm text-ink/80 hover:bg-muted/70">
+      📄 {a.filename || "Attachment"}
+    </a>
+  );
+}
+
+function FeedbackView({ onNewCount }) {
+  const [items, setItems] = useState(null);
+  const [err, setErr] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [busyId, setBusyId] = useState(null);
+
+  const load = useCallback(async () => {
+    setErr("");
+    try {
+      const res = await fetch("/api/admin/feedback");
+      const d = await res.json();
+      if (!res.ok || d.error) throw new Error(d.error || `HTTP ${res.status}`);
+      setItems(d.items);
+    } catch (e) {
+      setErr(e.message || "Could not load feedback.");
+      setItems([]);
+    }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const newCount = (items || []).filter((f) => f.status === "new").length;
+  useEffect(() => { if (items) onNewCount?.(newCount); }, [items, newCount, onNewCount]);
+
+  const setStatus = async (id, status) => {
+    setBusyId(id);
+    try {
+      const res = await fetch("/api/admin/feedback", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status }),
+      });
+      if (res.ok) setItems((prev) => prev.map((f) => (f.id === id ? { ...f, status } : f)));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const shown = (items || []).filter((f) => filter === "all" || f.status === "new");
+
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        {[["all", `All (${items?.length ?? 0})`], ["new", `New (${newCount})`]].map(([k, label]) => (
+          <button key={k} onClick={() => setFilter(k)}
+            className={`rounded-full px-3.5 py-1.5 text-sm font-medium ${filter === k ? "bg-primary text-white" : "bg-white text-ink/70 ring-1 ring-line/70 hover:bg-muted"}`}>
+            {label}
+          </button>
+        ))}
+        <button onClick={load} className="ml-auto rounded-full bg-white px-3.5 py-1.5 text-sm font-medium text-ink/70 ring-1 ring-line/70 hover:bg-muted">
+          Refresh
+        </button>
+      </div>
+
+      {items === null && <Panel><p className="text-sm text-ink/50">Loading…</p></Panel>}
+      {err && <Panel><p className="text-sm text-red-500">Could not load feedback: {err}</p></Panel>}
+      {items && !err && shown.length === 0 && (
+        <Panel>
+          <p className="text-sm text-ink/50">
+            {filter === "new" ? "No new feedback — you're all caught up." : "No feedback yet. Users send it by typing “Feedback” in the bot."}
+          </p>
+        </Panel>
+      )}
+
+      <div className="space-y-3">
+        {shown.map((f) => {
+          const isNew = f.status === "new";
+          return (
+            <div key={f.id}
+              className={`rounded-2xl bg-white p-5 shadow-soft ring-1 ${isNew ? "ring-primary/40" : "ring-line/70"}`}>
+              <div className="flex flex-wrap items-start gap-x-3 gap-y-1">
+                <div className="min-w-0">
+                  <p className="flex flex-wrap items-center gap-2 font-semibold text-ink">
+                    {isNew && <span className="h-2 w-2 rounded-full bg-primary" aria-label="New" />}
+                    {f.name || "Unknown user"}
+                    {f.user_type === "doctor" && (
+                      <span className="rounded-full bg-accent/12 px-2 py-0.5 text-[11px] font-semibold text-accent">Doctor</span>
+                    )}
+                  </p>
+                  <p className="text-xs text-ink/50">
+                    {[f.user_phone, FB_SOURCE_LABEL[f.source] || f.source].filter(Boolean).join(" · ")}
+                  </p>
+                </div>
+                <div className="ml-auto text-right text-xs text-ink/55">
+                  <p className="font-medium text-ink/70">{fbDate(f.created_at)}</p>
+                  <p>{fbTime(f.created_at)} · {timeAgo(f.created_at)}</p>
+                </div>
+              </div>
+
+              {f.message
+                ? <p className="mt-3 whitespace-pre-wrap break-words text-sm text-ink/85">{f.message}</p>
+                : <p className="mt-3 text-sm italic text-ink/40">No text — see attachment{f.attachments.length === 1 ? "" : "s"}.</p>}
+
+              {f.attachments.length > 0 && (
+                <div className="mt-3 flex flex-wrap items-start gap-3">
+                  {f.attachments.map((a) => <FeedbackAttachment key={a.id} a={a} />)}
+                </div>
+              )}
+
+              <div className="mt-3 flex justify-end">
+                <button onClick={() => setStatus(f.id, isNew ? "read" : "new")} disabled={busyId === f.id}
+                  className="rounded-lg px-3 py-1.5 text-xs font-medium text-ink/60 ring-1 ring-line/70 hover:bg-muted disabled:opacity-50">
+                  {isNew ? "Mark as read" : "Mark as unread"}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
 export default function AdminPage() {
   const [authed, setAuthed] = useState(null);
   const [data, setData] = useState(null);
   const [view, setView] = useState("overview");
   const [selected, setSelected] = useState(null);
   const [error, setError] = useState("");
+  const [feedbackNew, setFeedbackNew] = useState(0);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/admin/data");
@@ -1150,6 +1384,13 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  // Unread count for the Feedback nav badge.
+  useEffect(() => {
+    if (!authed) return;
+    fetch("/api/admin/feedback").then((r) => r.json())
+      .then((d) => { if (Array.isArray(d.items)) setFeedbackNew(d.items.filter((f) => f.status === "new").length); })
+      .catch(() => {});
+  }, [authed]);
 
   if (authed === false) return <Login onDone={load} />;
   if (authed === null || !data) return <div className="grid min-h-dvh place-items-center text-ink/50">{error || "Loading…"}</div>;
@@ -1165,7 +1406,7 @@ export default function AdminPage() {
           <span className="font-bold text-ink">Admin</span>
         </div>
         <nav className="flex flex-col gap-1">
-          {NAV.map((n) => <NavBtn key={n.key} item={n} active={view === n.key} onClick={() => setView(n.key)} />)}
+          {NAV.map((n) => <NavBtn key={n.key} item={n} active={view === n.key} onClick={() => setView(n.key)} badge={n.key === "feedback" ? feedbackNew : 0} />)}
         </nav>
         <div className="mt-auto flex flex-col gap-1">
           <button onClick={load} className="rounded-xl px-3 py-2 text-sm font-medium text-ink/60 hover:bg-muted">Refresh</button>
@@ -1179,7 +1420,7 @@ export default function AdminPage() {
         <div className="flex gap-2 overflow-x-auto border-b border-line/60 bg-white p-3 md:hidden">
           {NAV.map((n) => (
             <button key={n.key} onClick={() => setView(n.key)}
-              className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium ${view === n.key ? "bg-primary text-white" : "bg-muted text-ink/70"}`}>{n.label}</button>
+              className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium ${view === n.key ? "bg-primary text-white" : "bg-muted text-ink/70"}`}>{n.label}{n.key === "feedback" && feedbackNew > 0 ? ` (${feedbackNew})` : ""}</button>
           ))}
         </div>
 
@@ -1217,7 +1458,7 @@ export default function AdminPage() {
                   <table className="w-full text-left text-sm">
                     <thead>
                       <tr className="border-b border-line/60 text-[11px] uppercase tracking-wider text-ink/40">
-                        <th className="py-2 pr-3">Name</th><th className="px-3">Age</th><th className="px-3">City</th>
+                        <th className="py-2 pr-3">Name</th><th className="px-3">WhatsApp</th><th className="px-3">Age</th><th className="px-3">City</th>
                         <th className="px-3">Diabetes</th><th className="px-3">Lang</th><th className="px-3">Plan</th>
                         <th className="px-3">Streak</th><th className="px-3">Avg sugar</th><th className="px-3">Doctor</th><th className="px-3">Status</th><th className="px-3">Last seen</th><th className="px-3">Report</th>
                       </tr>
@@ -1226,6 +1467,7 @@ export default function AdminPage() {
                       {data.patients.map((p) => (
                         <tr key={p.id} onClick={() => setSelected(p.id)} className="cursor-pointer border-b border-line/40 hover:bg-muted/50">
                           <td className="py-2.5 pr-3 font-medium text-ink">{p.name || "—"}</td>
+                          <td className="px-3"><WhatsAppNumber phone={p.phone_number} source={p.source} /></td>
                           <td className="px-3 text-ink/70">{p.age ?? "—"}</td>
                           <td className="px-3 text-ink/70">{p.city || "—"}</td>
                           <td className="px-3 text-ink/70">{p.diabetes_status || "—"}</td>
@@ -1264,6 +1506,14 @@ export default function AdminPage() {
               <h2 className="text-xl font-bold text-ink">Messages</h2>
               <p className="-mt-3 text-sm text-ink/55">Send a custom message to every user. It goes out through the bot on each user's own channel.</p>
               <BroadcastView />
+            </>
+          )}
+
+          {view === "feedback" && (
+            <>
+              <h2 className="text-xl font-bold text-ink">Feedback</h2>
+              <p className="-mt-3 text-sm text-ink/55">Everything users send after typing “Feedback” in the bot — text, screenshots and voice notes. Times are Pakistan time.</p>
+              <FeedbackView onNewCount={setFeedbackNew} />
             </>
           )}
 

@@ -12,7 +12,9 @@
 import { t } from "../i18n.js";
 import { send, typing, langOf, sanitizeMd, sendDocument } from "../utils.js";
 import { doctorBackKeyboard, doctorReportsKeyboard, doctorPatientPickerKeyboard } from "../keyboards.js";
-import { getDoctorByUserId, doctorPatientStats, saveGeneratedDocument } from "../supabase.js";
+import { getDoctorByUserId, saveGeneratedDocument } from "../supabase.js";
+import { reportablePatients, DOCTOR_FREE_PATIENT_CAP } from "../doctorCap.js";
+import { config } from "../config.js";
 import { assembleDoctorReport } from "../doctorReportData.js";
 import { renderDoctorWeeklyPdf, renderPatientSnapshotPdf } from "../doctorReportPdf.js";
 import { dayKey } from "../snapshotData.js";
@@ -21,17 +23,21 @@ import { logError } from "../log.js";
 
 export const PICKER_PAGE = 8;
 
+// The doctor's reportable patients: on the free plan only the first 10 who
+// linked (doctorCap.js); `held` counts the ones left out until DrPremium.
 async function practice(session) {
   const doc = await getDoctorByUserId(session.user.id).catch(() => null);
-  const patients = doc ? await doctorPatientStats(doc.id).catch(() => []) : [];
+  const { included: patients, held } = doc
+    ? await reportablePatients(doc, session.user).catch(() => ({ included: [], held: [] }))
+    : { included: [], held: [] };
   patients.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
-  return { doc, patients };
+  return { doc, patients, held: held.length };
 }
 
 // Patient Reports screen: the numbered list plus the two PDF actions.
 export async function showDoctorReports(bot, chatId, session) {
   const lang = langOf(session);
-  const { doc, patients } = await practice(session);
+  const { doc, patients, held } = await practice(session);
   if (!patients.length) {
     const code = doc?.referral_code || "—";
     return send(bot, chatId, t(lang, "doc_reports_empty", { code }), {
@@ -40,7 +46,10 @@ export async function showDoctorReports(bot, chatId, session) {
     });
   }
   const list = patients.map((p, i) => `${i + 1}. ${sanitizeMd(p.name || "—")}`).join("\n");
-  const body = `${t(lang, "doc_reports_body", { patients: patients.length, list })}\n\n${t(lang, "doc_reports_pdf_hint")}`;
+  const heldNote = held
+    ? `\n\n${t(lang, "doc_reports_held", { n: held, cap: DOCTOR_FREE_PATIENT_CAP, contact: config.doctorUpgradeContact })}`
+    : "";
+  const body = `${t(lang, "doc_reports_body", { patients: patients.length, list })}${heldNote}\n\n${t(lang, "doc_reports_pdf_hint")}`;
   return send(bot, chatId, body, { keyboard: doctorReportsKeyboard(lang), markdown: true });
 }
 

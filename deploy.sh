@@ -19,7 +19,7 @@ DEFAULT_WEB_PORT="${WEB_PORT:-3210}"
 DEFAULT_API_PORT="${WEB_API_PORT:-8321}"
 DB_NAME="${DB_NAME:-drsaab}"
 DB_USER="${DB_USER:-drsaab}"
-DEFAULT_TIER="${DEFAULT_TIER:-consistency_builder}"
+DEFAULT_TIER="${DEFAULT_TIER:-free}"
 LLM_MODEL="${LLM_MODEL:-openai/gpt-oss-120b}"
 LLM_VISION_MODEL="${LLM_VISION_MODEL:-qwen/qwen3.6-27b}"
 
@@ -404,8 +404,67 @@ NGINX
   $SUDO ln -sf "$NGINX_AVAIL" "$NGINX_ENABLED"
 fi
 $SUDO nginx -t
-svc_start nginx
-svc_reload nginx
+
+# `nginx -t` only proves the config PARSES - it binds no ports. So when
+# "systemctl enable --now nginx" fails right after a successful test, the cause
+# is almost always runtime: something else already holds :80/:443 (apache2,
+# a stray nginx master outside systemd, a container publishing the port), or an
+# unrelated vhost references a cert file that no longer exists. Report that here
+# instead of marching on into certbot, which would fail for the same reason.
+nginx_failure_report() {
+  warn "nginx did not start (the config test passed, so this is a runtime problem, not a syntax one)."
+  echo
+  echo "--- listeners on :80 / :443 ---"
+  $SUDO ss -ltnp 2>/dev/null | grep -E ':(80|443)[[:space:]]' || echo "(none - see the logs below)"
+  echo
+  echo "--- /var/log/nginx/error.log (last 15 lines) ---"
+  $SUDO tail -n 15 /var/log/nginx/error.log 2>/dev/null || true
+  if [ "$HAS_SYSTEMD" -eq 1 ]; then
+    echo
+    echo "--- journalctl -u nginx (last 20 lines) ---"
+    $SUDO journalctl -u nginx --no-pager -n 20 2>/dev/null || true
+  fi
+  echo
+  cat <<'HINT'
+Fix the cause, then re-run this script (it is idempotent):
+  * "Address already in use" and apache2 holds :80
+       sudo systemctl disable --now apache2      # or move apache off :80
+  * "Address already in use" and nginx holds :80 (a master outside systemd)
+       sudo nginx -s reload   # new config live now, zero downtime
+       sudo nginx -s quit; sleep 3; sudo systemctl start nginx   # hand it back to systemd
+  * "cannot load certificate" / some other vhost is broken
+       sudo nginx -T   # dumps every loaded config; the bad include is in there
+HINT
+  exit 1
+}
+
+# A running nginx master that systemd does not own is the common case on a
+# long-lived multi-app box (manual `nginx` start, or a package upgrade that
+# replaced the binary while the old master kept serving). systemd then spawns a
+# second master that cannot bind, and every later `systemctl reload` reports the
+# unit inactive - while the stray master quietly keeps serving the OLD config.
+# Signal that master instead: the new vhost goes live with zero downtime, and we
+# tell the operator how to hand ownership back to systemd during a quiet moment.
+NGINX_ADOPTED=0
+nginx_adopt_or_report() {
+  if pgrep -f 'nginx: master' >/dev/null 2>&1; then
+    warn "an nginx master is already running outside systemd - reloading it in place so this vhost goes live"
+    if $SUDO nginx -s reload; then
+      NGINX_ADOPTED=1
+      warn "New config is live on the running master, but systemd does not own nginx, so"
+      warn "'systemctl reload nginx' (used by certbot's renewal hook) will keep failing. Hand it back when quiet:"
+      warn "  sudo nginx -s quit; sleep 3; sudo systemctl start nginx && sudo systemctl enable nginx"
+      return 0
+    fi
+  fi
+  nginx_failure_report
+}
+
+svc_start nginx || nginx_adopt_or_report
+if [ "$HAS_SYSTEMD" -eq 1 ] && [ "$NGINX_ADOPTED" -eq 0 ]; then
+  $SUDO systemctl is-active --quiet nginx || nginx_adopt_or_report
+fi
+[ "$NGINX_ADOPTED" -eq 1 ] || svc_reload nginx
 
 # ---------- 8. SSL (Let's Encrypt) ----------
 SSL_OK=0

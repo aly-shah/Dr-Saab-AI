@@ -11,10 +11,26 @@ import FinalCTA from "@/components/FinalCTA";
 import Footer from "@/components/Footer";
 import VideoBlock from "@/components/VideoBlock";
 import Reveal from "@/components/Reveal";
+import Script from "next/script";
+
+// Google Analytics (GA4). Homepage only — kept off /admin and the /bot web
+// chat, where users type health details.
+const GA_ID = "G-HHG6KCSK01";
 
 export default function Home() {
   return (
     <>
+      {/* Google tag (gtag.js) */}
+      <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} strategy="afterInteractive" />
+      <Script id="google-analytics" strategy="afterInteractive">
+        {`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+
+          gtag('config', '${GA_ID}');
+        `}
+      </Script>
       <a
         href="#how"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-primary focus:shadow-card"

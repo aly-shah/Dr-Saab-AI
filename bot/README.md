@@ -83,8 +83,8 @@ for Meta's verification handshake.
 > Use the **service_role** key (Project Settings → API). It's a backend-only
 > service, so it bypasses RLS. Keep it secret — never ship it to a client.
 
-`DEFAULT_TIER=consistency_builder` lets you test the premium coaches right away.
-Set it to `free` for production.
+`DEFAULT_TIER=free` (the default) starts every new user on the free plan. Set it to
+`consistency` only on a test box to try the premium coaches right away.
 
 ### Weekly doctor report email (optional)
 

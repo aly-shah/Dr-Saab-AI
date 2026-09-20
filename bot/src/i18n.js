@@ -155,6 +155,13 @@ const STR = {
     btn_lang_whatsapp_urdu: "WhatsApp Urdu",
 
     voice_note_saved: "Thanks — I've received your voice note and saved it. For the fastest help, you can also type your question.",
+    feedback_prompt:
+      "📝 *Feedback*\n\nTell us what's working, what isn't, or what you'd like to see. You can type a message, send a screenshot, or record a voice note.\n\nType *cancel* to go back.",
+    feedback_thanks: "🙏 Thank you for your feedback! I will pass this on to my technical team.",
+    feedback_added: "📎 Added to your feedback.",
+    feedback_empty: "I couldn't find anything to save. Please type your feedback, or send a screenshot or voice note — or type *cancel* to go back.",
+    feedback_failed: "😕 Sorry, I couldn't save your feedback just now. Please try again in a moment.",
+    feedback_cancelled: "Okay, no feedback sent.",
     ask_name_v2: "Before we begin, what's your full name?",
     name_ack:
       "Nice to meet you, *{name}* 👋\nLet's build your profile so I can personalize my coaching for you.",
@@ -227,6 +234,8 @@ const STR = {
     doc_snap_send_failed: "I built the report but couldn't deliver the file on this channel. Please try again in a moment.",
     doc_reports_empty: "No patients are linked to your practice yet.\n\nShare your referral code *{code}* — once patients add it under ❤️ My Health → My Doctor, their aggregated insights will appear here.",
     doc_reports_body: "*Connected Patients:* {patients}\n\n{list}",
+    doc_reports_held:
+      "⚠️ *{n} more* connected patient(s) aren't shown: your free plan covers your first {cap} patients in reports. Their data is saved. To include everyone, upgrade to *DrPremium* — contact us at {contact}.",
     doc_reports_none: "—",
     doc_reports_green_default: "• Patients logging consistently\n• Engagement holding steady",
     doc_reports_red_default: "• Watch for patients missing check-ins",
@@ -768,6 +777,7 @@ const STR = {
     mh_recap_metrics: "your health numbers",
     mh_recap_lifestyle: "your lifestyle",
     mh_recap_goal: "your goal",
+    mh_recap_city: "your city",
     mh_recap_anything: "anything else",
     // Question headers / prompts (2026-07 spec: 7 conversational steps)
     mh_question_of: "*Question {n} of {total}*",
@@ -798,7 +808,13 @@ const STR = {
       "I didn't catch any details there. Try something like \"male, 42 years, 174 cm, 78 kg\" — or just the parts I'm missing.",
     // Q2 — Health conditions
     mh_q_conditions:
-      "❤️ *Your Health*\n\nWhich health conditions do you currently have? Just tell me naturally.\n\nExample: \"I have Type 2 diabetes, high blood pressure and cholesterol.\"",
+      "❤️ *Your Health*\n\nDo you have any other health conditions besides diabetes? E.g. high or low blood pressure, cholesterol, heart condition, etc.",
+    mh_conditions_none_ack: "👍 Noted — no other health conditions.",
+    // Q5 — City (feeds users.city: local foods in the coaches, nearby services)
+    mh_q_city:
+      "📍 *Your City*\n\nLastly, what city do you live in? This helps me recommend helpful services near you.",
+    mh_none_city: "I didn't catch a city there. Just type the name of your city (e.g. \"Lahore\"), or tap Skip.",
+    mh_city_saved: "📍 Got it — *{city}*.",
     // Q3 — Medicines
     mh_q_medications:
       "💊 *Medicines*\n\nWhat medicines or supplements do you currently take?\n\nYou can:\n• Type them\n• Send a photo of the medicine boxes\n• Send a photo of your prescription",
@@ -845,6 +861,7 @@ const STR = {
     mh_lbl_smoking: "🚬 *Smoking:*",
     mh_lbl_activity: "🏃 *Activity:*",
     mh_lbl_goal: "🎯 *Goal:*",
+    mh_lbl_city: "📍 *City:*",
     mh_smoking_smoker: "Smoker",
     mh_smoking_non_smoker: "Non-smoker",
     mh_smoking_ex_smoker: "Ex-smoker",
@@ -1306,7 +1323,7 @@ const STR = {
     // §4 — cap-reached prompt (sent to the doctor)
     dp_cap_a_patient: "a patient",
     dp_cap_reached:
-      "⚠️ *You've reached your free limit of 10 patients.*\n\n{patient} just tried to connect but couldn't be added.\n\nUpgrade to *Doctor Pro (PKR 4,999/month)* to continue adding new patients.",
+      "⚠️ *You've reached your free limit of 10 patients.*\n\n{patient} has just connected to you. Your weekly patient summary covers your first 10 patients — new patients are still linked and their data is saved, but they won't appear in your weekly report until you upgrade to *DrPremium*.\n\nFor higher patient volumes, contact us at {contact}.",
     btn_dp_upgrade: "Upgrade",
     btn_dp_later: "Later",
 
@@ -1316,9 +1333,9 @@ const STR = {
 
     // §7 — activation & expiry messages (doctor voice)
     dp_activated:
-      "🎉 You're now a *Doctor Pro* member!\n\n*Valid Until:* {expiry}\n\nYour 10-patient limit is lifted — new referrals will be accepted. 💚",
+      "🎉 You're now a *Doctor Pro* member!\n\n*Valid Until:* {expiry}\n\nYour 10-patient limit is lifted — every connected patient will be in your weekly report. 💚",
     dp_expired_downgrade:
-      "Your *Doctor Pro* subscription has ended.\nExisting patients remain connected, but new patients can't be added until you renew.\nYour data and reports are safe.",
+      "Your *Doctor Pro* subscription has ended.\nAll your patients stay connected, but your weekly report will cover your first 10 patients again until you renew.\nYour data and reports are safe.",
 
     // My Account
     account_title: "👤 *My Account*",
@@ -1859,6 +1876,13 @@ const STR = {
     premium_required:
       "💎 یہ *Consistency Builder* فیچر ہے۔\nاے آئی کوچ، فوڈ و فٹنس کوچ اور لیب تجزیہ کے لیے اپ گریڈ کریں۔",
     cancelled: "منسوخ۔ مینو پر واپس۔ 📋",
+    feedback_prompt:
+      "📝 *فیڈبیک*\n\nہمیں بتائیں کیا اچھا چل رہا ہے، کیا نہیں، یا آپ کیا دیکھنا چاہیں گے۔ آپ پیغام لکھ سکتے ہیں، اسکرین شاٹ بھیج سکتے ہیں، یا وائس نوٹ ریکارڈ کر سکتے ہیں۔\n\nواپس جانے کے لیے *cancel* لکھیں۔",
+    feedback_thanks: "🙏 آپ کے فیڈبیک کا شکریہ! میں یہ اپنی تکنیکی ٹیم تک پہنچا دوں گا۔",
+    feedback_added: "📎 آپ کے فیڈبیک میں شامل کر دیا گیا۔",
+    feedback_empty: "محفوظ کرنے کے لیے کچھ نہیں ملا۔ براہِ کرم اپنا فیڈبیک لکھیں، یا اسکرین شاٹ یا وائس نوٹ بھیجیں — یا واپس جانے کے لیے *cancel* لکھیں۔",
+    feedback_failed: "😕 معذرت، ابھی آپ کا فیڈبیک محفوظ نہیں ہو سکا۔ براہِ کرم تھوڑی دیر بعد دوبارہ کوشش کریں۔",
+    feedback_cancelled: "ٹھیک ہے، کوئی فیڈبیک نہیں بھیجا گیا۔",
     error_generic: "😕 کچھ مسئلہ ہو گیا۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔",
     error_ai_limit:
       "🤖 ابھی بہت زیادہ پیغامات آ رہے ہیں اور اے آئی کی عارضی حد پوری ہو گئی ہے۔ ایک منٹ بعد دوبارہ کوشش کریں — آپ کا ڈیٹا محفوظ ہے۔",
@@ -1959,6 +1983,8 @@ const STR = {
     doc_snap_send_failed: "رپورٹ تیار ہو گئی مگر اس چینل پر فائل بھیجنے میں مسئلہ ہوا۔ براہِ کرم تھوڑی دیر بعد دوبارہ کوشش کریں۔",
     doc_reports_empty: "ابھی آپ کی پریکٹس سے کوئی مریض منسلک نہیں۔\n\nاپنا ریفرل کوڈ *{code}* شیئر کریں — جیسے ہی مریض ❤️ میری صحت → میرا ڈاکٹر میں یہ کوڈ ڈالیں گے، ان کی مجموعی معلومات یہاں ظاہر ہوں گی۔",
     doc_reports_body: "*منسلک مریض:* {patients}\n\n{list}",
+    doc_reports_held:
+      "⚠️ *{n} مزید* منسلک مریض یہاں نظر نہیں آ رہے: آپ کا مفت پلان رپورٹس میں آپ کے پہلے {cap} مریضوں کا احاطہ کرتا ہے۔ ان کا ڈیٹا محفوظ ہے۔ سب کو شامل کرنے کے لیے *DrPremium* پر اپ گریڈ کریں — ہم سے {contact} پر رابطہ کریں۔",
     doc_reports_none: "—",
     doc_reports_green_default: "• مریض باقاعدگی سے لاگ کر رہے ہیں\n• مصروفیت مستحکم ہے",
     doc_reports_red_default: "• چیک اِن نہ کرنے والے مریضوں پر نظر رکھیں",
@@ -2541,7 +2567,7 @@ const STR = {
 
     dp_cap_a_patient: "ایک مریض",
     dp_cap_reached:
-      "⚠️ *آپ 10 مریضوں کی مفت حد تک پہنچ چکے ہیں۔*\n\n{patient} نے ابھی جُڑنے کی کوشش کی لیکن شامل نہیں ہو سکے۔\n\nمزید مریض شامل کرنے کے لیے *Doctor Pro (PKR 4,999/ماہ)* پر اپ گریڈ کریں۔",
+      "⚠️ *آپ 10 مریضوں کی مفت حد تک پہنچ چکے ہیں۔*\n\n{patient} ابھی آپ سے جُڑے ہیں۔ آپ کی ہفتہ وار رپورٹ آپ کے پہلے 10 مریضوں کا احاطہ کرتی ہے — نئے مریض جُڑے رہتے ہیں اور ان کا ڈیٹا محفوظ ہوتا ہے، مگر *DrPremium* پر اپ گریڈ کرنے تک وہ ہفتہ وار رپورٹ میں شامل نہیں ہوں گے۔\n\nزیادہ مریضوں کے لیے ہم سے {contact} پر رابطہ کریں۔",
     btn_dp_upgrade: "اپ گریڈ",
     btn_dp_later: "بعد میں",
 
@@ -2549,9 +2575,9 @@ const STR = {
       "معذرت — *{name}* اِس وقت نئے مریض قبول نہیں کر رہے۔ کسی اور ریفرل کوڈ کے ساتھ کوشش کریں یا بعد میں دوبارہ چیک کریں۔",
 
     dp_activated:
-      "🎉 آپ اب *Doctor Pro* ممبر ہیں!\n\n*معیاد ختم:* {expiry}\n\n10 مریضوں کی حد ختم — نئے ریفرل قبول ہوں گے۔ 💚",
+      "🎉 آپ اب *Doctor Pro* ممبر ہیں!\n\n*معیاد ختم:* {expiry}\n\n10 مریضوں کی حد ختم — آپ کے تمام منسلک مریض ہفتہ وار رپورٹ میں شامل ہوں گے۔ 💚",
     dp_expired_downgrade:
-      "آپ کی *Doctor Pro* سبسکرپشن ختم ہو گئی ہے۔\nموجودہ مریض جُڑے رہیں گے، مگر تجدید تک نئے مریض شامل نہیں ہو سکتے۔\nآپ کا ڈیٹا اور رپورٹس محفوظ ہیں۔",
+      "آپ کی *Doctor Pro* سبسکرپشن ختم ہو گئی ہے۔\nآپ کے تمام مریض جُڑے رہیں گے، مگر تجدید تک ہفتہ وار رپورٹ دوبارہ آپ کے پہلے 10 مریضوں کا احاطہ کرے گی۔\nآپ کا ڈیٹا اور رپورٹس محفوظ ہیں۔",
 
     account_title: "👤 *میرا اکاؤنٹ*",
     account_body:
@@ -3055,6 +3081,13 @@ const STR = {
     premium_required:
       "💎 Yeh *Consistency Builder* feature hai.\nAI Coach, Food & Fitness coach aur lab analysis ke liye upgrade karein.",
     cancelled: "Cancel. Menu par wapas. 📋",
+    feedback_prompt:
+      "📝 *Feedback*\n\nHumein batayein kya theek chal raha hai, kya nahi, ya aap kya dekhna chahenge. Aap message likh sakte hain, screenshot bhej sakte hain, ya voice note record kar sakte hain.\n\nWapas jaane ke liye *cancel* likhein.",
+    feedback_thanks: "🙏 Aap ke feedback ka shukriya! Main isay apni technical team tak pohncha doon ga.",
+    feedback_added: "📎 Aap ke feedback mein shamil kar diya gaya.",
+    feedback_empty: "Save karne ke liye kuch nahi mila. Apna feedback likhein, ya screenshot ya voice note bhejein — ya wapas jaane ke liye *cancel* likhein.",
+    feedback_failed: "😕 Maazrat, abhi aap ka feedback save nahi ho saka. Thori der baad dobara koshish karein.",
+    feedback_cancelled: "Theek hai, koi feedback nahi bheja gaya.",
     error_generic: "😕 Kuch masla ho gaya. Thori dair baad dobara koshish karein.",
     error_ai_limit:
       "🤖 Abhi bohat zyada messages aa rahe hain aur AI ki temporary limit puri ho gayi hai. Ek minute baad dobara koshish karein — aap ka data mehfooz hai.",
@@ -3155,6 +3188,8 @@ const STR = {
     doc_snap_send_failed: "Report tayyar ho gayi magar is channel par file bhejne mein masla hua. Meharbani karke thori der baad dobara koshish karein.",
     doc_reports_empty: "Abhi aap ki practice se koi patient link nahi.\n\nApna referral code *{code}* share karein — jaise hi patients ❤️ My Health → My Doctor mein ye code enter karenge, un ki aggregated insights yahan aa jayengi.",
     doc_reports_body: "*Connected Patients:* {patients}\n\n{list}",
+    doc_reports_held:
+      "⚠️ *{n} mazeed* connected patient(s) yahan nazar nahi aa rahe: aap ka free plan reports mein aap ke pehle {cap} patients cover karta hai. Un ka data mehfooz hai. Sab ko shamil karne ke liye *DrPremium* par upgrade karein — hum se {contact} par rabta karein.",
     doc_reports_none: "—",
     doc_reports_green_default: "• Patients regular log kar rahe hain\n• Engagement stable hai",
     doc_reports_red_default: "• Check-in miss karne wale patients par nazar rakhein",
@@ -3737,7 +3772,7 @@ const STR = {
 
     dp_cap_a_patient: "ek patient",
     dp_cap_reached:
-      "⚠️ *Aap 10 patients ki free limit tak pahunch chuke hain.*\n\n{patient} ne abhi connect karne ki koshish ki lekin add nahi ho sake.\n\nMazeed patients add karne ke liye *Doctor Pro (PKR 4,999/month)* par upgrade karein.",
+      "⚠️ *Aap 10 patients ki free limit tak pahunch chuke hain.*\n\n{patient} abhi aap se connect hue hain. Aap ki weekly patient summary aap ke pehle 10 patients cover karti hai — naye patients connected rehte hain aur un ka data save hota hai, lekin *DrPremium* par upgrade karne tak woh weekly report mein nahi aayenge.\n\nZyada patients ke liye hum se {contact} par rabta karein.",
     btn_dp_upgrade: "Upgrade",
     btn_dp_later: "Baad mein",
 
@@ -3745,9 +3780,9 @@ const STR = {
       "Sorry — *{name}* is waqt naye patients accept nahi kar rahe. Koi doosra referral code try karein ya baad mein check karein.",
 
     dp_activated:
-      "🎉 Aap ab *Doctor Pro* member hain!\n\n*Valid Until:* {expiry}\n\n10-patient limit hat gayi — naye referrals accept honge. 💚",
+      "🎉 Aap ab *Doctor Pro* member hain!\n\n*Valid Until:* {expiry}\n\n10-patient limit hat gayi — aap ke tamam connected patients weekly report mein aayenge. 💚",
     dp_expired_downgrade:
-      "Aap ki *Doctor Pro* subscription khatam ho gayi hai.\nMaujooda patients connected rahenge, lekin renewal tak naye patients add nahi ho sakte.\nAap ka data aur reports mehfooz hain.",
+      "Aap ki *Doctor Pro* subscription khatam ho gayi hai.\nAap ke tamam patients connected rahenge, lekin renewal tak weekly report dobara aap ke pehle 10 patients cover karegi.\nAap ka data aur reports mehfooz hain.",
 
     account_title: "👤 *Mera Account*",
     account_body:

@@ -22,13 +22,13 @@
 import { config } from "./config.js";
 import {
   listDoctorsWithEmail,
-  doctorPatientStats,
   getUserById,
   claimDoctorReportEmail,
   finishDoctorReportEmail,
   saveGeneratedDocument,
 } from "./supabase.js";
 import { assembleDoctorReport } from "./doctorReportData.js";
+import { reportablePatients, DOCTOR_FREE_PATIENT_CAP } from "./doctorCap.js";
 import { renderDoctorWeeklyPdf } from "./doctorReportPdf.js";
 import { dayKey } from "./snapshotData.js";
 import { sendMail as smtpSend, mailEnabled } from "./mailer.js";
@@ -69,6 +69,13 @@ export function buildDoctorEmail(report) {
     ["Urgent attention", b.urgent],
     ["No recent readings", b.none],
   ].filter(([, v]) => v > 0);
+  // Patients past the free limit (doctorCap.js) — not in the PDF.
+  const held = report.heldBack || 0;
+  const contact = config.doctorUpgradeContact;
+  const heldLine = held
+    ? `${held} more connected ${held === 1 ? "patient is" : "patients are"} not included: your free plan covers your first ${DOCTOR_FREE_PATIENT_CAP} patients. ` +
+      `To include every patient, upgrade to DrPremium — contact us at ${contact}.`
+    : "";
   const subject = `DrSaab weekly patient report — ${report.period.label}`;
   const text = [
     `Dear ${report.doctor.name},`,
@@ -77,6 +84,7 @@ export function buildDoctorEmail(report) {
     "",
     ...rows.map(([k, v]) => `  ${k}: ${v}`),
     "",
+    ...(heldLine ? [heldLine, ""] : []),
     "The PDF opens with a summary of all your patients, followed by one Patient Health Snapshot page per patient.",
     "",
     "This report contains confidential patient health information and is intended only for the treating doctor. " +
@@ -90,7 +98,7 @@ export function buildDoctorEmail(report) {
 <table cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:12px 0">
 ${rows.map(([k, v]) => `<tr><td style="padding:4px 24px 4px 0;color:#4b5563">${esc(k)}</td><td style="padding:4px 0;font-weight:bold">${v}</td></tr>`).join("\n")}
 </table>
-<p>The PDF opens with a summary of all your patients, followed by one Patient Health Snapshot page per patient.</p>
+${held ? `<p style="background:#fff7ed;border-left:3px solid #f59e0b;padding:8px 12px">${esc(held)} more connected ${held === 1 ? "patient is" : "patients are"} not included: your free plan covers your first ${DOCTOR_FREE_PATIENT_CAP} patients. To include every patient, upgrade to <strong>DrPremium</strong> — contact us at <a href="mailto:${esc(contact)}">${esc(contact)}</a>.</p>\n` : ""}<p>The PDF opens with a summary of all your patients, followed by one Patient Health Snapshot page per patient.</p>
 <p style="font-size:12px;color:#6b7280">This report contains confidential patient health information and is intended only for the treating doctor. You are receiving it because patients connected to you on DrSaab using your referral code.</p>
 <p>DrSaab AI</p>
 </div>`;
@@ -104,16 +112,18 @@ export async function emailDoctorWeeklyReport(doc, weekKey, { sendMail = smtpSen
   const email = String(doc.email || "").trim();
   if (!validEmail(email)) return { status: "skipped", reason: "invalid email" };
 
-  const patients = await doctorPatientStats(doc.id);
-  if (!patients.length) return { status: "skipped", reason: "no connected patients" };
+  const doctorUser = doc.user_id ? await getUserById(doc.user_id).catch(() => null) : null;
+  // Free plan: only the first 10 linked patients go in (doctorCap.js).
+  const { all, included: patients, held } = await reportablePatients(doc, doctorUser);
+  if (!all.length) return { status: "skipped", reason: "no connected patients" };
 
   if (!force && !(await claimDoctorReportEmail(doc.id, weekKey, email))) {
     return { status: "skipped", reason: "already handled this week" };
   }
 
   try {
-    const doctorUser = doc.user_id ? await getUserById(doc.user_id).catch(() => null) : null;
     const report = await assembleDoctorReport(doctorUser || { name: doc.name }, doc, patients, now);
+    report.heldBack = held.length;
     const pdf = await renderDoctorWeeklyPdf(report);
     const filename = `DrSaab-Weekly-Patient-Snapshots-${safeName(doc.name)}-${dayKey(report.generatedAt)}.pdf`;
     await sendMail({
