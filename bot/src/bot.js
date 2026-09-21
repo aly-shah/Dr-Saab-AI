@@ -53,11 +53,13 @@ import {
   myDoctorCallback,
   myDoctorText,
 } from "./flows/doctor.js";
-import { detectGreetingScenario } from "./welcome.js";
+import { detectGreetingScenario, isJoinMessage } from "./welcome.js";
 import {
   startGlucose,
   glucoseText,
   logGlucoseFromText,
+  logGlucoseWithTiming,
+  detectGlucoseTiming,
   startMedication,
   medicationText,
   medicationCallback,
@@ -346,9 +348,14 @@ async function showLatestHba1c(bot, chatId, session) {
 
 // Sugar-with-value flow: pre-parse the reading, start the glucose flow
 // with the value already captured, then ask for the missing timing
-// context (fasting / random / pre-meal / post-meal / bedtime).
+// context (fasting / random / pre-meal / post-meal / bedtime) — unless
+// the message already named it ("My random sugar is 145").
 async function startGlucoseWithValue(bot, chatId, session, structured) {
   const lang = langOf(session);
+  const timing = structured.timing || detectGlucoseTiming(structured.raw);
+  if (timing) {
+    return logGlucoseWithTiming(bot, chatId, session, structured.value, timing);
+  }
   session.state = "glucose";
   session.step = "await_context";
   session.data = { ...(session.data || {}), pendingSugar: structured };
@@ -692,6 +699,20 @@ export async function handleMessage(bot, msg) {
     return showMenu(bot, chatId, session);
   }
 
+  // Facebook "join the page" ad → WhatsApp pre-filled "How can I join the
+  // DrSaab Community?". Tapping the ad already joins them, so say so, then
+  // start the welcome + onboarding (or show the menu if already set up).
+  // Doctors mid-registration keep their own flow.
+  if (
+    isJoinMessage(text) &&
+    session.state !== "doctor_onboarding" &&
+    session.state !== "doctor_patient_onboarding"
+  ) {
+    await send(bot, chatId, t(langOf(session), "joined_already"));
+    if (!session.user.onboarded) return startOnboarding(bot, chatId, session, "eng");
+    return showMenu(bot, chatId, session);
+  }
+
   // /upgrade legacy slash — no plain-word equivalent, kept as a shortcut
   // for users who remember it.
   if (cmd === "/upgrade" && session.user.onboarded) {
@@ -884,10 +905,10 @@ export async function handleMessage(bot, msg) {
   // above, `/start`, `/menu`, and `/cancel`. Everything else falls through
   // to the normal state switch so the user keeps using the bot.
 
-  // Already in onboarding but the user typed a greeting — restart the banner
-  // in the matching scenario (covers cases where they tap "back" or want to
-  // change language before completing).
-  if (greeting && session.state === "onboarding" && session.step === "welcome") {
+  // Already in onboarding but the user typed a greeting instead of their
+  // name — restart the banner in the matching scenario rather than saving
+  // "Hi" as their name.
+  if (greeting && session.state === "onboarding" && (session.step === "welcome" || session.step === "name")) {
     return startOnboarding(bot, chatId, session, greeting);
   }
 
@@ -972,7 +993,12 @@ async function maybeOfferSaveReading(bot, chatId, session, text) {
   if (reading.kind !== "glucose" && reading.kind !== "hba1c") return;
   const lang = langOf(session);
   await send(bot, chatId, t(lang, "shortcut_confirm_log_sugar", { value: reading.value }), {
-    keyboard: saveReadingOfferKeyboard(lang, reading.kind, reading.value),
+    keyboard: saveReadingOfferKeyboard(
+      lang,
+      reading.kind,
+      reading.value,
+      reading.kind === "glucose" ? detectGlucoseTiming(text) : null,
+    ),
     markdown: true,
   });
 }
@@ -1035,7 +1061,7 @@ export async function handleCallback(bot, query) {
   // Save-reading offer after a clinical question (§6 rule 2). Yes routes
   // into the appropriate flow with the value pre-parsed; No is silent.
   if (data.startsWith("saveq:")) {
-    const [, kind, valueStr, ans] = data.split(":");
+    const [, kind, valueStr, ans, timing] = data.split(":");
     const value = parseFloat(valueStr);
     logShortcutEvent("shortcut_confirmed", {
       suggested_intent: kind === "hba1c" ? "HBA1C_LOG" : "SUGAR_LOG",
@@ -1046,7 +1072,7 @@ export async function handleCallback(bot, query) {
       return;
     }
     if (kind === "glucose") {
-      return startGlucoseWithValue(bot, chatId, session, { value, kind: "glucose" });
+      return startGlucoseWithValue(bot, chatId, session, { value, kind: "glucose", timing });
     }
     if (kind === "hba1c") {
       return logGlucoseFromText(bot, chatId, session, `HbA1c ${value}`);

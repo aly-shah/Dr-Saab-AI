@@ -49,6 +49,23 @@ export async function startGlucose(bot, chatId, session) {
   });
 }
 
+// Timing context named in free text ("my random sugar is 145", "sugar
+// after lunch 180", "khali pait 110") → measure_kind, or null when the
+// message names none. Covers the English, Roman Urdu and Urdu words the
+// shortcut_sugar_needs_context prompt suggests. Order matters: bedtime
+// before pre-meal ("sone se pehle", "before bed") and "fast" only as a
+// word start so "after breakfast" stays post-meal.
+export function detectGlucoseTiming(text) {
+  const s = String(text || "").toLowerCase();
+  if (/\bfast|empty stomach|khali\s*p[ae]i?t|nihar|nahar|فاسٹنگ|خالی پیٹ|نہار/.test(s)) return "fasting";
+  if (/\bbed|sone\s*se\s*pe?hle|sonay|سونے/.test(s)) return "bedtime";
+  if (/pre[-\s]?meal|before|se\s*pe?hle|سے پہلے/.test(s)) return "pre_meal";
+  if (/post[-\s]?meal|after|ke\s*baa?d|\bpp\b|کے بعد/.test(s)) return "post_meal";
+  if (/night|raat|رات/.test(s)) return "bedtime";
+  if (/random|رینڈم/.test(s)) return "random";
+  return null;
+}
+
 // Return { value_mgdl, unit, measure_kind } or null.
 function parseGlucose(text) {
   const s = String(text || "").toLowerCase();
@@ -60,13 +77,7 @@ function parseGlucose(text) {
   if (!Number.isFinite(raw)) return null;
 
   // Measurement kind — default random.
-  let kind = "random";
-  if (/hba1c|a1c/i.test(s)) kind = "hba1c";
-  else if (/fast/.test(s)) kind = "fasting";
-  else if (/pre[-\s]?meal|before/.test(s)) kind = "pre_meal";
-  else if (/post[-\s]?meal|after/.test(s)) kind = "post_meal";
-  else if (/bed|night/.test(s)) kind = "bedtime";
-  else if (/random/.test(s)) kind = "random";
+  const kind = /hba1c|a1c/i.test(s) ? "hba1c" : detectGlucoseTiming(s) || "random";
 
   // Unit inference:
   //   - HbA1c: always a percentage
@@ -107,6 +118,18 @@ export async function logGlucoseFromText(bot, chatId, session, text) {
   session.step = null;
   if (session.data) session.data.pendingSugar = null;
   return glucoseText(bot, chatId, session, text);
+}
+
+// Log a pre-parsed value whose timing is already known (the shortcut
+// router saw "My random sugar is 145") — no need to ask for it again.
+export async function logGlucoseWithTiming(bot, chatId, session, value, timing) {
+  session.state = "glucose";
+  session.step = null;
+  if (session.data) session.data.pendingSugar = null;
+  const parsed = parseGlucose(String(value));
+  if (!parsed) return startGlucose(bot, chatId, session);
+  parsed.measure_kind = timing;
+  return finishGlucoseLog(bot, chatId, session, parsed);
 }
 
 export async function glucoseText(bot, chatId, session, text) {

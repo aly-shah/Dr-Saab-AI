@@ -1,7 +1,7 @@
 import { t } from "../i18n.js";
 import { send, sanitizeMd, langOf } from "../utils.js";
 import { userTypeKeyboard, mainMenuKeyboardV2, diabetesTypeKeyboard, adminSkipKeyboard } from "../keyboards.js";
-import { sendWelcomeWithLangPicker } from "../welcome.js";
+import { sendWelcome, scenarioLang } from "../welcome.js";
 import { updateUser } from "../supabase.js";
 import { refreshKB } from "../kb.js";
 import { resetFlow } from "../session.js";
@@ -244,12 +244,24 @@ async function resolveEmailMatchYes(bot, chatId, session) {
 // Public entry points
 // ===================================================================
 
-// Kick off onboarding from the very start (welcome + language picker).
+// Kick off onboarding from the very start: welcome banner, then straight
+// to the name question. No language picker — a native-Urdu greeting starts
+// in Urdu, otherwise the user's saved language or English; it can be
+// changed any time under More → Language.
 export async function startOnboarding(bot, chatId, session, scenario = "eng") {
+  const language = scenario === "urdu" ? scenarioLang(scenario) : session.user?.language || "en";
   session.state = "onboarding";
-  session.step = "welcome";
-  session.data = {};
-  return sendWelcomeWithLangPicker(bot, chatId, scenario);
+  session.step = "name";
+  session.data = { language };
+  if (session.user && session.user.language !== language) {
+    try {
+      session.user = await updateUser(session.user.id, { language });
+    } catch {
+      /* best-effort */
+    }
+  }
+  await sendWelcome(bot, chatId, scenario, language);
+  return promptStep(bot, chatId, session);
 }
 
 // Handle typed answers during onboarding.
@@ -286,8 +298,9 @@ export async function onboardingText(bot, chatId, session, text) {
 
   switch (session.step) {
     case "welcome":
-      // User typed instead of tapping a language button — re-prompt.
-      return sendWelcomeWithLangPicker(bot, chatId, "eng");
+      // Session left on the old language-picker step — carry on to name.
+      session.step = "name";
+      return promptStep(bot, chatId, session);
     case "name": {
       const name = val.slice(0, 60);
       session.data.name = name;

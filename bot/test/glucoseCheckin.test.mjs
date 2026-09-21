@@ -105,3 +105,62 @@ test("save-reading offer: Yes on an HbA1c value logs it", async () => {
   const [row] = await supabase.recentGlucose(user.id, 1);
   assert.equal(Number(row.value_mgdl ?? row.value), 6.9);
 });
+
+// Shortcut from idle: a timing named in the sentence must be picked up,
+// not asked for again ("My random sugar is 145" used to re-ask).
+for (const [input, kind, value] of [
+  ["My random sugar is 145", "random", 145],
+  ["my fasting sugar is 110", "fasting", 110],
+  ["sugar after lunch 180", "post_meal", 180],
+  ["sugar 160 after breakfast", "post_meal", 160],
+  ["sugar before bed 130", "bedtime", 130],
+  ["meri sugar khane se pehle 120 thi", "pre_meal", 120],
+  ["sugar khali pait 105", "fasting", 105],
+]) {
+  test(`shortcut: "${input}" logs as ${kind} without asking for timing`, async () => {
+    const { chatId, user, session } = await seedChat();
+    const bot = makeFakeBot();
+    session.state = "idle";
+
+    await handleMessage(bot, msg(chatId, input));
+
+    assert.notEqual(session.step, "await_context", `re-asked: ${allText(bot)}`);
+    assert.equal(await supabase.countGlucose(user.id), 1, `got: ${allText(bot)}`);
+    const [row] = await supabase.recentGlucose(user.id, 1);
+    assert.equal(row.measure_kind ?? row.context, kind);
+    assert.equal(Number(row.value_mgdl ?? row.value), value);
+  });
+}
+
+test("shortcut: \"My sugar is 145\" with no timing still asks for it", async () => {
+  const { chatId, user, session } = await seedChat();
+  const bot = makeFakeBot();
+  session.state = "idle";
+
+  await handleMessage(bot, msg(chatId, "My sugar is 145"));
+
+  assert.equal(session.step, "await_context");
+  assert.equal(await supabase.countGlucose(user.id), 0);
+
+  await handleMessage(bot, msg(chatId, "khane ke baad"));
+  const [row] = await supabase.recentGlucose(user.id, 1);
+  assert.equal(row.measure_kind ?? row.context, "post_meal");
+  assert.equal(Number(row.value_mgdl ?? row.value), 145);
+});
+
+test("save-reading offer: timing from the question rides along", async () => {
+  const { chatId, user, session } = await seedChat();
+  const bot = makeFakeBot();
+  session.state = "idle";
+
+  await handleCallback(bot, {
+    id: "q2",
+    from: { id: chatId },
+    message: { chat: { id: chatId } },
+    data: "saveq:glucose:140:yes:fasting",
+  });
+
+  assert.equal(await supabase.countGlucose(user.id), 1);
+  const [row] = await supabase.recentGlucose(user.id, 1);
+  assert.equal(row.measure_kind ?? row.context, "fasting");
+});

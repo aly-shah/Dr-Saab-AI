@@ -4,20 +4,11 @@
 //   eng    — "Hi" / "Hello" / "Hey" (or /start)        → English welcome
 //   salaam — "Salaam" / "As Salaam Alaikum" / "ASA"     → English welcome (Walaikumussalam prefix)
 //   urdu   — "السلام علیکم"                            → Native-Urdu welcome
-// All three show the same 3-button language picker.
+// There is no language picker any more (2026-09-22): the scenario sets
+// the starting language and users can switch later under More → Language.
 
 import { t } from "./i18n.js";
 import { send } from "./utils.js";
-
-function langPickerKeyboard() {
-  return {
-    inline_keyboard: [
-      [{ text: "English", callback_data: "lang:en" }],
-      [{ text: "اردو", callback_data: "lang:ur" }],
-      [{ text: "WhatsApp Urdu", callback_data: "lang:roman_ur" }],
-    ],
-  };
-}
 
 const SCENARIO_KEYS = {
   eng: "welcome_eng",
@@ -26,15 +17,24 @@ const SCENARIO_KEYS = {
 };
 
 // Native Urdu greeting → Urdu welcome. Everything else uses English copy.
-function scenarioLang(scenario) {
+export function scenarioLang(scenario) {
   return scenario === "urdu" ? "ur" : "en";
 }
 
-export async function sendWelcomeWithLangPicker(bot, chatId, scenario = "eng") {
+export async function sendWelcome(bot, chatId, scenario = "eng", lang = scenarioLang(scenario)) {
   const key = SCENARIO_KEYS[scenario] || "welcome_eng";
-  const lang = scenarioLang(scenario);
   // keepEmoji: the welcome banner intentionally shows the 👋 wave.
-  await send(bot, chatId, t(lang, key), { keyboard: langPickerKeyboard(), markdown: true, keepEmoji: true });
+  await send(bot, chatId, t(lang, key), { markdown: true, keepEmoji: true });
+}
+
+// The Facebook "join the page" ad opens WhatsApp with a pre-filled
+// "How can I join the DrSaab Community?". Any "join" + "DrSaab" message
+// counts, so small edits to the ad text keep working. "DrSaab" is required
+// so "join the Type 1 community" still reaches the T1 Community feature.
+export function isJoinMessage(text) {
+  if (!text) return false;
+  const s = String(text).toLowerCase();
+  return /\bjoin/.test(s) && /dr\.?\s*saa?b/.test(s);
 }
 
 // Returns "eng" | "salaam" | "urdu" | null.

@@ -1113,13 +1113,15 @@ export function reminderOfferKeyboard(lang, key) {
 // "Save this reading?" offer shown after a clinical question that
 // included a numeric value (§6 disambiguation rule 2). The value is
 // baked into callback_data so the handler can log without needing to
-// re-parse the message.
-export function saveReadingOfferKeyboard(lang, kind, value) {
+// re-parse the message. A glucose timing named in the question
+// ("is my fasting sugar 145 ok?") rides along as a trailing field.
+export function saveReadingOfferKeyboard(lang, kind, value, timing = null) {
+  const tail = timing ? `:${timing}` : "";
   return {
     inline_keyboard: [
       [
-        { text: t(lang, "btn_yes"), callback_data: `saveq:${kind}:${value}:yes` },
-        { text: t(lang, "btn_no"), callback_data: `saveq:${kind}:${value}:no` },
+        { text: t(lang, "btn_yes"), callback_data: `saveq:${kind}:${value}:yes${tail}` },
+        { text: t(lang, "btn_no"), callback_data: `saveq:${kind}:${value}:no${tail}` },
       ],
     ],
   };
