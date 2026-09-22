@@ -7,6 +7,7 @@ import { saveCoachMessage, weeklyStats } from "../supabase.js";
 import { applyScores } from "../scores.js";
 import { compactKB } from "../kb.js";
 import { pushHistory } from "../session.js";
+import { smallTalkReplyKey } from "../smalltalk.js";
 import { matchRestaurant, restaurantHint, PK_RESTAURANTS } from "../restaurants.js";
 import { awardEventToChallenges } from "./challengeEngine.js";
 
@@ -91,6 +92,12 @@ export async function coachText(bot, chatId, session, text, msg) {
   const userText = (text || msg?.caption || "").trim();
   if (!userText && !imageDataUrl) {
     return send(bot, chatId, t(lang, PROMPT_KEY[kind]), { keyboard: backKeyboard(lang), markdown: true });
+  }
+
+  // "thanks" / "ok" / "👍" — a template reply, no AI call.
+  const smallTalk = smallTalkReplyKey(session, userText, !!imageDataUrl);
+  if (smallTalk) {
+    return send(bot, chatId, t(lang, smallTalk), { keyboard: backKeyboard(lang), markdown: true, keepEmoji: true });
   }
 
   await typing(bot, chatId);

@@ -654,12 +654,21 @@ export function fallbackInsights(d) {
     insights.push({ tone: "info", text: "Pair each fasting reading with a random one later in the day to reveal how meals affect you." });
   }
 
+  // Third slot: the patient's own goal, when they have set one and their
+  // logging is already good. The PDF prints goals nowhere else, so without
+  // this the report would never reference what they are working towards.
+  // Weak logging outranks it — nothing else works until the data is there.
   const g = d.score.components.find((c) => c.key === "glucose");
-  insights.push(
+  const consistency =
     g && g.score >= 30
       ? { tone: "good", text: "Your glucose logging is consistent — that is what makes these insights reliable." }
-      : { tone: "info", text: "Logging your glucose more consistently will help us give you even better insights." }
-  );
+      : { tone: "info", text: "Logging your glucose more consistently will help us give you even better insights." };
+  const goal = (Array.isArray(d.goals) ? d.goals : [])[0];
+  if (goal && g && g.score >= 30) {
+    insights.push({ tone: "info", text: `Your goal: ${String(goal).slice(0, 90)}. Keep logging weekly so the next report can measure progress against it.` });
+  } else {
+    insights.push(consistency);
+  }
 
   const score_message = {
     Excellent: "Outstanding! You are managing your health with real discipline. Keep this rhythm going.",

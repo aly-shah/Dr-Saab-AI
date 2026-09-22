@@ -13,11 +13,10 @@ import { t } from "./i18n.js";
 import { config } from "./config.js";
 import { assembleSnapshotData, fallbackInsights } from "./snapshotData.js";
 import { renderSnapshotPdf } from "./snapshotPdf.js";
-import { snapshotInsights } from "./openai.js";
 import { assembleDoctorReport } from "./doctorReportData.js";
 import { renderDoctorWeeklyPdf, renderPatientSnapshotPdf } from "./doctorReportPdf.js";
 import { dayKey } from "./snapshotData.js";
-import { logWarn, logError } from "./log.js";
+import { logError } from "./log.js";
 import { runBroadcast, resolveRecipients, AUDIENCES } from "./broadcast.js";
 
 // Channel adapters the admin broadcast sends through — the same map the
@@ -196,14 +195,11 @@ async function buildAdminReport({ kind, userId, doctorId }) {
     const user = await getUserById(userId);
     if (!user) return { error: "patient not found", status: 404 };
     const data = await assembleSnapshotData(user);
-    let insights;
-    try {
-      insights = await snapshotInsights(user, data.facts);
-    } catch (e) {
-      logWarn("Admin patient report AI", `using built-in summaries — ${e?.message}`);
-      insights = fallbackInsights(data);
-    }
-    const pdf = await renderSnapshotPdf(data, insights);
+    // Rule-based copy, never AI: the admin panel re-renders the same report
+    // whenever a page is opened, and every number and judgement in
+    // fallbackInsights comes from the same facts the AI was given. The
+    // patient's own "Generate Report" still uses the AI write-up.
+    const pdf = await renderSnapshotPdf(data, fallbackInsights(data));
     return { pdf, filename: `DrSaab-Health-Snapshot-${safeName(user.name)}-${dayKey(data.generatedAt)}.pdf` };
   }
   const doc = await getDoctorById(doctorId);

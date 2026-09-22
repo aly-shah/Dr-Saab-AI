@@ -172,6 +172,7 @@ bot/
    ├─ doctorReportData.js   # Doctor PDFs: weekly period, statuses, totals
    ├─ doctorReportPdf.js    # Doctor PDFs: summary + per-patient pages
    ├─ i18n.js               # en / ur / roman_ur strings
+   ├─ smalltalk.js          # thanks / ok / bye → template reply, no AI call
    ├─ keyboards.js          # inline keyboards
    ├─ session.js            # in-memory conversation state
    ├─ utils.js              # safe send, photo→dataURL, helpers
@@ -185,6 +186,52 @@ bot/
       ├─ progress.js        # my progress + weekly summary
       └─ education.js
 ```
+
+## AI usage and cost control
+
+Every AI call goes through `complete()` in `src/openai.js`: OpenAI first,
+with Groq as the backup when OpenAI fails. Add new AI features through
+`complete()` so they inherit the controls below.
+
+Only small models are used — the flagship and reasoning tiers cost many times
+more and buy a chat bot nothing. `verifyModels()` prints a warning at boot if
+any of these is set to something outside the mini/nano tier:
+
+| Env var | Default | Used for |
+| --- | --- | --- |
+| `LLM_PAID_MODEL` | gpt-4o-mini | chat replies (coach, Ask DrSaab, lab explanations) |
+| `LLM_PAID_VISION_MODEL` | gpt-4.1-mini | anything with a photo |
+| `LLM_PAID_EXTRACT_MODEL` | gpt-4.1-nano | behind-the-scenes JSON extraction (My Health answers), never shown as prose |
+
+Groq's backup models are `LLM_MODEL` (openai/gpt-oss-120b) and
+`LLM_VISION_MODEL`; only `qwen/qwen3.8-27b` can read images there, and the
+bot switches to it automatically if the configured one can't.
+
+**What keeps the bill down (in place):**
+
+| Control | Where | Effect |
+| --- | --- | --- |
+| Chat history is trimmed to the last 6 messages, each clipped to 600 characters | `trimHistory()` in `openai.js` | Re-sending old replies on every turn is the single biggest input cost |
+| Reply caps: 450 tokens for coach and photo replies, 400 free / 600 paid for Ask DrSaab | `coachReply`, `askDrsaabReply` | The prompts already ask for WhatsApp-length answers |
+| Photos are downscaled before sending — 1024px by default, 1600px for lab reports so small print stays readable | `shrinkImages()`, called inside `complete()`; needs the `sharp` dependency | Images are billed by pixel area; a phone photo is far bigger than the model needs |
+| Health Snapshot write-ups are cached for 12h per user + facts | `snapshotInsights()` | Re-opening the same report (patient chat or admin panel) costs nothing. Any new reading changes the facts and gets a fresh write-up |
+| Small talk answered from templates | `src/smalltalk.js` + `smalltalk_*` i18n keys | A whole message of "thanks" / "ok" / "👍" / "hi" skips the AI. If DrSaab's last reply ended in a question, "ok" still goes to the AI, since it is an answer |
+| "No" / "none" to the My Health medicines and numbers questions is treated as Skip | `flows/myhealth.js` | No AI call just to learn the answer is "nothing" |
+| The weekly summary is written from the numbers, not by the AI | `src/weeklySummaryText.js` | Same figures as before (`periodStats(user, 7)`), properly localised, and instant. Rules pick one "watch" line and one focus for next week |
+| Admin-panel patient PDFs use the rule-based copy, never the AI | `web.js` → `fallbackInsights()` | Same facts, no hallucination risk, and no cost for a report an admin may open many times. The patient's own "Generate Report" still uses the AI write-up |
+
+If `sharp` is missing, photos are still sent — just at full size. Re-run
+`deploy.sh` (it runs `npm install`) after pulling these changes.
+
+Tests: `node --test test/aiUsage.test.mjs`.
+
+**Not done — candidates for dropping the AI entirely:**
+
+1. My Health numbers and goal answers could be parsed with patterns first,
+   with the AI only as a fallback.
+2. Fitness and gym plans have few answer combinations — pre-write or cache them.
+3. A daily AI message cap for free users, to bound the worst case.
+4. Stock answers for common questions ("what is a normal sugar?", "what is HbA1c?").
 
 ## Safety
 

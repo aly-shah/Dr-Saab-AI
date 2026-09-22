@@ -21,7 +21,7 @@ DB_NAME="${DB_NAME:-drsaab}"
 DB_USER="${DB_USER:-drsaab}"
 DEFAULT_TIER="${DEFAULT_TIER:-free}"
 LLM_MODEL="${LLM_MODEL:-openai/gpt-oss-120b}"
-LLM_VISION_MODEL="${LLM_VISION_MODEL:-qwen/qwen3.6-27b}"
+LLM_VISION_MODEL="${LLM_VISION_MODEL:-qwen/qwen3.8-27b}"
 
 # HTTPS via Let's Encrypt — on by default. Needs DNS for $DOMAIN pointing here
 # and ports 80/443 open. INCLUDE_WWW=1 also covers www.$DOMAIN.
@@ -286,9 +286,10 @@ else
   echo "bot/.env exists — keeping tokens; syncing DB + web API port."
   set_env_kv bot/.env DATABASE_URL "${DATABASE_URL}"
   set_env_kv bot/.env WEB_API_PORT "${WEB_API_PORT}"
-  # Groq removed meta-llama/llama-4-scout-17b-16e-instruct from its catalog.
+  # Groq removed meta-llama/llama-4-scout-17b-16e-instruct and later
+  # qwen/qwen3.6-27b (2026-09) from its catalog; gpt-oss models are text-only.
   # Migrate any old .env still pinned to it so image + PDF analyses keep working.
-  if grep -q '^LLM_VISION_MODEL=meta-llama/llama-4-scout-17b-16e-instruct$' bot/.env; then
+  if grep -qE '^LLM_VISION_MODEL=(meta-llama/llama-4-scout-17b-16e-instruct|qwen/qwen3.6-27b|openai/gpt-oss-.*)$' bot/.env; then
     warn "LLM_VISION_MODEL was set to a deprecated Groq model — migrating to ${LLM_VISION_MODEL}."
     set_env_kv bot/.env LLM_VISION_MODEL "${LLM_VISION_MODEL}"
   fi

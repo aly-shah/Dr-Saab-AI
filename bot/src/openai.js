@@ -146,6 +146,50 @@ function oversizedImageBytes(messages) {
   return 0;
 }
 
+// Phone photos arrive at full resolution, and OpenAI bills images by pixel
+// area. Downscale to fit imageMaxPx (a meal photo reads fine at 1024px; lab
+// reports pass a larger size so small print stays legible). sharp is loaded
+// lazily — if it's missing, images go through unchanged.
+let sharpLib;
+async function loadSharp() {
+  if (sharpLib === undefined) {
+    sharpLib = await import("sharp").then((m) => m.default).catch(() => null);
+  }
+  return sharpLib;
+}
+
+export async function shrinkImages(messages, maxPx) {
+  if (!hasImage(messages)) return messages;
+  const sharp = await loadSharp();
+  if (!sharp) return messages;
+  const shrink = async (url) => {
+    const m = /^data:image\/[a-z+]+;base64,(.+)$/i.exec(url);
+    if (!m) return url;
+    try {
+      const buf = Buffer.from(m[1], "base64");
+      const out = await sharp(buf)
+        .rotate()
+        .resize({ width: maxPx, height: maxPx, fit: "inside", withoutEnlargement: true })
+        .jpeg({ quality: 82 })
+        .toBuffer();
+      return out.length < buf.length ? `data:image/jpeg;base64,${out.toString("base64")}` : url;
+    } catch {
+      return url;
+    }
+  };
+  return Promise.all(
+    messages.map(async (msg) => {
+      if (!Array.isArray(msg?.content)) return msg;
+      const content = await Promise.all(
+        msg.content.map(async (p) =>
+          p?.image_url?.url ? { ...p, image_url: { ...p.image_url, url: await shrink(p.image_url.url) } } : p,
+        ),
+      );
+      return { ...msg, content };
+    }),
+  );
+}
+
 function hasImage(messages) {
   return messages.some((m) => Array.isArray(m?.content) && m.content.some((p) => p?.image_url));
 }
@@ -153,7 +197,8 @@ function hasImage(messages) {
 // `backup: true` is internal — the retry on Groq after OpenAI has failed.
 // Callers' `model` names a Groq model; OpenAI calls use LLM_PAID_MODEL /
 // LLM_PAID_VISION_MODEL instead.
-async function complete(messages, { maxTokens = 600, model, jsonMode = false, reasoningEffort = null, backup = false } = {}) {
+async function complete(messages, { maxTokens = 600, model, jsonMode = false, reasoningEffort = null, backup = false, imageMaxPx = 1024, cheap = false } = {}) {
+  if (!backup) messages = await shrinkImages(messages, imageMaxPx);
   const tooBig = oversizedImageBytes(messages);
   if (tooBig) {
     const e = new Error(
@@ -169,7 +214,9 @@ async function complete(messages, { maxTokens = 600, model, jsonMode = false, re
   const usedModel = useOpenAI
     ? hasImage(messages)
       ? config.llm.paidVisionModel
-      : config.llm.paidModel
+      : cheap
+        ? config.llm.paidExtractModel || config.llm.paidModel
+        : config.llm.paidModel
     : model || config.llm.model;
   try {
     const req = {
@@ -264,11 +311,33 @@ async function complete(messages, { maxTokens = 600, model, jsonMode = false, re
 //
 // Never throws: a provider whose catalog endpoint is unreachable or shaped
 // differently must not stop the bot from booting.
+// Only the small, cheap tiers belong in a chat bot. Anything else (flagship
+// or reasoning models) gets a loud warning at boot.
+const SMALL_MODEL_RE = /(mini|nano|small|flash|lite|haiku|8b|7b|20b)/i;
+
+// Groq models verified to read images, newest first (checked 2026-09-22).
+const GROQ_VISION_MODELS = ["qwen/qwen3.8-27b", "qwen/qwen3.6-27b", "meta-llama/llama-4-scout-17b-16e-instruct"];
+
 export async function verifyModels() {
   try {
     const list = await client.models.list();
     const ids = new Set((list?.data || []).map((m) => m.id));
     if (!ids.size) return;
+    // Photos on the Groq backup need a vision model. When the configured one
+    // was retired (qwen/qwen3.6-27b, 2026-09) or is text-only (gpt-oss
+    // rejects image content with a 400), switch to one the catalog still has
+    // instead of failing every photo / lab report with a 404.
+    if (config.llm.provider === "groq" && (!ids.has(config.llm.visionModel) || /gpt-oss/i.test(config.llm.visionModel))) {
+      const pick = GROQ_VISION_MODELS.find((m) => ids.has(m));
+      if (pick) {
+        logError(
+          "LLM model check",
+          `LLM_VISION_MODEL="${config.llm.visionModel}" can't read photos on Groq — using "${pick}" instead. ` +
+            `Update LLM_VISION_MODEL in bot/.env to silence this.`,
+        );
+        config.llm.visionModel = pick;
+      }
+    }
     const configured = [
       ["LLM_MODEL", config.llm.model],
       ["LLM_VISION_MODEL", config.llm.visionModel],
@@ -287,15 +356,42 @@ export async function verifyModels() {
     if (ok) logOk(`LLM models verified: ${config.llm.model} (text) · ${config.llm.visionModel} (vision)`);
     if (paidClient) {
       const oa = new Set(((await paidClient.models.list())?.data || []).map((m) => m.id));
-      for (const [envName, m] of [["LLM_PAID_MODEL", config.llm.paidModel], ["LLM_PAID_VISION_MODEL", config.llm.paidVisionModel]]) {
-        if (oa.size && !oa.has(m))
+      for (const [envName, m] of [
+        ["LLM_PAID_MODEL", config.llm.paidModel],
+        ["LLM_PAID_VISION_MODEL", config.llm.paidVisionModel],
+        ["LLM_PAID_EXTRACT_MODEL", config.llm.paidExtractModel],
+      ]) {
+        if (oa.size && m && !oa.has(m))
           logError("LLM model check", `${envName}="${m}" is NOT in the OpenAI catalog — every OpenAI call will fall back to Groq.`);
+        // Guard against an expensive model being configured by accident: the
+        // mini/nano tier costs a small fraction of the flagship and reasoning
+        // models, and a chat bot has no use for the difference.
+        if (m && !SMALL_MODEL_RE.test(m))
+          logWarn(
+            "LLM cost check",
+            `${envName}="${m}" is not a mini/nano model — expect a much higher bill. Use e.g. gpt-4o-mini, gpt-4.1-mini or gpt-4.1-nano.`,
+          );
       }
-      logOk(`OpenAI primary: ${config.llm.paidModel} (text) · ${config.llm.paidVisionModel} (vision) — ${config.llm.provider} is backup`);
+      logOk(
+        `OpenAI primary: ${config.llm.paidModel} (text) · ${config.llm.paidVisionModel} (vision) · ` +
+          `${config.llm.paidExtractModel} (extraction) — ${config.llm.provider} is backup`,
+      );
     }
   } catch (e) {
     logWarn("LLM model check", `could not read the model catalog: ${e?.message || e}`);
   }
+}
+
+// Chat history is the biggest input cost: every earlier reply is re-sent on
+// each turn. Keep the last 3 exchanges and clip long earlier replies — the
+// model only needs the gist to stay on topic.
+const HISTORY_MESSAGES = 6;
+const HISTORY_CHARS = 600;
+export function trimHistory(history) {
+  return (history || []).slice(-HISTORY_MESSAGES).map((m) => {
+    const c = typeof m.content === "string" ? m.content : "";
+    return { role: m.role, content: c.length > HISTORY_CHARS ? c.slice(0, HISTORY_CHARS) + "…" : c };
+  });
 }
 
 function userContent(text, imageDataUrl) {
@@ -328,11 +424,13 @@ export async function coachReply(user, history, text, kind = "coach", imageDataU
 
   const messages = [
     { role: "system", content: system },
-    ...history.slice(-10),
+    ...trimHistory(history),
     { role: "user", content: userContent(text, imageDataUrl) },
   ];
+  // Structured meal / label replies fit well inside 450 tokens; the prompts
+  // already ask for WhatsApp-length answers.
   return complete(messages, {
-    maxTokens: 700,
+    maxTokens: 450,
     model: imageDataUrl ? config.llm.visionModel : config.llm.model,
   });
 }
@@ -364,15 +462,15 @@ export async function askDrsaabReply(user, history, text, opts = {}) {
 
   const messages = [
     { role: "system", content: system },
-    ...history.slice(-12),
+    ...trimHistory(history),
     { role: "user", content: userContent(text, imageDataUrl) },
   ];
 
   // Photos use the vision model (OpenAI's LLM_PAID_VISION_MODEL, or Groq's on backup).
   if (imageDataUrl) {
-    return complete(messages, { maxTokens: 700, model: config.llm.visionModel });
+    return complete(messages, { maxTokens: 450, model: config.llm.visionModel });
   }
-  return complete(messages, { maxTokens: paid ? 800 : 500 });
+  return complete(messages, { maxTokens: paid ? 600 : 400 });
 }
 
 /**
@@ -459,6 +557,8 @@ Return valid JSON only.`,
     // in the analysis field. 1500 tokens truncated the JSON mid-string on real
     // CBC reports and dumped raw partial JSON to the user; 3000 gives headroom.
     maxTokens: 3000,
+    // Lab reports carry small print — keep more pixels than a meal photo.
+    imageMaxPx: 1600,
     model: imageDataUrl ? config.llm.visionModel : config.llm.model,
     jsonMode: !imageDataUrl, // vision endpoints often reject response_format
   });
@@ -549,88 +649,6 @@ function extractAnalysisFallback(raw) {
 }
 
 /**
- * Personalised Progress report. Two variants driven by the same underlying
- * data blob so we don't fork the whole pipeline.
- *
- *   variant = "free"  → 5-8 line motivating summary (blood sugar / activity /
- *                       weight callouts) that answers "what improved?" and
- *                       "how close to the goal?" at a high level. Ends with a
- *                       gentle nudge — the free/paid upsell UI is added by
- *                       the caller.
- *
- *   variant = "paid"  → Comprehensive markdown report:
- *                         1. Goal Progress (per active goal, with % if
- *                            possible from the data)
- *                         2. Biggest Win
- *                         3. Biggest Opportunity
- *                         4. Personalised Recommendations (3–5 bullets)
- *                       All four framing questions from the spec must be
- *                       answerable from the response.
- *
- * `data` fields (all optional): goals, motivation, glucose{avg,inRangePct,
- * count,recent}, weight, weightTrend, activityCount, medicationCount,
- * wellbeing, labSummary, streak, hba1c.
- */
-export async function progressReport(user, data, variant = "paid") {
-  const lang = user?.language || "en";
-  const framing = `The report must be encouraging, practical and goal-oriented — not just statistics. It must implicitly answer four questions:\n1. What has improved for this user?\n2. What needs attention?\n3. How close are they to achieving each goal?\n4. What is the single most important thing they should focus on next?`;
-
-  const persona = variant === "free"
-    ? `Write a short 5-8 line MOTIVATING progress summary in ${LANG_NAME[lang] || "English"}. Use plain markdown with a few emoji (✅ / ⚠️ / 📈). Celebrate at least one improvement, gently flag one area to watch, and close by connecting to their goal. Do NOT include the words "Biggest Win" / "Biggest Opportunity" / "Recommendations" — that's the paid version. Keep it under 8 short lines.`
-    : `Write a COMPREHENSIVE progress report in ${LANG_NAME[lang] || "English"} using this exact structure and Markdown headings:\n\n*Goal Progress*\n(For each active goal in the data, one line: current status + % complete if the numbers support it, else a qualitative "on track / needs push / early days".)\n\n*Biggest Win*\n(One or two sentences on their strongest positive trend since the last report.)\n\n*Biggest Opportunity*\n(The single highest-impact habit change they could make to move toward their goal.)\n\n*Personalised Recommendations*\n(3–5 concrete bullets grounded in the data. Whenever appropriate, reference the user's stated motivation ("You mentioned that you want to be healthier for your children…").)\n\nEnd with a short encouraging sign-off line.`;
-
-  const system = [SAFETY, framing, persona, profileContext(user)]
-    .filter(Boolean)
-    .join("\n\n");
-
-  const goalsBlock = (data.goals || []).length
-    ? data.goals.map((g, i) => {
-        const parts = [`${i + 1}. ${g.title}`];
-        if (g.motivation) parts.push(`   motivation: ${g.motivation}`);
-        if (g.target_date) parts.push(`   target date: ${g.target_date}`);
-        else if (g.target_hint) parts.push(`   target: ${g.target_hint}`);
-        return parts.join("\n");
-      }).join("\n")
-    : "(no active goals set)";
-
-  const payload = `Active goals:\n${goalsBlock}\n\nRecent data (last 30 days unless noted):\n- Glucose readings logged: ${data.glucoseCount ?? 0}\n- Average glucose: ${data.glucoseAvg ?? "no data"} mg/dL\n- In-range percentage: ${data.inRangePct ?? "no data"}%\n- Estimated HbA1c: ${data.hba1c ?? "no data"}\n- Latest self-reported HbA1c: ${user?.latest_hba1c ?? "unknown"}\n- Weight: ${data.weight ?? "no data"} kg  (trend: ${data.weightTrend ?? "insufficient data"})\n- Activity entries: ${data.activityCount ?? 0}\n- Medication logs: ${data.medicationCount ?? 0}\n- Wellbeing check-ins: ${data.wellbeingCount ?? 0}\n- Lab summary: ${data.labSummary || "no recent lab reports"}\n- Current streak: ${data.streak ?? user?.streak ?? 0} day(s)\n\nUser motivation driver from profile: ${user?.motivation_driver || "unknown"}`;
-
-  return complete(
-    [
-      { role: "system", content: system },
-      { role: "user", content: payload },
-    ],
-    { maxTokens: variant === "free" ? 400 : 900 }
-  );
-}
-
-/** Weekly summary written from computed stats. */
-export async function weeklySummary(user, stats) {
-  const lang = user?.language || "en";
-  const system = [
-    SAFETY,
-    "Write a short, motivating WEEKLY HEALTH SUMMARY (5-8 lines) from the user's data. Celebrate consistency, gently flag anything to watch, and give ONE concrete focus for next week. Use a friendly tone with a couple of emoji.",
-    languageInstruction(lang),
-  ].join("\n\n");
-
-  const data = `This week's data:
-- Glucose readings logged: ${stats.glucoseCount}
-- Average glucose: ${stats.glucoseAvg ?? "no data"} mg/dL
-- Range: ${stats.glucoseMin ?? "-"}–${stats.glucoseMax ?? "-"} mg/dL
-- Medication logs: ${stats.medicationCount}
-- Daily check-ins: ${stats.healthCount}
-- Current streak: ${user.streak || 0} day(s)`;
-
-  return complete(
-    [
-      { role: "system", content: system },
-      { role: "user", content: data },
-    ],
-    { maxTokens: 500 }
-  );
-}
-
-/**
  * Executive Health Snapshot (paid "Generate Report") — the AI-written parts
  * of the PDF: two short trend summaries, a one-line health-score message and
  * three key insights. Like every call, goes to OpenAI first with Groq as backup. Always English — the PDF
@@ -641,7 +659,24 @@ export async function weeklySummary(user, stats) {
  * @param {string} facts compact plain-text facts block (snapshotData.factsBlock)
  * @returns {{weekly_summary:string, monthly_summary:string, score_message:string, insights:Array<{tone:string,text:string}>}}
  */
+// The same patient's report is often opened several times (patient taps
+// Generate Report again, admin re-opens it in the panel). The narrative only
+// depends on the facts block, so reuse it for 12h while the facts are
+// unchanged — any new reading changes the facts and gets a fresh write-up.
+const INSIGHTS_TTL_MS = 12 * 60 * 60 * 1000;
+const insightsCache = new Map();
+
 export async function snapshotInsights(user, facts) {
+  const cacheKey = `${user?.id || ""}|${facts}`;
+  const hit = insightsCache.get(cacheKey);
+  if (hit && Date.now() - hit.at < INSIGHTS_TTL_MS) return hit.value;
+  const value = await snapshotInsightsUncached(facts);
+  insightsCache.set(cacheKey, { at: Date.now(), value });
+  if (insightsCache.size > 300) insightsCache.delete(insightsCache.keys().next().value);
+  return value;
+}
+
+async function snapshotInsightsUncached(facts) {
   const system = `You write the narrative parts of a one-page "Executive Health Snapshot" PDF for a person managing diabetes with the DrSaab coaching app. You are given the exact numbers the page shows. Return ONE JSON object only:
 
 { "weekly_summary": string, "monthly_summary": string, "score_message": string, "insights": [ { "tone": string, "text": string } ] }
@@ -732,6 +767,8 @@ async function extractJson(system, text, imageDataUrl = null, maxTokens = 700) {
     maxTokens,
     model: imageDataUrl ? config.llm.visionModel : config.llm.model,
     jsonMode: !imageDataUrl,
+    // Structured output only — no user-facing prose, so use the cheap model.
+    cheap: true,
   });
   return parseLabJson(raw) || {};
 }

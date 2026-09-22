@@ -313,6 +313,12 @@ async function extractForQuestion(bot, chatId, session, q, val, imageDataUrl) {
   const user = session.user;
   const kind = kindOf(q);
 
+  // A plain "no" / "none" needs no AI extraction — treat it like Skip.
+  if ((kind === "metrics" || kind === "medications") && !imageDataUrl && NO_ANSWER_RE.test(val)) {
+    session.data.pending = null;
+    return advanceAfter(bot, chatId, session, q);
+  }
+
   if (kind === "metrics") {
     const { metrics } = await extractHealthMetrics(user, val);
     if (!metrics.length) {

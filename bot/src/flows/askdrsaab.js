@@ -14,6 +14,7 @@ import {
 } from "../supabase.js";
 import { applyScores } from "../scores.js";
 import { pushHistory } from "../session.js";
+import { smallTalkReplyKey } from "../smalltalk.js";
 
 // Ask DrSaab — open natural-language conversation. Free-tier ready.
 //   - Free users: cheap personalisation (weekly stats only), basic model.
@@ -41,6 +42,12 @@ export async function askDrsaabText(bot, chatId, session, text, msg) {
       keyboard: backKeyboard(lang),
       markdown: true,
     });
+  }
+
+  // "thanks" / "ok" / "👍" — a template reply, no AI call.
+  const smallTalk = smallTalkReplyKey(session, userText, !!imageDataUrl);
+  if (smallTalk) {
+    return send(bot, chatId, t(lang, smallTalk), { keyboard: backKeyboard(lang), markdown: true, keepEmoji: true });
   }
 
   await typing(bot, chatId);

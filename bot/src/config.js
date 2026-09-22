@@ -36,7 +36,8 @@ export const config = {
     model: process.env.LLM_MODEL?.trim() || (usingGroq ? "openai/gpt-oss-120b" : "gpt-4o-mini"),
     visionModel:
       process.env.LLM_VISION_MODEL?.trim() ||
-      (usingGroq ? "qwen/qwen3.6-27b" : "gpt-4o-mini"),
+      // qwen/qwen3.6-27b was retired by Groq (404) by 2026-09-22.
+      (usingGroq ? "qwen/qwen3.8-27b" : "gpt-4o-mini"),
 
     // When BOTH GROQ and OPENAI keys are present, OpenAI answers every AI call
     // (chat, photos, labs, reports) and Groq is only a backup for when OpenAI
@@ -44,6 +45,10 @@ export const config = {
     paidApiKey: usingGroq && openaiKey ? openaiKey : null,
     paidModel: process.env.LLM_PAID_MODEL?.trim() || (openaiKey ? "gpt-4o-mini" : null),
     paidVisionModel: process.env.LLM_PAID_VISION_MODEL?.trim() || "gpt-4.1-mini",
+    // Behind-the-scenes JSON extraction (My Health answers → structured data)
+    // never reaches the user as prose, so it runs on the cheapest model:
+    // gpt-4.1-nano is ~33% the input price of gpt-4o-mini.
+    paidExtractModel: process.env.LLM_PAID_EXTRACT_MODEL?.trim() || "gpt-4.1-nano",
   },
 
   // Database selection priority: Postgres (DATABASE_URL) → Supabase → in-memory.
